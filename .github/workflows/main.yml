@@ -1,0 +1,49 @@
+name: Build EXE
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PS2EXE
+        shell: powershell
+        run: |
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -Scope CurrentUser -Force
+
+      - name: Build HydroShiftRecorder.exe
+        shell: powershell
+        run: |
+          $ver = '0.0.0'
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+(\.\d+){0,3})$') { $ver = $Matches[1] }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Invoke-ps2exe -inputFile HydroShift-Recorder.ps1 -outputFile dist\HydroShiftRecorder.exe `
+            -noConsole -STA -iconFile assets\icon.ico `
+            -title 'HydroShift Recorder' -product 'HydroShift Recorder' `
+            -description 'Records and converts loops for the Lian Li HydroShift II OLED Curved display' `
+            -version $ver
+          if (-not (Test-Path dist\HydroShiftRecorder.exe)) { throw 'Build failed: exe was not created' }
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: HydroShiftRecorder
+          path: dist/HydroShiftRecorder.exe
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/HydroShiftRecorder.exe
+          generate_release_notes: true
