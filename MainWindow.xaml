@@ -1,0 +1,255 @@
+<Window x:Class="HydroShiftRecorder.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HydroShift Recorder" Width="484" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" WindowStartupLocation="CenterScreen" AllowDrop="True"
+        FontFamily="Segoe UI Variable Display, Segoe UI" Foreground="#FFF5F5F7"
+        UseLayoutRounding="True" Icon="assets/icon.ico">
+  <Window.Resources>
+    <SolidColorBrush x:Key="Accent" Color="#FFBF5AF2"/>
+    <SolidColorBrush x:Key="Card" Color="#FF2C2C2E"/>
+    <SolidColorBrush x:Key="Sub" Color="#FF8E8E93"/>
+    <SolidColorBrush x:Key="Line" Color="#FF3A3A3C"/>
+
+    <Style x:Key="Knob" TargetType="Thumb">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb">
+        <Ellipse Width="20" Height="20" Fill="White">
+          <Ellipse.Effect><DropShadowEffect BlurRadius="6" ShadowDepth="1" Opacity="0.35"/></Ellipse.Effect>
+        </Ellipse>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="FillRepeat" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton">
+        <Border Background="Transparent"><Border Height="4" CornerRadius="2" Background="#FFBF5AF2" VerticalAlignment="Center"/></Border>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="EmptyRepeat" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton">
+        <Border Background="Transparent"/>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ThinSlider" TargetType="Slider">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+        <Grid Height="24">
+          <Border Height="4" CornerRadius="2" Background="#FF48484A" VerticalAlignment="Center"/>
+          <Track x:Name="PART_Track">
+            <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource FillRepeat}"/></Track.DecreaseRepeatButton>
+            <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource EmptyRepeat}"/></Track.IncreaseRepeatButton>
+            <Track.Thumb><Thumb Style="{StaticResource Knob}"/></Track.Thumb>
+          </Track>
+        </Grid>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Switch" TargetType="ToggleButton">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+        <Grid Width="46" Height="28" Background="Transparent">
+          <Border x:Name="Track" CornerRadius="14" Background="#FF48484A"/>
+          <Ellipse x:Name="Dot" Width="24" Height="24" Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsChecked" Value="True">
+            <Setter TargetName="Track" Property="Background" Value="#FFBF5AF2"/>
+            <Setter TargetName="Dot" Property="HorizontalAlignment" Value="Right"/>
+            <Setter TargetName="Dot" Property="Margin" Value="0,0,2,0"/>
+          </Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Seg" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#FFF5F5F7"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+        <Border x:Name="b" CornerRadius="7" Padding="14,4" Background="Transparent">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="b" Property="Background" Value="#FF636366"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Pill" TargetType="Button">
+      <Setter Property="Foreground" Value="#FFF5F5F7"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="b" CornerRadius="8" Background="#FF3A3A3C" Padding="12,6">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#FF48484A"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Link" TargetType="Button">
+      <Setter Property="Foreground" Value="#FFBF5AF2"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border Background="Transparent" Padding="2"><ContentPresenter/></Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.75"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Thin" TargetType="ProgressBar">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ProgressBar">
+        <Grid Height="4">
+          <Border x:Name="PART_Track" CornerRadius="2" Background="#FF3A3A3C"/>
+          <Border x:Name="PART_Indicator" CornerRadius="2" Background="#FFBF5AF2" HorizontalAlignment="Left"/>
+        </Grid>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+  </Window.Resources>
+
+  <Grid Margin="14">
+    <Border CornerRadius="16" Background="#FF1C1C1E">
+      <Border.Effect><DropShadowEffect BlurRadius="28" ShadowDepth="6" Opacity="0.55" Color="Black"/></Border.Effect>
+    </Border>
+    <Border CornerRadius="16" Background="#FF1C1C1E" BorderBrush="#22FFFFFF" BorderThickness="1">
+      <StackPanel Margin="20,0,20,18">
+
+        <Grid x:Name="TitleBar" Height="44" Background="Transparent">
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <Ellipse x:Name="BtnClose" Width="12" Height="12" Fill="#FFFF5F57" Cursor="Hand" Margin="0,0,8,0" ToolTip="Close"/>
+            <Ellipse x:Name="BtnMin" Width="12" Height="12" Fill="#FFFEBC2E" Cursor="Hand" Margin="0,0,8,0" ToolTip="Minimize"/>
+            <Ellipse Width="12" Height="12" Fill="#FF3A3A3C"/>
+          </StackPanel>
+          <TextBlock Text="HydroShift Recorder" HorizontalAlignment="Center" VerticalAlignment="Center"
+                     FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Sub}"/>
+        </Grid>
+
+        <Grid x:Name="PreviewArea" Height="190" Margin="0,4,0,0" Cursor="Hand" ToolTip="Click to refresh the preview. Drop a video here to convert it.">
+          <Border x:Name="Preview" CornerRadius="12" Background="Black" BorderBrush="#FF2C2C2E" BorderThickness="1"/>
+          <TextBlock x:Name="PreviewHint" Text="Looking for your HydroShift…" HorizontalAlignment="Center"
+                     VerticalAlignment="Center" Foreground="{StaticResource Sub}" FontSize="13"/>
+          <Border x:Name="RecPill" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Margin="10" CornerRadius="10" Background="#CC000000" Padding="9,3">
+            <StackPanel Orientation="Horizontal">
+              <Ellipse x:Name="RecDot" Width="8" Height="8" Fill="#FFFF453A" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <TextBlock x:Name="RecTime" Text="0:00" FontSize="12" FontWeight="SemiBold"/>
+            </StackPanel>
+          </Border>
+          <TextBlock x:Name="PreviewInfo" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                     Margin="0,0,12,8" FontSize="11" Foreground="#B3FFFFFF"/>
+        </Grid>
+
+        <Border x:Name="NameCard" Background="{StaticResource Card}" CornerRadius="12" Margin="0,16,0,0" Padding="14,10">
+          <Grid>
+            <TextBox x:Name="NameBox" Background="Transparent" BorderThickness="0" Foreground="#FFF5F5F7"
+                     CaretBrush="White" FontSize="15" Padding="0"/>
+            <TextBlock x:Name="NamePh" Text="Name (optional)" Foreground="#FF636366" FontSize="15"
+                       Margin="2,0,0,0" IsHitTestVisible="False"/>
+          </Grid>
+        </Border>
+
+        <Border x:Name="SettingsCard" Background="{StaticResource Card}" CornerRadius="12" Margin="0,12,0,0">
+          <StackPanel>
+            <StackPanel Margin="16,12,16,8">
+              <Grid>
+                <TextBlock Text="Length" FontSize="15" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LenText" Text="45 s" HorizontalAlignment="Right" Foreground="{StaticResource Sub}"
+                           FontSize="15" Cursor="IBeam" ToolTip="Click to type an exact length, like 90 or 1:30"/>
+                <TextBox x:Name="LenBox" Visibility="Collapsed" HorizontalAlignment="Right" Width="80" TextAlignment="Right"
+                         Background="#FF1C1C1E" BorderThickness="0" Foreground="#FFF5F5F7" CaretBrush="White"
+                         FontSize="15" Padding="4,0"/>
+              </Grid>
+              <Slider x:Name="LenSlider" Style="{StaticResource ThinSlider}" Minimum="5" Maximum="300"
+                      IsMoveToPointEnabled="True" Margin="0,6,0,0"/>
+            </StackPanel>
+            <Border Height="1" Background="{StaticResource Line}" Margin="16,0,0,0"/>
+
+            <Grid Margin="16,9">
+              <TextBlock Text="Frame rate" FontSize="15" VerticalAlignment="Center"/>
+              <Border HorizontalAlignment="Right" Background="#FF1C1C1E" CornerRadius="9" Padding="2">
+                <StackPanel Orientation="Horizontal">
+                  <RadioButton x:Name="Fps30" Content="30" GroupName="fps" Style="{StaticResource Seg}"/>
+                  <RadioButton x:Name="Fps60" Content="60" GroupName="fps" Style="{StaticResource Seg}"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+            <Border Height="1" Background="{StaticResource Line}" Margin="16,0,0,0"/>
+
+            <Grid Margin="16,9">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Seamless loop" FontSize="15"/>
+                <TextBlock Text="Crossfades the end into the start" FontSize="12" Foreground="{StaticResource Sub}"/>
+              </StackPanel>
+              <ToggleButton x:Name="LoopSw" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <Border Height="1" Background="{StaticResource Line}" Margin="16,0,0,0"/>
+
+            <Grid Margin="16,9">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="True black" FontSize="15"/>
+                <TextBlock Text="Turns near-black pixels fully off" FontSize="12" Foreground="{StaticResource Sub}"/>
+              </StackPanel>
+              <ToggleButton x:Name="BlackSw" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <Border Height="1" Background="{StaticResource Line}" Margin="16,0,0,0"/>
+
+            <Grid Margin="16,9">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Smooth to 60 fps" FontSize="15"/>
+                <TextBlock Text="AI frame interpolation for converted videos" FontSize="12" Foreground="{StaticResource Sub}"/>
+              </StackPanel>
+              <ToggleButton x:Name="SmoothSw" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <Border Height="1" Background="{StaticResource Line}" Margin="16,0,0,0"/>
+
+            <Grid Margin="16,9">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Countdown" FontSize="15"/>
+                <TextBlock Text="3 seconds before recording starts" FontSize="12" Foreground="{StaticResource Sub}"/>
+              </StackPanel>
+              <ToggleButton x:Name="CountSw" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <Border Height="1" Background="{StaticResource Line}" Margin="16,0,0,0"/>
+
+            <Grid x:Name="SaveRow" Margin="16,11" Background="Transparent" Cursor="Hand" ToolTip="Choose where videos are saved">
+              <TextBlock Text="Save to" FontSize="15"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBlock x:Name="SaveText" Foreground="{StaticResource Sub}" FontSize="15" MaxWidth="250" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="›" Foreground="{StaticResource Sub}" FontSize="18" Margin="8,-3,0,0"/>
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Grid x:Name="RecBtn" Width="76" Height="76" Margin="0,22,0,0" Cursor="Hand" Background="Transparent" ToolTip="Record">
+          <Ellipse Stroke="#FFF5F5F7" StrokeThickness="3.5"/>
+          <Border x:Name="RecInner" Width="60" Height="60" CornerRadius="30" Background="#FFFF453A"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <TextBlock x:Name="RecCount" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+        <TextBlock x:Name="Status" Text="Ready" HorizontalAlignment="Center" Margin="0,12,0,0"
+                   Foreground="{StaticResource Sub}" FontSize="13" TextAlignment="Center" TextWrapping="Wrap"/>
+        <ProgressBar x:Name="Prog" Style="{StaticResource Thin}" Margin="60,10,60,0" Minimum="0" Maximum="1" Visibility="Hidden"/>
+
+        <Border x:Name="ResultCard" Visibility="Collapsed" Background="{StaticResource Card}" CornerRadius="12" Margin="0,14,0,0" Padding="16,10">
+          <Grid>
+            <StackPanel VerticalAlignment="Center" Margin="0,0,170,0">
+              <TextBlock x:Name="ResultName" FontSize="14" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="ResultInfo" FontSize="12" Foreground="{StaticResource Sub}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+              <Button x:Name="PlayBtn" Content="Play" Style="{StaticResource Pill}" Margin="0,0,8,0"/>
+              <Button x:Name="ShowBtn" Content="Show in Folder" Style="{StaticResource Pill}"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Grid Margin="0,16,0,0">
+          <Button x:Name="OpenBtn" Content="Open folder" Style="{StaticResource Link}" HorizontalAlignment="Left"/>
+          <Button x:Name="ConvertBtn" Content="Convert a video…" Style="{StaticResource Link}" HorizontalAlignment="Center"/>
+          <Button x:Name="RedetectBtn" Content="Find display again" Style="{StaticResource Link}" HorizontalAlignment="Right"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>
