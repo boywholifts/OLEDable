@@ -105,6 +105,45 @@
         </Grid>
       </ControlTemplate></Setter.Value></Setter>
     </Style>
+
+    <!-- round icon buttons along the bottom -->
+    <Style x:Key="IconBtn" TargetType="Button">
+      <Setter Property="Width" Value="46"/>
+      <Setter Property="Height" Value="46"/>
+      <Setter Property="Foreground" Value="#FFF5F5F7"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="ToolTipService.InitialShowDelay" Value="300"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Grid Background="Transparent">
+          <Ellipse x:Name="bg" Fill="#FF2C2C2E"/>
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True">
+            <Setter TargetName="bg" Property="Fill" Value="#FF3A3A3C"/>
+            <Setter Property="Foreground" Value="#FFBF5AF2"/>
+          </Trigger>
+          <Trigger Property="IsPressed" Value="True">
+            <Setter TargetName="bg" Property="Fill" Value="#FF48484A"/>
+          </Trigger>
+          <Trigger Property="IsEnabled" Value="False">
+            <Setter Property="Opacity" Value="0.35"/>
+          </Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <!-- 24x24 line icons that take their colour from the button -->
+    <Style x:Key="Icon" TargetType="Path">
+      <Setter Property="Width" Value="24"/>
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="Fill" Value="Transparent"/>
+      <Setter Property="StrokeThickness" Value="1.7"/>
+      <Setter Property="StrokeStartLineCap" Value="Round"/>
+      <Setter Property="StrokeEndLineCap" Value="Round"/>
+      <Setter Property="StrokeLineJoin" Value="Round"/>
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+    </Style>
   </Window.Resources>
 
   <Grid Margin="14">
@@ -244,11 +283,23 @@
           </Grid>
         </Border>
 
-        <Grid Margin="0,16,0,0">
-          <Button x:Name="OpenBtn" Content="Open folder" Style="{StaticResource Link}" HorizontalAlignment="Left"/>
-          <Button x:Name="ConvertBtn" Content="Convert a video…" Style="{StaticResource Link}" HorizontalAlignment="Center"/>
-          <Button x:Name="RedetectBtn" Content="Find display again" Style="{StaticResource Link}" HorizontalAlignment="Right"/>
-        </Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+          <!-- open the save folder -->
+          <Button x:Name="OpenBtn" Style="{StaticResource IconBtn}" ToolTip="Open folder">
+            <Path Style="{StaticResource Icon}"
+                  Data="M3,17.5 L3,6.5 C3,5.67 3.67,5 4.5,5 L8.6,5 C9,5 9.4,5.16 9.7,5.44 L11.3,7 L17.5,7 C18.33,7 19,7.67 19,8.5 L19,11 M3,17.5 L5.6,11.85 C5.85,11.33 6.37,11 6.95,11 L20.4,11 C21.15,11 21.65,11.78 21.33,12.46 L19.05,17.36 C18.8,17.89 18.27,18.2 17.7,18.2 L4.2,18.2 C3.55,18.2 3,17.9 3,17.5 Z"/>
+          </Button>
+          <!-- convert a video (film strip) -->
+          <Button x:Name="ConvertBtn" Style="{StaticResource IconBtn}" Margin="28,0" ToolTip="Convert a video… (or drop one onto the window)">
+            <Path Style="{StaticResource Icon}"
+                  Data="M5,4 L19,4 C20.1,4 21,4.9 21,6 L21,18 C21,19.1 20.1,20 19,20 L5,20 C3.9,20 3,19.1 3,18 L3,6 C3,4.9 3.9,4 5,4 Z M7,4 L7,20 M17,4 L17,20 M3,8 L7,8 M3,12 L7,12 M3,16 L7,16 M17,8 L21,8 M17,12 L21,12 M17,16 L21,16 M10.5,9.6 L14.3,12 L10.5,14.4 Z"/>
+          </Button>
+          <!-- find the HydroShift display again (scan frame around a wide screen) -->
+          <Button x:Name="RedetectBtn" Style="{StaticResource IconBtn}" ToolTip="Find display again">
+            <Path Style="{StaticResource Icon}"
+                  Data="M3,8 L3,5.5 C3,4.1 4.1,3 5.5,3 L8,3 M16,3 L18.5,3 C19.9,3 21,4.1 21,5.5 L21,8 M21,16 L21,18.5 C21,19.9 19.9,21 18.5,21 L16,21 M8,21 L5.5,21 C4.1,21 3,19.9 3,18.5 L3,16 M8,9.5 L16,9.5 C16.83,9.5 17.5,10.17 17.5,11 L17.5,13 C17.5,13.83 16.83,14.5 16,14.5 L8,14.5 C7.17,14.5 6.5,13.83 6.5,13 L6.5,11 C6.5,10.17 7.17,9.5 8,9.5 Z"/>
+          </Button>
+        </StackPanel>
       </StackPanel>
     </Border>
   </Grid>
