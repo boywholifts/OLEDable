@@ -15,24 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install PS2EXE
-        shell: powershell
-        run: |
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
-          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name ps2exe -Scope CurrentUser -Force
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-      - name: Build HydroShiftRecorder.exe
-        shell: powershell
+      - name: Build
+        shell: pwsh
         run: |
-          $ver = '0.0.0'
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+(\.\d+){0,3})$') { $ver = $Matches[1] }
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Invoke-ps2exe -inputFile HydroShift-Recorder.ps1 -outputFile dist\HydroShiftRecorder.exe `
-            -noConsole -STA -iconFile assets\icon.ico `
-            -title 'HydroShift Recorder' -product 'HydroShift Recorder' `
-            -description 'Records and converts loops for the Lian Li HydroShift II OLED Curved display' `
-            -version $ver
+          $ver = '1.0.0'
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)') { $ver = $Matches[1] }
+          dotnet build HydroShiftRecorder.csproj -c Release -p:Version=$ver -o dist
           if (-not (Test-Path dist\HydroShiftRecorder.exe)) { throw 'Build failed: exe was not created' }
 
       - name: Upload build
