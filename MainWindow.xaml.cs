@@ -660,15 +660,13 @@ namespace HydroShiftRecorder
             ShowBtn.Click += (s, e) => { if (outFile != null && File.Exists(outFile)) Process.Start("explorer.exe", "/select," + Q(outFile)); };
             SaveRow.MouseLeftButtonUp += (s, e) =>
             {
-                using (var d = new System.Windows.Forms.FolderBrowserDialog { Description = "Choose where HydroShift videos are saved" })
+                // modern Explorer-style picker: address bar for typing a path, follows Windows dark mode
+                var picked = FolderPicker.Pick(this, "Choose where HydroShift videos are saved", S.OutDir);
+                if (picked != null)
                 {
-                    if (Directory.Exists(S.OutDir)) d.SelectedPath = S.OutDir;
-                    if (d.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                    {
-                        S.OutDir = d.SelectedPath;
-                        SaveText.Text = S.OutDir;
-                        SaveSettings();
-                    }
+                    S.OutDir = picked;
+                    SaveText.Text = S.OutDir;
+                    SaveSettings();
                 }
             };
             foreach (var c in new System.Windows.Controls.Primitives.ToggleButton[] { LoopSw, BlackSw, SmoothSw, CountSw, Fps30, Fps60 })
