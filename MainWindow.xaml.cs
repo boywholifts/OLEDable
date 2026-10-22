@@ -321,7 +321,11 @@ namespace HydroShiftRecorder
         {
             oled = null;
             if (!S.TrueBlack) return true;
-            var start = new OledParams { Shadows = S.OledShadows, Color = S.OledColor, Cleanup = S.OledCleanup };
+            var start = new OledParams
+            {
+                Shadows = S.OledShadows, Color = S.OledColor, Cleanup = S.OledCleanup,
+                Bright = S.OledBright, Highlights = S.OledHighlights, Glow = S.OledGlow, GlowSize = S.OledGlowSize,
+            };
             var w = new TunerWindow(this, ff, file, duration, Fit, name, start, fromRecording);
             var before = state;
             state = State.Tuning;
@@ -331,6 +335,7 @@ namespace HydroShiftRecorder
             if (!ok) return false;
             oled = w.Result;
             S.OledShadows = oled.Shadows; S.OledColor = oled.Color; S.OledCleanup = oled.Cleanup;
+            S.OledBright = oled.Bright; S.OledHighlights = oled.Highlights; S.OledGlow = oled.Glow; S.OledGlowSize = oled.GlowSize;
             SaveSettings();
             return true;
         }

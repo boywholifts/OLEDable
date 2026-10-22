@@ -57,53 +57,102 @@
         <!-- frames from across the video; click one to preview it -->
         <UniformGrid x:Name="Thumbs" Rows="1" Columns="6" Margin="-3,10,-3,0" Height="57"/>
 
-        <Border Background="{StaticResource Card}" CornerRadius="12" Margin="0,14,0,0" Padding="16,6">
-          <StackPanel>
-            <Grid Margin="0,6">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Black level" FontSize="15" VerticalAlignment="Center"
-                         ToolTip="Anything darker than this switches fully off. Set automatically for each video."/>
-              <Slider x:Name="BlackSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="60"
-                      IsMoveToPointEnabled="True" VerticalAlignment="Center"/>
-              <TextBlock x:Name="BlackVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
-                         FontSize="14" Foreground="{StaticResource Sub}"/>
-            </Grid>
-            <Border Height="1" Background="{StaticResource Line}"/>
-            <Grid Margin="0,6">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Shadow depth" FontSize="15" VerticalAlignment="Center"
-                         ToolTip="How gradually dark areas fade into black. Higher is deeper and moodier; lower keeps more shadow detail."/>
-              <Slider x:Name="ShadowSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="1" Maximum="2"
-                      IsMoveToPointEnabled="True" VerticalAlignment="Center"/>
-              <TextBlock x:Name="ShadowVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
-                         FontSize="14" Foreground="{StaticResource Sub}"/>
-            </Grid>
-            <Border Height="1" Background="{StaticResource Line}"/>
-            <Grid Margin="0,6">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Color boost" FontSize="15" VerticalAlignment="Center"
-                         ToolTip="Saturation. A little extra makes neon and lights pop against true black."/>
-              <Slider x:Name="ColorSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0.8" Maximum="1.5"
-                      IsMoveToPointEnabled="True" VerticalAlignment="Center"/>
-              <TextBlock x:Name="ColorVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
-                         FontSize="14" Foreground="{StaticResource Sub}"/>
-            </Grid>
-            <Border Height="1" Background="{StaticResource Line}"/>
-            <Grid Margin="0,8">
-              <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="Clean up noise" FontSize="15"/>
-                <TextBlock Text="Stops compression noise flickering in the blacks (applied when saving)" FontSize="12" Foreground="{StaticResource Sub}"/>
-              </StackPanel>
-              <ToggleButton x:Name="CleanSw" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-          </StackPanel>
-        </Border>
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Grid.Column="0" Background="{StaticResource Card}" CornerRadius="12" Padding="14,8,14,6">
+            <StackPanel>
+              <TextBlock Text="BLACKS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Sub}" Margin="0,0,0,2"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Black level" FontSize="14" VerticalAlignment="Center" ToolTip="Anything darker than this switches fully off. Set automatically for each video."/>
+                <Slider x:Name="BlackSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="60"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="Anything darker than this switches fully off. Set automatically for each video."/>
+                <TextBlock x:Name="BlackVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Shadow depth" FontSize="14" VerticalAlignment="Center" ToolTip="How gradually dark areas fade into black. Higher is deeper and moodier; lower keeps more shadow detail."/>
+                <Slider x:Name="ShadowSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="1" Maximum="2"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="How gradually dark areas fade into black. Higher is deeper and moodier; lower keeps more shadow detail."/>
+                <TextBlock x:Name="ShadowVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Color boost" FontSize="14" VerticalAlignment="Center" ToolTip="Saturation. A little extra makes neon and lights pop against true black."/>
+                <Slider x:Name="ColorSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0.8" Maximum="1.5"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="Saturation. A little extra makes neon and lights pop against true black."/>
+                <TextBlock x:Name="ColorVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}"/>
+              <Grid Margin="0,9,0,7">
+                <TextBlock Text="Clean up noise" FontSize="14" VerticalAlignment="Center"
+                           ToolTip="Stops compression noise flickering in the blacks. Applied when saving, so it doesn't show in this preview."/>
+                <ToggleButton x:Name="CleanSw" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="2" Background="{StaticResource Card}" CornerRadius="12" Padding="14,8,14,6">
+            <StackPanel>
+              <TextBlock Text="LIGHT" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Sub}" Margin="0,0,0,2"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Brightness" FontSize="14" VerticalAlignment="Center" ToolTip="Lifts everything that is lit, without touching true black or clipping whites."/>
+                <Slider x:Name="BrightSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="Lifts everything that is lit, without touching true black or clipping whites."/>
+                <TextBlock x:Name="BrightVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Highlights" FontSize="14" VerticalAlignment="Center" ToolTip="Pushes the brightest parts (lights, signs, neon) harder. High values can clip them to full brightness."/>
+                <Slider x:Name="HighSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="Pushes the brightest parts (lights, signs, neon) harder. High values can clip them to full brightness."/>
+                <TextBlock x:Name="HighVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Glow" FontSize="14" VerticalAlignment="Center" ToolTip="Soft bloom around bright areas, like light spilling into the dark. Turns some black pixels back on, so watch the counter."/>
+                <Slider x:Name="GlowSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="Soft bloom around bright areas, like light spilling into the dark. Turns some black pixels back on, so watch the counter."/>
+                <TextBlock x:Name="GlowVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}"/>
+              <Grid Margin="0,7">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="106"/><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Glow size" FontSize="14" VerticalAlignment="Center" ToolTip="How far the glow spreads."/>
+                <Slider x:Name="GlowSizeSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="6" Maximum="48"
+                        IsMoveToPointEnabled="True" VerticalAlignment="Center" ToolTip="How far the glow spreads."/>
+                <TextBlock x:Name="GlowSizeVal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource Sub}"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </Grid>
 
         <Grid Margin="0,16,0,0">
           <Button x:Name="ResetBtn" Content="Reset to auto" Style="{StaticResource Link}" HorizontalAlignment="Left" VerticalAlignment="Center"/>

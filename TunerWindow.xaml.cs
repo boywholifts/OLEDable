@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace HydroShiftRecorder
 {
@@ -16,7 +17,7 @@ namespace HydroShiftRecorder
     public partial class TunerWindow : Window
     {
         const int W = 1144, H = 524, N = 6;                 // half the HydroShift's 2288 × 1048
-        const double DefShadows = 1.2, DefColor = 1.08;
+        const double DefShadows = 1.2, DefColor = 1.08, DefGlowSize = 20;
 
         /// <summary>The chosen settings, when the window closes with Save.</summary>
         public OledParams Result { get; private set; }
@@ -32,7 +33,8 @@ namespace HydroShiftRecorder
 
         int sel = -1;
         double autoBlack = -1, split = 0.5;
-        bool sync, userMovedBlack;
+        bool sync, userMovedBlack, dirty;
+        readonly DispatcherTimer renderTimer;
         volatile bool closed;
 
         public TunerWindow(Window owner, string ffmpeg, string file, double duration, string fit, string name,
@@ -52,6 +54,10 @@ namespace HydroShiftRecorder
             BlackSlider.Value = 10;
             ShadowSlider.Value = Tools.Clamp(start.Shadows, 1, 2);
             ColorSlider.Value = Tools.Clamp(start.Color, 0.8, 1.5);
+            BrightSlider.Value = Tools.Clamp(start.Bright, 0, 1);
+            HighSlider.Value = Tools.Clamp(start.Highlights, 0, 1);
+            GlowSlider.Value = Tools.Clamp(start.Glow, 0, 1);
+            GlowSizeSlider.Value = Tools.Clamp(start.GlowSize, 6, 48);
             CleanSw.IsChecked = start.Cleanup;
             sync = false;
             UpdateLabels();
@@ -71,6 +77,12 @@ namespace HydroShiftRecorder
                 Thumbs.Children.Add(b);
             }
 
+            // slider drags only mark the preview dirty; this redraws at most every 40 ms, so dragging stays
+            // smooth even when glow (the slow part) is on
+            renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(40) };
+            renderTimer.Tick += (s, e) => { if (dirty) { dirty = false; Render(); } };
+            renderTimer.Start();
+
             Wire();
             ContentRendered += (s, e) => StartLoading();
         }
@@ -84,6 +96,10 @@ namespace HydroShiftRecorder
                 Black = Math.Round(BlackSlider.Value),
                 Shadows = Math.Round(ShadowSlider.Value, 2),
                 Color = Math.Round(ColorSlider.Value, 2),
+                Bright = Math.Round(BrightSlider.Value, 2),
+                Highlights = Math.Round(HighSlider.Value, 2),
+                Glow = Math.Round(GlowSlider.Value, 2),
+                GlowSize = Math.Round(GlowSizeSlider.Value),
                 Cleanup = CleanSw.IsChecked == true,
             };
         }
@@ -165,7 +181,7 @@ namespace HydroShiftRecorder
         void Render()
         {
             if (sel < 0 || frames[sel] == null) return;
-            double off = Oled.Apply(frames[sel], buf, Current());
+            double off = Oled.Apply(frames[sel], W, H, 0.5, buf, Current());   // preview is half size
             oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
             OffText.Text = string.Format(Tools.Inv, "{0:0}% of pixels off   ·   was {1:0}%", off * 100, origOff[sel] * 100);
         }
@@ -177,6 +193,21 @@ namespace HydroShiftRecorder
             ShadowVal.Text = string.Format(Tools.Inv, "{0:0}%", (ShadowSlider.Value - 1) * 100);
             double c = (ColorSlider.Value - 1) * 100;
             ColorVal.Text = Math.Abs(c) < 0.5 ? "0%" : string.Format(Tools.Inv, "{0}{1:0}%", c > 0 ? "+" : "−", Math.Abs(c));
+            BrightVal.Text = Pct(BrightSlider.Value);
+            HighVal.Text = Pct(HighSlider.Value);
+            GlowVal.Text = GlowSlider.Value < 0.005 ? "Off" : Pct(GlowSlider.Value);
+            GlowSizeVal.Text = string.Format(Tools.Inv, "{0:0} px", GlowSizeSlider.Value);
+            GlowSizeSlider.IsEnabled = GlowSlider.Value >= 0.005;
+            GlowSizeSlider.Opacity = GlowSizeVal.Opacity = GlowSizeSlider.IsEnabled ? 1 : 0.4;
+        }
+
+        static string Pct(double v) { return string.Format(Tools.Inv, "{0:0}%", v * 100); }
+
+        void Changed()
+        {
+            if (sync) return;
+            UpdateLabels();
+            dirty = true;
         }
 
         void UpdateSplit()
@@ -191,9 +222,9 @@ namespace HydroShiftRecorder
 
         void Wire()
         {
-            BlackSlider.ValueChanged += (s, e) => { if (sync) return; userMovedBlack = true; UpdateLabels(); Render(); };
-            ShadowSlider.ValueChanged += (s, e) => { if (sync) return; UpdateLabels(); Render(); };
-            ColorSlider.ValueChanged += (s, e) => { if (sync) return; UpdateLabels(); Render(); };
+            BlackSlider.ValueChanged += (s, e) => { if (!sync) userMovedBlack = true; Changed(); };
+            foreach (var sl in new[] { ShadowSlider, ColorSlider, BrightSlider, HighSlider, GlowSlider, GlowSizeSlider })
+                sl.ValueChanged += (s, e) => Changed();
 
             PreviewHost.MouseLeftButtonDown += (s, e) => { PreviewHost.CaptureMouse(); MoveSplit(e); };
             PreviewHost.MouseMove += (s, e) => { if (PreviewHost.IsMouseCaptured) MoveSplit(e); };
@@ -206,6 +237,10 @@ namespace HydroShiftRecorder
                 if (autoBlack >= 0) BlackSlider.Value = autoBlack;
                 ShadowSlider.Value = DefShadows;
                 ColorSlider.Value = DefColor;
+                BrightSlider.Value = 0;
+                HighSlider.Value = 0;
+                GlowSlider.Value = 0;
+                GlowSizeSlider.Value = DefGlowSize;
                 CleanSw.IsChecked = true;
                 sync = false;
                 UpdateLabels();
@@ -222,7 +257,7 @@ namespace HydroShiftRecorder
                 else if (e.Key == Key.Left && sel > 0) Select(sel - 1);
                 else if (e.Key == Key.Right && sel < N - 1) Select(sel + 1);
             };
-            Closed += (s, e) => closed = true;
+            Closed += (s, e) => { closed = true; renderTimer.Stop(); };
         }
 
         void MoveSplit(MouseEventArgs e)

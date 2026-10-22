@@ -144,6 +144,10 @@ namespace HydroShiftRecorder
         [DataMember] public double OledShadows;
         [DataMember] public double OledColor;
         [DataMember] public bool OledCleanup;
+        [DataMember] public double OledBright;
+        [DataMember] public double OledHighlights;
+        [DataMember] public double OledGlow;
+        [DataMember] public double OledGlowSize;
 
         public Settings() { SetDefaults(); }
 
@@ -156,6 +160,7 @@ namespace HydroShiftRecorder
             OutDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "HydroShift");
             Encoder = "nvenc"; Adapter = -1; Output = -1;
             OledShadows = 1.2; OledColor = 1.08; OledCleanup = true;
+            OledBright = 0; OledHighlights = 0; OledGlow = 0; OledGlowSize = 20;
         }
 
         public static Settings Load(string path)
@@ -172,6 +177,7 @@ namespace HydroShiftRecorder
                         if (s.Crossfade <= 0) s.Crossfade = 1;
                         if (s.OledShadows < 1 || s.OledShadows > 2) s.OledShadows = 1.2;
                         if (s.OledColor < 0.8 || s.OledColor > 1.5) s.OledColor = 1.08;
+                        if (s.OledGlowSize < 6 || s.OledGlowSize > 48) s.OledGlowSize = 20;
                         return s;
                     }
                 }
