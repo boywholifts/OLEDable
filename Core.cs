@@ -140,6 +140,10 @@ namespace HydroShiftRecorder
         [DataMember] public string Encoder;
         [DataMember] public int Adapter;
         [DataMember] public int Output;
+        // last-used OLED tuner settings (the black level itself is detected for each video)
+        [DataMember] public double OledShadows;
+        [DataMember] public double OledColor;
+        [DataMember] public bool OledCleanup;
 
         public Settings() { SetDefaults(); }
 
@@ -151,6 +155,7 @@ namespace HydroShiftRecorder
             Seconds = 45; Fps = 60; Loop = true; TrueBlack = true; Countdown = true; Smooth = true; Crossfade = 1;
             OutDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "HydroShift");
             Encoder = "nvenc"; Adapter = -1; Output = -1;
+            OledShadows = 1.2; OledColor = 1.08; OledCleanup = true;
         }
 
         public static Settings Load(string path)
@@ -165,6 +170,8 @@ namespace HydroShiftRecorder
                         var s = (Settings)new DataContractJsonSerializer(typeof(Settings)).ReadObject(ms);
                         if (string.IsNullOrWhiteSpace(s.OutDir)) s.OutDir = new Settings().OutDir;
                         if (s.Crossfade <= 0) s.Crossfade = 1;
+                        if (s.OledShadows < 1 || s.OledShadows > 2) s.OledShadows = 1.2;
+                        if (s.OledColor < 0.8 || s.OledColor > 1.5) s.OledColor = 1.08;
                         return s;
                     }
                 }

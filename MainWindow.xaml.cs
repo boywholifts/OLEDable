@@ -14,7 +14,7 @@ namespace HydroShiftRecorder
 {
     public partial class MainWindow : Window
     {
-        enum State { Idle, Countdown, Recording, Download, Prep, Rife, Processing }
+        enum State { Idle, Countdown, Recording, Tuning, Download, Prep, Rife, Processing }
 
         const string RifeUrl = "https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-windows.zip";
         const string Fit = "scale=2288:1048:force_original_aspect_ratio=increase:flags=lanczos,crop=2288:1048,setsar=1";
@@ -31,6 +31,7 @@ namespace HydroShiftRecorder
         State state = State.Idle;
         FfJob job, previewJob;
         Downloader dl;
+        OledParams oled;   // true-black settings chosen in the tuner for the current job
         bool cancelled, syncLen;
         string previewPng, workDir, inDir, outDir, outFile, zipPath, src, srcName, procLabel;
         double srcFps, convT, expected, outFps;
@@ -272,7 +273,7 @@ namespace HydroShiftRecorder
         Finish GetFinish(string prefix, double d)
         {
             var pre = prefix;
-            if (S.TrueBlack) pre += "format=rgb24,lutrgb=r='if(lt(val,10),0,val)':g='if(lt(val,10),0,val)':b='if(lt(val,10),0,val)',";
+            if (S.TrueBlack) pre += Oled.Filter(oled ?? new OledParams { Black = 10, Shadows = 1, Color = 1, Cleanup = false });
             double c = S.Crossfade;
             if (S.Loop && d > 2 * c + 1)
             {
@@ -309,6 +310,30 @@ namespace HydroShiftRecorder
         }
 
         static void TryDelete(string f) { try { if (f != null && File.Exists(f)) File.Delete(f); } catch { } }
+
+        // ---------------------------------------------------------------- OLED tuner
+
+        /// <summary>
+        /// With True black on, opens the live tuner for this video and keeps the chosen settings for the final pass.
+        /// Returns false if the user cancelled. With True black off it does nothing and returns true.
+        /// </summary>
+        bool Tune(string file, double duration, string name, bool fromRecording)
+        {
+            oled = null;
+            if (!S.TrueBlack) return true;
+            var start = new OledParams { Shadows = S.OledShadows, Color = S.OledColor, Cleanup = S.OledCleanup };
+            var w = new TunerWindow(this, ff, file, duration, Fit, name, start, fromRecording);
+            var before = state;
+            state = State.Tuning;
+            SetStatus("Fine-tune true black, then press Save");
+            bool ok = w.ShowDialog() == true;
+            state = before;
+            if (!ok) return false;
+            oled = w.Result;
+            S.OledShadows = oled.Shadows; S.OledColor = oled.Color; S.OledCleanup = oled.Cleanup;
+            SaveSettings();
+            return true;
+        }
 
         // ---------------------------------------------------------------- recording
 
@@ -350,7 +375,13 @@ namespace HydroShiftRecorder
             RecPill.Visibility = Visibility.Collapsed;
             var info = Probe(ffprobe, raw);
             double d = info != null && info.Duration > 0 ? info.Duration : S.Seconds;
-            StartFinal("-i " + Q(raw), GetFinish("", d), "", S.Fps);
+            // open the tuner outside the timer tick; Tuning stops the tick from finishing this recording twice
+            state = State.Tuning;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!Tune(raw, d, NameBox.Text.Trim(), true)) { ResetIdle("Recording discarded"); return; }
+                StartFinal("-i " + Q(raw), GetFinish("", d), "", S.Fps);
+            }));
         }
 
         // ---------------------------------------------------------------- converting a video
@@ -398,6 +429,7 @@ namespace HydroShiftRecorder
             srcFps = info.Fps;
             convT = info.Duration > 0 ? Math.Min(info.Duration, S.Seconds) : S.Seconds;
             srcName = !string.IsNullOrWhiteSpace(title) ? title : Path.GetFileNameWithoutExtension(path);
+            if (!Tune(src, convT, srcName, false)) { SetStatus("Cancelled"); return; }
             cancelled = false;
             ResultCard.Visibility = Visibility.Collapsed;
             SetBusy(true);
