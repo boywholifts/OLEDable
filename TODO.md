@@ -1,0 +1,32 @@
+# HydroShift Recorder – to do
+
+## Done in 2.1 (needs a build and a test on the PC)
+- Library thumbnails are PNG at 640×293 with accurate RGB conversion, which should fix the banding in the blacks. The old cached JPGs are simply ignored.
+- "Grey background" badge removed.
+- "Smooth to 60 fps" is greyed out for videos that are already 60 fps. Recordings keep it, because cadence detection still decides for them.
+- Edit in progress:
+  - A sidebar "Editing: <name>" item takes you back to the editor exactly as you left it. Its × closes the edit.
+  - Changes are autosaved (1.5 s debounce, and on leaving the editor or closing the app) for videos that already have a stored session.
+  - Opening another video asks first if there are unexported changes.
+  - Opening the video that's already in the editor just returns to it.
+- Record page live view: one long-running ffmpeg stream at 30 fps (GPU scaling via scale_d3d11 when available, CPU scaling otherwise), replacing the screenshot every 2 s.
+- Converted folder:
+  - Exports go to `<Library>\Converted`; the location can be changed in Settings.
+  - The library lists both folders.
+  - The first time, the app offers to move existing exports there.
+  - Re-exporting a video updates it wherever it is.
+- AI enhance (Real-ESRGAN animevideov3, ncnn/Vulkan):
+  - "DETAIL > AI enhance" switch in the editor, on automatically for sources smaller than the panel.
+  - The preview shows the enhanced frame.
+  - Export: crop to the panel's shape → ESRGAN 2/3/4× → (fit → RIFE if smoothing) → OLED → encode.
+  - Downloads about 50 MB the first time.
+- Installer (Inno Setup):
+  - `installer\HydroShiftRecorder.iss`, built with `build-installer.cmd` (needs `winget install JRSoftware.InnoSetup`) or by GitHub Actions.
+  - Pages: library folder, converted subfolder name, ffmpeg (found / download / browse), RIFE (download now / later / existing folder), Real-ESRGAN (now / later).
+  - Writes the settings JSON before first launch. Per-user install, no admin prompt.
+
+## Still open
+- Make a recording with the HydroShift in second screen mode (end-to-end).
+- Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
+- Code signing (optional; it would help with Malwarebytes/SmartScreen).
+- Push to GitHub, including `.github/workflows/main.yml` (it now builds the installer too). That file can't be written to the PC folder from here.

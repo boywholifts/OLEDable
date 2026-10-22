@@ -1,0 +1,183 @@
+<UserControl x:Class="HydroShiftRecorder.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <!-- a theme card: whole card is the button, ring shows the selected one -->
+    <Style x:Key="ThemeCard" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="b" CornerRadius="14" Padding="12" Background="{DynamicResource Card}" BorderThickness="2" BorderBrush="{TemplateBinding BorderBrush}">
+          <ContentPresenter/>
+        </Border>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Swatch" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Width" Value="34"/>
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="Margin" Value="0,0,10,0"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Grid>
+          <Ellipse Stroke="{TemplateBinding BorderBrush}" StrokeThickness="2"/>
+          <Ellipse Margin="4" Fill="{TemplateBinding Background}"/>
+        </Grid>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Row" TargetType="DockPanel">
+      <Setter Property="Margin" Value="16,0"/>
+      <Setter Property="MinHeight" Value="56"/>
+      <Setter Property="LastChildFill" Value="True"/>
+    </Style>
+  </UserControl.Resources>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+    <StackPanel Margin="36,4,36,32" MaxWidth="920" HorizontalAlignment="Left">
+      <TextBlock Text="Settings" FontSize="26" FontWeight="Bold" Margin="0,0,0,24"/>
+
+      <!-- ===== appearance ===== -->
+      <TextBlock Text="APPEARANCE" Style="{StaticResource SectionTitle}"/>
+      <UniformGrid Rows="1" Columns="3" Margin="-6,0,-6,14">
+        <Button x:Name="CardLight" Style="{StaticResource ThemeCard}" Margin="6,0" Tag="light">
+          <StackPanel>
+            <Border Height="104" CornerRadius="8" Background="#FFF6F6F8" BorderBrush="#FFE4E4EA" BorderThickness="1" ClipToBounds="True">
+              <DockPanel>
+                <Border DockPanel.Dock="Left" Width="54" Background="#FFFFFFFF" BorderBrush="#FFE4E4EA" BorderThickness="0,0,1,0" Padding="8,10" CornerRadius="7,0,0,7">
+                  <StackPanel>
+                    <Border Height="5" Width="30" CornerRadius="2" Background="#FFD7D7DF" HorizontalAlignment="Left"/>
+                    <Border Height="9" CornerRadius="3" Background="#FFEEE8FB" Margin="0,7,0,0"/>
+                    <Border Height="5" Width="24" CornerRadius="2" Background="#FFD7D7DF" HorizontalAlignment="Left" Margin="0,7,0,0"/>
+                  </StackPanel>
+                </Border>
+                <UniformGrid Rows="2" Columns="2" Margin="8">
+                  <Border Margin="0,0,4,4" CornerRadius="4" Background="Black"/>
+                  <Border Margin="4,0,0,4" CornerRadius="4" Background="Black"/>
+                  <Border Margin="0,4,4,0" CornerRadius="4" Background="Black"/>
+                  <Border Margin="4,4,0,0" CornerRadius="4" Background="Black"/>
+                </UniformGrid>
+              </DockPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Margin="2,12,0,0">
+              <Ellipse x:Name="DotLight" Width="16" Height="16" StrokeThickness="2"/>
+              <TextBlock Text="Light" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Bright and clean, for daytime." FontSize="12" Foreground="{DynamicResource Sub}" Margin="2,6,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="CardDark" Style="{StaticResource ThemeCard}" Margin="6,0" Tag="dark">
+          <StackPanel>
+            <Border Height="104" CornerRadius="8" Background="#FF0E0E11" BorderBrush="#FF23232B" BorderThickness="1" ClipToBounds="True">
+              <DockPanel>
+                <Border DockPanel.Dock="Left" Width="54" Background="#FF131318" BorderBrush="#FF23232B" BorderThickness="0,0,1,0" Padding="8,10" CornerRadius="7,0,0,7">
+                  <StackPanel>
+                    <Border Height="5" Width="30" CornerRadius="2" Background="#FF34343F" HorizontalAlignment="Left"/>
+                    <Border Height="9" CornerRadius="3" Background="#FF1F1F27" Margin="0,7,0,0"/>
+                    <Border Height="5" Width="24" CornerRadius="2" Background="#FF34343F" HorizontalAlignment="Left" Margin="0,7,0,0"/>
+                  </StackPanel>
+                </Border>
+                <UniformGrid Rows="2" Columns="2" Margin="8">
+                  <Border Margin="0,0,4,4" CornerRadius="4" Background="Black" BorderBrush="#FF23232B" BorderThickness="1"/>
+                  <Border Margin="4,0,0,4" CornerRadius="4" Background="Black" BorderBrush="#FF23232B" BorderThickness="1"/>
+                  <Border Margin="0,4,4,0" CornerRadius="4" Background="Black" BorderBrush="#FF23232B" BorderThickness="1"/>
+                  <Border Margin="4,4,0,0" CornerRadius="4" Background="Black" BorderBrush="#FF23232B" BorderThickness="1"/>
+                </UniformGrid>
+              </DockPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Margin="2,12,0,0">
+              <Ellipse x:Name="DotDark" Width="16" Height="16" StrokeThickness="2"/>
+              <TextBlock Text="Dark" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Soft dark grey. Easy on the eyes at night." FontSize="12" Foreground="{DynamicResource Sub}" Margin="2,6,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="CardBlack" Style="{StaticResource ThemeCard}" Margin="6,0" Tag="black">
+          <StackPanel>
+            <Border Height="104" CornerRadius="8" Background="#FF000000" BorderBrush="#FF1A1A1A" BorderThickness="1" ClipToBounds="True">
+              <DockPanel>
+                <Border DockPanel.Dock="Left" Width="54" Background="#FF000000" BorderBrush="#FF1A1A1A" BorderThickness="0,0,1,0" Padding="8,10">
+                  <StackPanel>
+                    <Border Height="5" Width="30" CornerRadius="2" Background="#FF2A2A2A" HorizontalAlignment="Left"/>
+                    <Border Height="9" CornerRadius="3" Background="#FF161616" Margin="0,7,0,0"/>
+                    <Border Height="5" Width="24" CornerRadius="2" Background="#FF2A2A2A" HorizontalAlignment="Left" Margin="0,7,0,0"/>
+                  </StackPanel>
+                </Border>
+                <UniformGrid Rows="2" Columns="2" Margin="8">
+                  <Border Margin="0,0,4,4" CornerRadius="4" Background="Black" BorderBrush="#FF1A1A1A" BorderThickness="1"/>
+                  <Border Margin="4,0,0,4" CornerRadius="4" Background="Black" BorderBrush="#FF1A1A1A" BorderThickness="1"/>
+                  <Border Margin="0,4,4,0" CornerRadius="4" Background="Black" BorderBrush="#FF1A1A1A" BorderThickness="1"/>
+                  <Border Margin="4,4,0,0" CornerRadius="4" Background="Black" BorderBrush="#FF1A1A1A" BorderThickness="1"/>
+                </UniformGrid>
+              </DockPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Margin="2,12,0,0">
+              <Ellipse x:Name="DotBlack" Width="16" Height="16" StrokeThickness="2"/>
+              <TextBlock Text="True black" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Pure black like the HydroShift. On an OLED monitor the app's background switches off." FontSize="12"
+                       Foreground="{DynamicResource Sub}" Margin="2,6,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Button>
+      </UniformGrid>
+
+      <Border CornerRadius="12" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Margin="0,0,0,30">
+        <StackPanel>
+          <DockPanel Style="{StaticResource Row}">
+            <ToggleButton x:Name="FollowSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Follow Windows"/>
+              <TextBlock Text="Switches between Light and Dark with your Windows setting. True black is always your choice." FontSize="12"
+                         Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
+            </StackPanel>
+          </DockPanel>
+          <Border Height="1" Background="{DynamicResource Line}" Margin="16,0,0,0"/>
+          <DockPanel Style="{StaticResource Row}">
+            <StackPanel x:Name="Swatches" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"/>
+            <TextBlock Text="Accent color" VerticalAlignment="Center"/>
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ===== library ===== -->
+      <TextBlock Text="LIBRARY" Style="{StaticResource SectionTitle}"/>
+      <Border CornerRadius="12" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Margin="0,0,0,30">
+        <StackPanel>
+          <DockPanel Style="{StaticResource Row}">
+            <Button x:Name="FolderBtn" DockPanel.Dock="Right" Content="Change" Style="{StaticResource Pill}" Height="34" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Library folder"/>
+              <TextBlock x:Name="FolderText" FontSize="12" Foreground="{DynamicResource Sub}" TextTrimming="CharacterEllipsis" Margin="0,2,16,0"/>
+            </StackPanel>
+          </DockPanel>
+          <Border Height="1" Background="{DynamicResource Line}" Margin="16,0,0,0"/>
+          <DockPanel Style="{StaticResource Row}">
+            <Button x:Name="ConvBtn" DockPanel.Dock="Right" Content="Change" Style="{StaticResource Pill}" Height="34" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Converted videos folder"/>
+              <TextBlock x:Name="ConvText" FontSize="12" Foreground="{DynamicResource Sub}" TextTrimming="CharacterEllipsis" Margin="0,2,16,0"/>
+            </StackPanel>
+          </DockPanel>
+          <Border Height="1" Background="{DynamicResource Line}" Margin="16,0,0,0"/>
+          <DockPanel Style="{StaticResource Row}">
+            <ToggleButton x:Name="KeepSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Keep originals for re-editing"/>
+              <TextBlock Text="Recordings are kept in the library's hidden .hydroshift folder, so editing again starts from the clean original."
+                         FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
+            </StackPanel>
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ===== about ===== -->
+      <TextBlock Text="ABOUT" Style="{StaticResource SectionTitle}"/>
+      <Border CornerRadius="12" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+        <StackPanel Margin="16,14">
+          <TextBlock x:Name="AboutText" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" LineHeight="20"/>
+          <Button x:Name="DataBtn" Content="Open the app's data folder" Style="{StaticResource Link}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

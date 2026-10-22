@@ -1,0 +1,91 @@
+<UserControl x:Class="HydroShiftRecorder.RecordPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="36,4,36,24">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel>
+      <TextBlock Text="Record" FontSize="26" FontWeight="Bold"/>
+      <TextBlock Text="Records whatever is playing on the HydroShift, such as a Wallpaper Engine scene, then opens it in the editor."
+                 Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,6,0,0"/>
+    </StackPanel>
+
+    <Grid Grid.Row="1" Margin="0,22,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="24"/>
+        <ColumnDefinition Width="320"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- live view + record button -->
+      <StackPanel>
+        <Border x:Name="PreviewFrame" CornerRadius="14" Background="Black" BorderBrush="{DynamicResource Line}" BorderThickness="1" ClipToBounds="True">
+          <Grid x:Name="PreviewHost">
+            <Image x:Name="LiveImg" Stretch="UniformToFill"/>
+            <TextBlock x:Name="LiveMsg" Text="Looking for your HydroShift…" Foreground="#FF9E9E9E" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="24"/>
+            <Border x:Name="LivePill" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" CornerRadius="10" Background="#CC000000" Padding="10,4">
+              <StackPanel Orientation="Horizontal">
+                <Ellipse x:Name="LiveDot" Width="8" Height="8" Fill="#FF22B07D" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                <TextBlock x:Name="LiveText" Text="Live" FontSize="12" FontWeight="SemiBold" Foreground="#FFF2F2F5"/>
+              </StackPanel>
+            </Border>
+            <TextBlock x:Name="CountText" FontSize="64" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+
+        <Grid x:Name="RecBtn" Width="76" Height="76" Margin="0,24,0,0" Cursor="Hand" Background="Transparent" ToolTip="Record">
+          <Ellipse Stroke="{DynamicResource Text}" StrokeThickness="3.5"/>
+          <Border x:Name="RecInner" Width="60" Height="60" CornerRadius="30" Background="#FFFF453A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+        <TextBlock x:Name="StatusText" Text="Ready" HorizontalAlignment="Center" Margin="0,12,0,0" Foreground="{DynamicResource Sub}"
+                   FontSize="13" TextAlignment="Center" TextWrapping="Wrap"/>
+        <ProgressBar x:Name="Prog" Style="{StaticResource Thin}" Width="320" Margin="0,10,0,0" Minimum="0" Maximum="1" Visibility="Hidden"/>
+      </StackPanel>
+
+      <!-- settings card -->
+      <Border Grid.Column="2" VerticalAlignment="Top" CornerRadius="14" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}"
+              BorderThickness="1" Padding="20,18,20,20">
+        <StackPanel>
+          <TextBlock Text="NAME" Style="{StaticResource SectionTitle}"/>
+          <Grid>
+            <TextBox x:Name="NameBox" Style="{StaticResource Field}"/>
+            <TextBlock x:Name="NamePh" Text="Optional" Foreground="{DynamicResource Sub}" Margin="14,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          </Grid>
+
+          <DockPanel Margin="0,22,0,0">
+            <TextBlock x:Name="LenText" DockPanel.Dock="Right" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center"/>
+            <TextBlock Text="Length" FontSize="14" VerticalAlignment="Center"/>
+          </DockPanel>
+          <Slider x:Name="LenSlider" Style="{StaticResource ThinSlider}" Minimum="5" Maximum="300" Margin="0,6,0,0"/>
+
+          <DockPanel Margin="0,20,0,0">
+            <Border DockPanel.Dock="Right" Background="{DynamicResource Bg}" CornerRadius="9" Padding="2">
+              <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="Fps30" Content="30" GroupName="rfps" Style="{StaticResource Seg}"/>
+                <RadioButton x:Name="Fps60" Content="60" GroupName="rfps" Style="{StaticResource Seg}"/>
+              </StackPanel>
+            </Border>
+            <TextBlock Text="Frame rate" FontSize="14" VerticalAlignment="Center"/>
+          </DockPanel>
+
+          <DockPanel Margin="0,20,0,0">
+            <ToggleButton x:Name="CountSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+            <StackPanel>
+              <TextBlock Text="Countdown" FontSize="14"/>
+              <TextBlock Text="3 seconds before recording starts" FontSize="12" Foreground="{DynamicResource Sub}"/>
+            </StackPanel>
+          </DockPanel>
+
+          <Border Height="1" Background="{DynamicResource Line}" Margin="0,20,0,16"/>
+          <TextBlock Text="Tip: in Wallpaper Engine, set the FPS limit to 60 for the smoothest recordings. If a wallpaper draws fewer frames, the editor can fill them in."
+                     FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+          <Button x:Name="FindBtn" Content="Find display again" Style="{StaticResource Link}" HorizontalAlignment="Left" Margin="0,14,0,0"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

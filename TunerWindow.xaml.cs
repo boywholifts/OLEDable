@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -22,27 +23,28 @@ namespace HydroShiftRecorder
         /// <summary>The chosen settings, when the window closes with Save.</summary>
         public OledParams Result { get; private set; }
 
-        readonly string ff, file, fit;
+        readonly string ff, file;
         readonly double duration;
         readonly byte[][] frames = new byte[N][];
         readonly Border[] thumbs = new Border[N];
         readonly double[] origOff = new double[N];
         readonly WriteableBitmap oledBmp = new WriteableBitmap(W, H, 96, 96, PixelFormats.Bgra32, null);
         readonly byte[] buf = new byte[W * H * 4];
+        readonly OledScratch scratch = new OledScratch();
         readonly Brush accent, clear;
 
         int sel = -1;
         double autoBlack = -1, split = 0.5;
-        bool sync, userMovedBlack, dirty;
+        bool sync, userMovedBlack, dirty, rendering;
         readonly DispatcherTimer renderTimer;
         volatile bool closed;
 
-        public TunerWindow(Window owner, string ffmpeg, string file, double duration, string fit, string name,
+        public TunerWindow(Window owner, string ffmpeg, string file, double duration, string name,
                            OledParams start, bool fromRecording)
         {
             InitializeComponent();
             Owner = owner;
-            ff = ffmpeg; this.file = file; this.duration = Math.Max(0.1, duration); this.fit = fit;
+            ff = ffmpeg; this.file = file; this.duration = Math.Max(0.1, duration);
             accent = (Brush)FindResource("Accent");
             clear = Brushes.Transparent;
 
@@ -77,10 +79,10 @@ namespace HydroShiftRecorder
                 Thumbs.Children.Add(b);
             }
 
-            // slider drags only mark the preview dirty; this redraws at most every 40 ms, so dragging stays
-            // smooth even when glow (the slow part) is on
-            renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(40) };
-            renderTimer.Tick += (s, e) => { if (dirty) { dirty = false; Render(); } };
+            // slider drags only mark the preview dirty; the timer starts a redraw on a background thread whenever
+            // the previous one has finished, so the UI never waits on the pixel work and drags stay smooth
+            renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
+            renderTimer.Tick += (s, e) => StartRender();
             renderTimer.Start();
 
             Wire();
@@ -108,17 +110,19 @@ namespace HydroShiftRecorder
 
         void StartLoading()
         {
-            new Thread(() =>
+            // all frames are fetched at once (one ffmpeg each), straight at preview size
+            var tasks = new Task[N];
+            for (int i = 0; i < N; i++)
             {
-                for (int i = 0; i < N && !closed; i++)
+                int idx = i;
+                tasks[i] = Task.Run(() =>
                 {
                     byte[] f = null;
-                    try { f = Oled.GrabFrame(ff, file, FrameTime(i), fit, W, H); } catch { }
-                    int idx = i;
+                    if (!closed) { try { f = Oled.GrabFrame(ff, file, FrameTime(idx), W, H); } catch { } }
                     Dispatcher.BeginInvoke(new Action(() => OnFrame(idx, f)));
-                }
-                Dispatcher.BeginInvoke(new Action(OnAllFrames));
-            }) { IsBackground = true }.Start();
+                });
+            }
+            Task.WhenAll(tasks).ContinueWith(t => Dispatcher.BeginInvoke(new Action(OnAllFrames)));
         }
 
         void OnFrame(int i, byte[] f)
@@ -160,7 +164,7 @@ namespace HydroShiftRecorder
                 sync = true; BlackSlider.Value = v; sync = false;
             }
             UpdateLabels();
-            Render();
+            dirty = true;
         }
 
         // ---------------------------------------------------------------- rendering
@@ -175,15 +179,24 @@ namespace HydroShiftRecorder
             OrigImg.Source = src;
             LoadingText.Visibility = Visibility.Collapsed;
             SplitLine.Visibility = SplitKnob.Visibility = OffPill.Visibility = Visibility.Visible;
-            Render();
+            dirty = true;
         }
 
-        void Render()
+        void StartRender()
         {
-            if (sel < 0 || frames[sel] == null) return;
-            double off = Oled.Apply(frames[sel], W, H, 0.5, buf, Current());   // preview is half size
-            oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
-            OffText.Text = string.Format(Tools.Inv, "{0:0}% of pixels off   ·   was {1:0}%", off * 100, origOff[sel] * 100);
+            if (!dirty || rendering || closed || sel < 0 || frames[sel] == null) return;
+            dirty = false;
+            rendering = true;
+            var frame = frames[sel];
+            var was = origOff[sel];
+            var p = Current();
+            Task.Run(() => Oled.Apply(frame, W, H, buf, p, scratch)).ContinueWith(t =>
+            {
+                rendering = false;
+                if (closed || t.IsFaulted) return;
+                oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
+                OffText.Text = string.Format(Tools.Inv, "{0:0}% of pixels off   ·   was {1:0}%", t.Result * 100, was * 100);
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         void UpdateLabels()
@@ -244,7 +257,7 @@ namespace HydroShiftRecorder
                 CleanSw.IsChecked = true;
                 sync = false;
                 UpdateLabels();
-                Render();
+                dirty = true;
             };
             SaveBtn.Click += (s, e) => { Result = Current(); DialogResult = true; };
             CancelBtn.Click += (s, e) => DialogResult = false;

@@ -11,7 +11,7 @@
     <RootNamespace>HydroShiftRecorder</RootNamespace>
     <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.0.0</Version>
+    <Version>2.1.0</Version>
     <Product>HydroShift Recorder</Product>
     <AssemblyTitle>HydroShift Recorder</AssemblyTitle>
     <Description>Records and converts seamless loops for the Lian Li HydroShift II OLED Curved display</Description>
@@ -28,10 +28,17 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="Microsoft.VisualBasic" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="assets\icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- replaced by the editor page -->
+    <Page Remove="TunerWindow.xaml" />
+    <Compile Remove="TunerWindow.xaml.cs" />
   </ItemGroup>
 
 </Project>

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.Serialization;
+using System.Threading.Tasks;
 
 namespace HydroShiftRecorder
 {
@@ -13,35 +15,61 @@ namespace HydroShiftRecorder
     /// 1. Per colour channel tone curve (see <see cref="Tone"/>): black level crush, shadow depth,
     ///    brightness and highlight boost. Black always stays black.
     /// 2. Luma-preserving saturation (Rec.709 weights).
-    /// 3. Optional glow: the bright parts are blurred (3-pass box blur, ffmpeg's boxblur ported 1:1)
-    ///    and screen-blended back on top, then the faint tail of the halo is trimmed back to true black.
+    /// 3. Optional glow: the bright parts are blurred at half resolution (3-pass box blur, ffmpeg's boxblur
+    ///    ported 1:1) and screen-blended back on top, then the faint tail of the halo is trimmed back to true black.
     /// </summary>
+    [DataContract]
     public class OledParams
     {
         /// <summary>0..60 (of 255). Every channel at or below this becomes 0, so the pixel switches off.</summary>
-        public double Black;
+        [DataMember] public double Black;
         /// <summary>1.0..2.0. Gamma on what's left: higher fades dark areas into black more gradually and deeper.</summary>
-        public double Shadows = 1.2;
+        [DataMember] public double Shadows;
         /// <summary>0..1. Lifts every lit pixel, most in the dim-to-mid range, without clipping whites.</summary>
-        public double Bright;
+        [DataMember] public double Bright;
         /// <summary>0..1. Pushes the brightest parts (lights, neon) harder; may clip them to full brightness.</summary>
-        public double Highlights;
+        [DataMember] public double Highlights;
         /// <summary>0.8..1.5. Saturation multiplier.</summary>
-        public double Color = 1.08;
+        [DataMember] public double Color;
         /// <summary>0..1. Strength of the bloom around bright areas. 0 = off.</summary>
-        public double Glow;
+        [DataMember] public double Glow;
         /// <summary>Glow blur radius in pixels at full 2288 × 1048 resolution (6..48).</summary>
-        public double GlowSize = 20;
+        [DataMember] public double GlowSize;
         /// <summary>Light temporal denoise first, so compression noise doesn't flicker in the blacks.</summary>
-        public bool Cleanup = true;
+        [DataMember] public bool Cleanup;
+
+        public OledParams() { Defaults(); }
+        [OnDeserializing] void OnDeserializing(StreamingContext c) { Defaults(); }
+        void Defaults() { Black = 0; Shadows = 1.2; Bright = 0; Highlights = 0; Color = 1.08; Glow = 0; GlowSize = 20; Cleanup = true; }
 
         public bool HasGlow { get { return Glow >= 0.005; } }
         public OledParams Clone() { return (OledParams)MemberwiseClone(); }
     }
 
+    /// <summary>Working buffers for <see cref="Oled.Apply"/>, kept between redraws so dragging a slider allocates nothing.</summary>
+    public class OledScratch
+    {
+        internal byte[] R = new byte[0], G = new byte[0], B = new byte[0];
+        internal byte[][] Glow = { new byte[0], new byte[0], new byte[0] };
+        internal byte[][] Line = { new byte[0], new byte[0], new byte[0] };
+        internal byte[][] TmpA = { new byte[0], new byte[0], new byte[0] };
+        internal byte[][] TmpB = { new byte[0], new byte[0], new byte[0] };
+
+        internal void Ensure(int n, int len)
+        {
+            if (R.Length != n) { R = new byte[n]; G = new byte[n]; B = new byte[n]; }
+            for (int i = 0; i < 3; i++)
+            {
+                if (Glow[i].Length != n) Glow[i] = new byte[n];
+                if (Line[i].Length < len) { Line[i] = new byte[len]; TmpA[i] = new byte[len]; TmpB[i] = new byte[len]; }
+            }
+        }
+    }
+
     public static class Oled
     {
         public const double MaxBlack = 60;
+        public const int FullW = 2288, FullH = 1048;     // the HydroShift panel
         const double Wr = 0.2126, Wg = 0.7152, Wb = 0.0722;
         const int GlowFrom = 64;      // only channel values above this (25%) feed the glow
         const int HaloFloor = 3;      // halo values below this go back to true black
@@ -73,9 +101,10 @@ namespace HydroShiftRecorder
             };
         }
 
-        static int GlowRadius(OledParams p, double scale)
+        /// <summary>Glow blur radius for an image at half the panel's resolution (where the glow is computed).</summary>
+        static int HalfRadius(OledParams p)
         {
-            return Math.Max(1, (int)Math.Round(Tools.Clamp(p.GlowSize, 6, 48) * scale));
+            return Math.Max(1, (int)Math.Round(Tools.Clamp(p.GlowSize, 6, 48) * 0.5));
         }
 
         public static byte[] Lut(OledParams p)
@@ -97,9 +126,10 @@ namespace HydroShiftRecorder
         // ------------------------------------------------------------------ ffmpeg side
 
         /// <summary>
-        /// Filter fragment (ends with a comma) to drop into a filter chain; the caller converts to YUV after it.
-        /// With glow on, it branches and rejoins internally using its own [ol…] labels, which is valid
-        /// inside -filter_complex. Expressions are single-quoted so it can sit inside a double-quoted argument.
+        /// Filter fragment (ends with a comma) for frames already fitted to the panel (2288 × 1048); the caller
+        /// converts to YUV after it. With glow on, it branches and rejoins internally using its own [ol…] labels,
+        /// which is valid inside -filter_complex. Expressions are single-quoted so it can sit inside a
+        /// double-quoted argument.
         /// </summary>
         public static string Filter(OledParams p)
         {
@@ -116,65 +146,79 @@ namespace HydroShiftRecorder
                 "colorchannelmixer=rr={0:0.#####}:rg={1:0.#####}:rb={2:0.#####}:gr={3:0.#####}:gg={4:0.#####}:gb={5:0.#####}:br={6:0.#####}:bg={7:0.#####}:bb={8:0.#####}",
                 m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
 
-            var f = (p.Cleanup ? "hqdn3d=1.5:1.5:4:4," : "") +
-                    "format=rgb24,lutrgb=r='" + e + "':g='" + e + "':b='" + e + "'," + cm + ",";
+            // atadenoise uses every CPU core; hqdn3d (used before) ran on one and was 75% of the processing time
+            var f = (p.Cleanup ? "atadenoise=s=9," : "") +
+                    "format=gbrp,lutrgb=r='" + e + "':g='" + e + "':b='" + e + "'," + cm + ",";
             if (!p.HasGlow) return f;
 
             var ge = string.Format(I, "min(255,{0:0.0####}*max(0,val-{1})*255/{2})", GlowGain(p), GlowFrom, 255 - GlowFrom);
             var floor = "if(lt(val," + HaloFloor + "),0,val)";
+            // the glow is soft, so it's computed at half size (same as the preview) and scaled back up: 2.3x faster
             return f + "split[ol0][ol1];" +
-                   "[ol1]lutrgb=r='" + ge + "':g='" + ge + "':b='" + ge + "',format=gbrp,boxblur=" + GlowRadius(p, 1) + ":3[olg];" +
-                   "[ol0]format=gbrp[olb];[olb][olg]blend=all_mode=screen," +
-                   "lutrgb=r='" + floor + "':g='" + floor + "':b='" + floor + "',format=rgb24,";
+                   "[ol1]scale=" + FullW / 2 + ":" + FullH / 2 + ":flags=area,lutrgb=r='" + ge + "':g='" + ge + "':b='" + ge + "'," +
+                   "boxblur=" + HalfRadius(p) + ":3,scale=" + FullW + ":" + FullH + ":flags=bilinear[olg];" +
+                   "[ol0][olg]blend=all_mode=screen," +
+                   "lutrgb=r='" + floor + "':g='" + floor + "':b='" + floor + "',";
         }
 
         // ------------------------------------------------------------------ preview side
 
         /// <summary>
-        /// Renders the look from an RGB24 frame (w × h) into a BGRA32 buffer for a WriteableBitmap.
-        /// <paramref name="scale"/> is preview pixels per full-resolution pixel (0.5 for a half-size preview),
-        /// so the glow is the same size as in the saved video. Returns the fraction of pixels fully off.
+        /// Renders the look from an RGB24 frame (w × h, half the panel's size) into a BGRA32 buffer for a
+        /// WriteableBitmap. Thread-safe as long as each caller uses its own <paramref name="s"/>; safe to run
+        /// off the UI thread. Returns the fraction of pixels fully off.
         /// </summary>
-        public static double Apply(byte[] rgb, int w, int h, double scale, byte[] bgra, OledParams p)
+        public static double Apply(byte[] rgb, int w, int h, byte[] bgra, OledParams p, OledScratch s)
         {
             int n = w * h;
+            s.Ensure(n, Math.Max(w, h));
             var lut = Lut(p);
             var m = Matrix(p.Color);
             float m0 = (float)m[0], m1 = (float)m[1], m2 = (float)m[2], m3 = (float)m[3], m4 = (float)m[4],
                   m5 = (float)m[5], m6 = (float)m[6], m7 = (float)m[7], m8 = (float)m[8];
-            var R = new byte[n]; var G = new byte[n]; var B = new byte[n];
-            for (int i = 0, j = 0; i < n; i++, j += 3)
+            byte[] R = s.R, G = s.G, B = s.B;
+
+            Parallel.For(0, h, y =>
             {
-                float r = lut[rgb[j]], g = lut[rgb[j + 1]], b = lut[rgb[j + 2]];
-                R[i] = Byte(m0 * r + m1 * g + m2 * b);
-                G[i] = Byte(m3 * r + m4 * g + m5 * b);
-                B[i] = Byte(m6 * r + m7 * g + m8 * b);
-            }
+                for (int i = y * w, j = i * 3, end = i + w; i < end; i++, j += 3)
+                {
+                    float r = lut[rgb[j]], g = lut[rgb[j + 1]], b = lut[rgb[j + 2]];
+                    R[i] = Byte(m0 * r + m1 * g + m2 * b);
+                    G[i] = Byte(m3 * r + m4 * g + m5 * b);
+                    B[i] = Byte(m6 * r + m7 * g + m8 * b);
+                }
+            });
 
             if (p.HasGlow)
             {
                 var gl = GlowLut(p);
-                int rad = GlowRadius(p, scale);
-                var glow = new byte[n];
-                var t = new byte[Math.Max(w, h)]; var u = new byte[Math.Max(w, h)];
-                foreach (var plane in new[] { R, G, B })
+                int rad = HalfRadius(p);
+                var planes = new[] { R, G, B };
+                Parallel.For(0, 3, c =>
                 {
+                    var plane = planes[c];
+                    var glow = s.Glow[c];
                     for (int i = 0; i < n; i++) glow[i] = gl[plane[i]];
-                    BoxBlur(glow, w, h, rad, 3, t, u);
+                    BoxBlur(glow, w, h, rad, 3, s.Line[c], s.TmpA[c], s.TmpB[c]);
                     for (int i = 0; i < n; i++)
                     {
                         int v = 255 - (255 - plane[i]) * (255 - glow[i]) / 255;   // screen, as ffmpeg's blend
                         plane[i] = (byte)(v < HaloFloor ? 0 : v);
                     }
-                }
+                });
             }
 
             int off = 0;
-            for (int i = 0, k = 0; i < n; i++, k += 4)
+            object sync = new object();
+            Parallel.For(0, h, () => 0, (y, state, local) =>
             {
-                bgra[k] = B[i]; bgra[k + 1] = G[i]; bgra[k + 2] = R[i]; bgra[k + 3] = 255;
-                if (R[i] <= 1 && G[i] <= 1 && B[i] <= 1) off++;
-            }
+                for (int i = y * w, k = i * 4, end = i + w; i < end; i++, k += 4)
+                {
+                    bgra[k] = B[i]; bgra[k + 1] = G[i]; bgra[k + 2] = R[i]; bgra[k + 3] = 255;
+                    if (R[i] <= 1 && G[i] <= 1 && B[i] <= 1) local++;
+                }
+                return local;
+            }, local => { lock (sync) off += local; });
             return n > 0 ? (double)off / n : 0;
         }
 
@@ -182,21 +226,20 @@ namespace HydroShiftRecorder
 
         // ffmpeg's boxblur (libavfilter/vf_boxblur.c), ported 1:1: horizontal passes then vertical passes,
         // each pass a running-sum box with mirrored edges and 16-bit fixed-point rounding.
-        static void BoxBlur(byte[] img, int w, int h, int radius, int power, byte[] t, byte[] u)
+        static void BoxBlur(byte[] img, int w, int h, int radius, int power, byte[] line, byte[] a, byte[] b)
         {
             radius = Math.Min(radius, Math.Min(w, h) / 2 - 1);
             if (radius < 1) return;
-            var line = new byte[Math.Max(w, h)];
             for (int y = 0; y < h; y++)
             {
-                for (int x = 0; x < w; x++) line[x] = img[y * w + x];
-                BlurPower(line, w, radius, power, t, u);
-                for (int x = 0; x < w; x++) img[y * w + x] = line[x];
+                Buffer.BlockCopy(img, y * w, line, 0, w);
+                BlurPower(line, w, radius, power, a, b);
+                Buffer.BlockCopy(line, 0, img, y * w, w);
             }
             for (int x = 0; x < w; x++)
             {
                 for (int y = 0; y < h; y++) line[y] = img[y * w + x];
-                BlurPower(line, h, radius, power, t, u);
+                BlurPower(line, h, radius, power, a, b);
                 for (int y = 0; y < h; y++) img[y * w + x] = line[y];
             }
         }
@@ -272,11 +315,15 @@ namespace HydroShiftRecorder
 
         // ------------------------------------------------------------------ frames for the preview
 
-        /// <summary>Grabs one frame at <paramref name="seconds"/>, fitted to the HydroShift shape, as RGB24 at w×h.</summary>
-        public static byte[] GrabFrame(string ffmpeg, string file, double seconds, string fit, int w, int h)
+        /// <summary>
+        /// Grabs one frame at <paramref name="seconds"/>, fitted to the HydroShift's shape directly at w × h
+        /// (no full-size step first), as RGB24. Several can run at once.
+        /// </summary>
+        public static byte[] GrabFrame(string ffmpeg, string file, double seconds, int w, int h)
         {
+            var vf = "scale=" + w + ":" + h + ":force_original_aspect_ratio=increase:flags=area,crop=" + w + ":" + h + ",setsar=1,format=rgb24";
             var args = "-v error -ss " + Tools.Num(Math.Max(0, seconds)) + " -i " + Tools.Q(file) +
-                       " -frames:v 1 -an -vf \"" + fit + ",scale=" + w + ":" + h + ":flags=area,format=rgb24\" -f rawvideo -";
+                       " -frames:v 1 -an -vf \"" + vf + "\" -f rawvideo -";
             var si = new ProcessStartInfo(ffmpeg, args)
             {
                 UseShellExecute = false, CreateNoWindow = true,
@@ -286,7 +333,7 @@ namespace HydroShiftRecorder
             {
                 p.ErrorDataReceived += (s, e) => { };
                 p.BeginErrorReadLine();
-                var ms = new MemoryStream();
+                var ms = new MemoryStream(w * h * 3);
                 p.StandardOutput.BaseStream.CopyTo(ms);
                 if (!p.WaitForExit(20000)) { try { p.Kill(); } catch { } }
                 var data = ms.ToArray();

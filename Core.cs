@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -9,6 +9,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace HydroShiftRecorder
 {
@@ -21,7 +22,10 @@ namespace HydroShiftRecorder
 
         readonly Process p;
         readonly StringBuilder output = new StringBuilder();
+        readonly TaskCompletionSource<bool> exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         long outUs;
+        volatile bool finished;   // set by Drain(): exit code captured and the process handle released
+        int exitCode;
 
         public FfJob(string exe, string args)
         {
@@ -33,9 +37,10 @@ namespace HydroShiftRecorder
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
             };
-            p = new Process { StartInfo = si };
+            p = new Process { StartInfo = si, EnableRaisingEvents = true };
             p.ErrorDataReceived += OnLine;
             p.OutputDataReceived += OnLine;
+            p.Exited += (s, e) => exited.TrySetResult(true);
             p.Start();
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
@@ -58,17 +63,33 @@ namespace HydroShiftRecorder
             }
         }
 
-        public bool Done { get { return p.HasExited; } }
-        public int Code { get { return p.ExitCode; } }
+        public bool Done { get { if (finished) return true; try { return p.HasExited; } catch { return true; } } }
+        public int Code { get { return finished ? exitCode : p.ExitCode; } }
         public double Seconds { get { return Interlocked.Read(ref outUs) / 1e6; } }
         public string Output { get { lock (output) return output.ToString(); } }
 
         /// <summary>Asks ffmpeg to stop gracefully (keeps what was written so far).</summary>
-        public void Quit() { try { p.StandardInput.Write("q"); p.StandardInput.Flush(); } catch { } }
-        public void Kill() { try { if (!p.HasExited) p.Kill(); } catch { } }
-        public bool Wait(int ms) { return p.WaitForExit(ms); }
-        /// <summary>Waits for exit and for all output to be read.</summary>
-        public void Drain() { try { p.WaitForExit(); } catch { } }
+        public void Quit() { if (finished) return; try { p.StandardInput.Write("q"); p.StandardInput.Flush(); } catch { } }
+        public void Kill() { if (finished) return; try { if (!p.HasExited) p.Kill(); } catch { } }
+        public bool Wait(int ms) { if (finished) return true; try { return p.WaitForExit(ms); } catch { return true; } }
+
+        /// <summary>Waits for exit and for all output to be read, then releases the process handle. Safe to call twice.</summary>
+        public void Drain()
+        {
+            if (finished) return;
+            try { p.WaitForExit(); exitCode = p.ExitCode; } catch { exitCode = -1; }
+            finished = true;
+            try { p.Dispose(); } catch { }
+        }
+
+        /// <summary>Waits without blocking; cancelling kills the process. Returns the exit code.</summary>
+        public async Task<int> WaitAsync(CancellationToken ct)
+        {
+            using (ct.Register(Kill))
+                await exited.Task.ConfigureAwait(false);
+            await Task.Run(() => Drain()).ConfigureAwait(false);
+            return exitCode;
+        }
 
         public string LastLine
         {
@@ -82,47 +103,32 @@ namespace HydroShiftRecorder
         }
     }
 
-    /// <summary>Downloads a file on a background thread with progress and cancel.</summary>
-    public class Downloader
+    /// <summary>Downloads a file with progress and cancel.</summary>
+    public static class Downloader
     {
-        long got, total;
-        public volatile bool Done, Cancel;
-        public volatile string Error;
-        public long Got { get { return Interlocked.Read(ref got); } }
-        public long Total { get { return Interlocked.Read(ref total); } }
-
-        public Downloader(string url, string path)
+        public static Task Download(string url, string path, IProgress<double> progress, CancellationToken ct)
         {
-            var t = new Thread(() => Run(url, path)) { IsBackground = true };
-            t.Start();
-        }
-
-        void Run(string url, string path)
-        {
-            try
+            return Task.Run(() =>
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var req = (HttpWebRequest)WebRequest.Create(url);
                 req.UserAgent = "HydroShift-Recorder";
                 using (var resp = req.GetResponse())
+                using (var s = resp.GetResponseStream())
+                using (var f = File.Create(path))
                 {
-                    Interlocked.Exchange(ref total, resp.ContentLength);
-                    using (var s = resp.GetResponseStream())
-                    using (var f = File.Create(path))
+                    long total = resp.ContentLength, got = 0;
+                    var buf = new byte[1 << 20];
+                    int n;
+                    while ((n = s.Read(buf, 0, buf.Length)) > 0)
                     {
-                        var buf = new byte[1 << 20];
-                        int n;
-                        while ((n = s.Read(buf, 0, buf.Length)) > 0)
-                        {
-                            if (Cancel) throw new OperationCanceledException("cancelled");
-                            f.Write(buf, 0, n);
-                            Interlocked.Add(ref got, n);
-                        }
+                        ct.ThrowIfCancellationRequested();
+                        f.Write(buf, 0, n);
+                        got += n;
+                        if (total > 0 && progress != null) progress.Report((double)got / total);
                     }
                 }
-            }
-            catch (Exception e) { Error = e.Message; }
-            Done = true;
+            }, ct);
         }
     }
 
@@ -139,8 +145,10 @@ namespace HydroShiftRecorder
         [DataMember] public string OutDir;
         [DataMember] public string Encoder;
         [DataMember] public int Adapter;
+        [DataMember] public int LastAdapter;   // where the HydroShift was last seen
+        [DataMember] public int LastOutput;
         [DataMember] public int Output;
-        // last-used OLED tuner settings (the black level itself is detected for each video)
+        // last-used OLED settings (the black level itself is detected for each video)
         [DataMember] public double OledShadows;
         [DataMember] public double OledColor;
         [DataMember] public bool OledCleanup;
@@ -148,6 +156,19 @@ namespace HydroShiftRecorder
         [DataMember] public double OledHighlights;
         [DataMember] public double OledGlow;
         [DataMember] public double OledGlowSize;
+        // appearance and library
+        [DataMember] public string Theme;
+        [DataMember] public string Accent;
+        [DataMember] public bool FollowWindows;
+        [DataMember] public bool KeepSources;
+        /// <summary>Where exports go; empty = a "Converted" folder inside the library.</summary>
+        [DataMember] public string ConvertedDir;
+        /// <summary>Set once the user was offered to move older exports into the converted folder.</summary>
+        [DataMember] public bool ConvertedOffered;
+        // tools: empty = find automatically (set by the installer when the user picks them)
+        [DataMember] public string FfmpegPath;
+        [DataMember] public string RifeDir;
+        [DataMember] public string EsrganDir;
 
         public Settings() { SetDefaults(); }
 
@@ -158,9 +179,32 @@ namespace HydroShiftRecorder
         {
             Seconds = 45; Fps = 60; Loop = true; TrueBlack = true; Countdown = true; Smooth = true; Crossfade = 1;
             OutDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "HydroShift");
-            Encoder = "nvenc"; Adapter = -1; Output = -1;
+            Encoder = "nvenc"; Adapter = -1; Output = -1; LastAdapter = 0; LastOutput = 2;
             OledShadows = 1.2; OledColor = 1.08; OledCleanup = true;
             OledBright = 0; OledHighlights = 0; OledGlow = 0; OledGlowSize = 20;
+            Theme = "dark"; Accent = "#A970FF"; FollowWindows = false; KeepSources = true;
+        }
+
+        /// <summary>The look the editor starts from for a new video (black level is filled in automatically).</summary>
+        public OledParams DefaultOled()
+        {
+            return new OledParams
+            {
+                Shadows = OledShadows, Color = OledColor, Cleanup = OledCleanup,
+                Bright = OledBright, Highlights = OledHighlights, Glow = OledGlow, GlowSize = OledGlowSize,
+            };
+        }
+
+        public void RememberOled(OledParams p)
+        {
+            OledShadows = p.Shadows; OledColor = p.Color; OledCleanup = p.Cleanup;
+            OledBright = p.Bright; OledHighlights = p.Highlights; OledGlow = p.Glow; OledGlowSize = p.GlowSize;
+        }
+
+        /// <summary>The folder exports go to.</summary>
+        public string ConvertedPath
+        {
+            get { return string.IsNullOrWhiteSpace(ConvertedDir) ? Path.Combine(OutDir, "Converted") : ConvertedDir; }
         }
 
         public static Settings Load(string path)
@@ -169,34 +213,39 @@ namespace HydroShiftRecorder
             {
                 if (File.Exists(path))
                 {
-                    var bytes = Encoding.UTF8.GetBytes(File.ReadAllText(path)); // ReadAllText strips any BOM
-                    using (var ms = new MemoryStream(bytes))
-                    {
-                        var s = (Settings)new DataContractJsonSerializer(typeof(Settings)).ReadObject(ms);
-                        if (string.IsNullOrWhiteSpace(s.OutDir)) s.OutDir = new Settings().OutDir;
-                        if (s.Crossfade <= 0) s.Crossfade = 1;
-                        if (s.OledShadows < 1 || s.OledShadows > 2) s.OledShadows = 1.2;
-                        if (s.OledColor < 0.8 || s.OledColor > 1.5) s.OledColor = 1.08;
-                        if (s.OledGlowSize < 6 || s.OledGlowSize > 48) s.OledGlowSize = 20;
-                        return s;
-                    }
+                    var s = Json.Read<Settings>(File.ReadAllText(path));
+                    if (string.IsNullOrWhiteSpace(s.OutDir)) s.OutDir = new Settings().OutDir;
+                    if (s.Crossfade <= 0) s.Crossfade = 1;
+                    if (s.OledShadows < 1 || s.OledShadows > 2) s.OledShadows = 1.2;
+                    if (s.OledColor < 0.8 || s.OledColor > 1.5) s.OledColor = 1.08;
+                    if (s.OledGlowSize < 6 || s.OledGlowSize > 48) s.OledGlowSize = 20;
+                    if (s.Theme != "light" && s.Theme != "dark" && s.Theme != "black") s.Theme = "dark";
+                    if (string.IsNullOrWhiteSpace(s.Accent)) s.Accent = "#A970FF";
+                    return s;
                 }
             }
             catch { }
             return new Settings();
         }
 
-        public void Save(string path)
+        public void Save(string path) { try { File.WriteAllText(path, Json.Write(this)); } catch { } }
+    }
+
+    public static class Json
+    {
+        public static T Read<T>(string text)
         {
-            try
+            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(text)))
+                return (T)new DataContractJsonSerializer(typeof(T)).ReadObject(ms);
+        }
+
+        public static string Write<T>(T value)
+        {
+            using (var ms = new MemoryStream())
             {
-                using (var ms = new MemoryStream())
-                {
-                    new DataContractJsonSerializer(typeof(Settings)).WriteObject(ms, this);
-                    File.WriteAllBytes(path, ms.ToArray());
-                }
+                new DataContractJsonSerializer(typeof(T)).WriteObject(ms, value);
+                return Encoding.UTF8.GetString(ms.ToArray());
             }
-            catch { }
         }
     }
 
@@ -208,18 +257,16 @@ namespace HydroShiftRecorder
         [DataMember(Name = "file")] public string File;
         [DataMember(Name = "title")] public string Title;
 
-        public static WeProject Load(string path)
-        {
-            var bytes = Encoding.UTF8.GetBytes(System.IO.File.ReadAllText(path));
-            using (var ms = new MemoryStream(bytes))
-                return (WeProject)new DataContractJsonSerializer(typeof(WeProject)).ReadObject(ms);
-        }
+        public static WeProject Load(string path) { return Json.Read<WeProject>(System.IO.File.ReadAllText(path)); }
     }
 
     public class VideoInfo
     {
         public double Fps;
         public double Duration;
+        public int Width, Height;
+        /// <summary>The container's "comment" tag; HydroShift Recorder writes "hsr|id|kind" there.</summary>
+        public string Comment;
     }
 
     public static class Tools
@@ -289,7 +336,7 @@ namespace HydroShiftRecorder
             if (ffprobe == null) return null;
             try
             {
-                var j = new FfJob(ffprobe, "-v error -select_streams v:0 -show_entries stream=avg_frame_rate,r_frame_rate:format=duration -of default=noprint_wrappers=1 " + Q(file));
+                var j = new FfJob(ffprobe, "-v error -select_streams v:0 -show_entries stream=avg_frame_rate,r_frame_rate,width,height:format=duration:format_tags=comment -of default=noprint_wrappers=1 " + Q(file));
                 if (!j.Wait(15000)) j.Kill();
                 j.Drain();
                 var kv = new Dictionary<string, string>();
@@ -300,13 +347,65 @@ namespace HydroShiftRecorder
                 }
                 if (!kv.ContainsKey("r_frame_rate") && !kv.ContainsKey("avg_frame_rate")) return null;
                 string v;
-                double fps = kv.TryGetValue("avg_frame_rate", out v) ? ParseRate(v) : 0;
-                if (fps <= 0 || fps > 240) fps = kv.TryGetValue("r_frame_rate", out v) ? ParseRate(v) : 0;
+                // the nominal rate (r_frame_rate) is the real one for normal videos; the average drifts with container
+                // timing (a 60 fps clip can report 55), so it's only a fallback for odd variable-rate files
+                double fps = kv.TryGetValue("r_frame_rate", out v) ? ParseRate(v) : 0;
+                if (fps <= 0 || fps > 240) fps = kv.TryGetValue("avg_frame_rate", out v) ? ParseRate(v) : 0;
                 double dur = 0;
                 if (kv.TryGetValue("duration", out v)) double.TryParse(v, NumberStyles.Float, Inv, out dur);
-                return new VideoInfo { Fps = fps, Duration = dur };
+                int w = 0, h = 0;
+                if (kv.TryGetValue("width", out v)) int.TryParse(v, out w);
+                if (kv.TryGetValue("height", out v)) int.TryParse(v, out h);
+                kv.TryGetValue("TAG:comment", out v);
+                return new VideoInfo { Fps = fps, Duration = dur, Width = w, Height = h, Comment = v };
             }
             catch { return null; }
+        }
+
+        public static Task<VideoInfo> ProbeAsync(string ffprobe, string file) { return Task.Run(() => Probe(ffprobe, file)); }
+
+        /// <summary>ffmpeg filter that drops repeated frames, used to see how often a recording really changed.</summary>
+        public const string DupFilter = "scale=572:262:flags=area,mpdecimate=hi=64*1.5:lo=32:frac=0.001";
+
+        /// <summary>
+        /// Reads ffmpeg framemd5 output of a 60 fps recording run through <see cref="DupFilter"/> and returns
+        /// how many capture frames each real wallpaper frame lasted (2 = it rendered at 30 fps, 3 = 20 fps …),
+        /// or 0 if it really was smooth 60 fps, barely moved, or changed irregularly (slow drifts, small
+        /// animations), where filling in frames would make the motion uneven instead of smoother.
+        /// </summary>
+        public static int CadenceGap(string framemd5Text, double seconds, out double uniqueFps)
+        {
+            uniqueFps = 0;
+            long num = 1, den = 1;
+            var idx = new List<long>();
+            foreach (var raw in framemd5Text.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (line.StartsWith("#tb"))
+                {
+                    var m = Regex.Match(line, ":\\s*(\\d+)/(\\d+)");
+                    if (m.Success) { num = long.Parse(m.Groups[1].Value); den = long.Parse(m.Groups[2].Value); }
+                    continue;
+                }
+                if (line.Length == 0 || line.StartsWith("#")) continue;
+                var parts = line.Split(',');
+                long pts;
+                if (parts.Length > 2 && long.TryParse(parts[2].Trim(), out pts))
+                    idx.Add((long)Math.Round(pts * (double)num / den * 60));
+            }
+            if (seconds > 0) uniqueFps = idx.Count / seconds;
+            if (idx.Count < 20 || uniqueFps < 12 || uniqueFps > 50) return 0;
+
+            var counts = new Dictionary<long, int>();
+            for (int i = 1; i < idx.Count; i++)
+            {
+                long g = idx[i] - idx[i - 1];
+                int c; counts.TryGetValue(g, out c); counts[g] = c + 1;
+            }
+            long best = 0; int bestN = 0;
+            foreach (var kv in counts) if (kv.Value > bestN) { best = kv.Key; bestN = kv.Value; }
+            double share = (double)bestN / (idx.Count - 1);
+            return best >= 2 && best <= 5 && share >= 0.75 ? (int)best : 0;
         }
 
         /// <summary>Steam's Wallpaper Engine workshop folder, if it can be found.</summary>
@@ -352,5 +451,11 @@ namespace HydroShiftRecorder
                 return d;
             }
         }
+
+        public static void TryDelete(string f) { try { if (f != null && File.Exists(f)) File.Delete(f); } catch { } }
+        public static void TryDeleteDir(string d) { try { if (d != null && Directory.Exists(d)) Directory.Delete(d, true); } catch { } }
+
+        /// <summary>Strips characters Windows doesn't allow in file names.</summary>
+        public static string SafeName(string n) { return Regex.Replace(n ?? "", "[\\\\/:*?\"<>|]", "").Trim(); }
     }
 }

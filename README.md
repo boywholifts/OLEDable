@@ -4,6 +4,7 @@ A small Windows app that makes seamless-looping videos for the **Lian Li HydroSh
 
 - **Record** whatever is playing on the HydroShift, such as a Wallpaper Engine scene, straight from the display.
 - **Convert** a video or a Wallpaper Engine video wallpaper (drag in the file, its folder or its `project.json`). It's cropped to 2288 × 1048 and, if it's below 60 fps, smoothed to 60 fps with RIFE AI frame interpolation on your GPU.
+- **Smooth recordings**: if the wallpaper drew fewer frames than the recording captured (for example Wallpaper Engine capped at 30 fps, or recording at 30), the repeated frames are detected and RIFE fills in real in-between frames for smooth 60 fps.
 - **Seamless loop**: the end crossfades into the start.
 - **True black tuner**: before saving, a live before/after preview shows the video with its grey "haze" pushed to pure black so OLED pixels switch fully off. The black level is detected automatically for each video, and you can fine-tune black level, shadow depth, color boost, brightness, highlights, glow and noise cleanup with the result updating instantly. The preview uses the same maths as the saved file, so what you see is what you get.
 

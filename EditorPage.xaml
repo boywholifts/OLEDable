@@ -1,0 +1,187 @@
+<UserControl x:Class="HydroShiftRecorder.EditorPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <Style x:Key="RowLabel" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="RowValue" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{DynamicResource Sub}"/>
+      <Setter Property="HorizontalAlignment" Value="Right"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- header -->
+    <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="24,0,24,12">
+      <DockPanel LastChildFill="True">
+        <Button x:Name="BackBtn" DockPanel.Dock="Left" Style="{StaticResource GhostBtn}" Padding="6,0,12,0" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal">
+            <Path Style="{StaticResource Icon}" Width="16" Height="16" Data="M15,5 L8,12 L15,19"/>
+            <TextBlock Text="Library" Margin="6,0,0,0" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Border DockPanel.Dock="Left" Width="1" Height="26" Background="{DynamicResource Line2}" Margin="8,0,16,0"/>
+        <Button x:Name="ExportBtn" DockPanel.Dock="Right" Content="Export" Style="{StaticResource PrimaryPill}" Padding="24,0" Margin="10,0,0,0"
+                ToolTip="Render the finished video into your library"/>
+        <Button x:Name="ResetBtn" DockPanel.Dock="Right" Content="Reset to auto" Style="{StaticResource GhostBtn}"/>
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="MetaText" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="340"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- preview + timeline -->
+      <Grid x:Name="Left" Margin="24,20,24,20">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border x:Name="PreviewFrame" CornerRadius="14" Background="Black" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+                VerticalAlignment="Top" ClipToBounds="True">
+          <Grid x:Name="PreviewHost" Background="Black" Cursor="SizeWE"
+                ToolTip="Drag to compare the original (left) with the HydroShift version (right)">
+            <Image x:Name="OledImg" Stretch="Fill"/>
+            <Image x:Name="OrigImg" Stretch="Fill"/>
+            <Rectangle x:Name="SplitLine" Width="2" Fill="#E6FFFFFF" HorizontalAlignment="Left" Visibility="Hidden"/>
+            <Grid x:Name="SplitKnob" Width="32" Height="32" HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="Hidden">
+              <Ellipse Fill="#FFF2F2F5"/>
+              <Path Data="M10,11 L5,16 L10,21 M22,11 L27,16 L22,21" Stroke="#FF111111" StrokeThickness="2" StrokeStartLineCap="Round"
+                    StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+            </Grid>
+            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" CornerRadius="6" Background="#BF000000" Padding="9,3">
+              <TextBlock Text="Original" FontSize="12" FontWeight="SemiBold" Foreground="#FFD6D6DE"/>
+            </Border>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" CornerRadius="6" Background="#BF000000" Padding="9,3">
+              <TextBlock Text="HydroShift" FontSize="12" FontWeight="SemiBold" Foreground="#FFC9A6FF"/>
+            </Border>
+            <Border x:Name="OffPill" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" CornerRadius="6" Background="#BF000000"
+                    Padding="10,4" Visibility="Hidden">
+              <TextBlock x:Name="OffText" FontSize="12" Foreground="#FFF2F2F5"/>
+            </Border>
+            <TextBlock x:Name="LoadingText" Text="Reading frames…" Foreground="#FF9E9E9E" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+
+        <!-- filmstrip with trim handles -->
+        <Grid Grid.Row="1" Margin="0,16,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border CornerRadius="8" Background="Black" ClipToBounds="True" Height="58">
+            <Grid x:Name="Strip">
+              <UniformGrid x:Name="Thumbs" Rows="1" Columns="8"/>
+              <Canvas x:Name="TrimLayer" Background="Transparent" ClipToBounds="True">
+                <Rectangle x:Name="DimL" Fill="#B3000000" Height="58"/>
+                <Rectangle x:Name="DimR" Fill="#B3000000" Height="58"/>
+                <Rectangle x:Name="SelMark" Width="2" Height="58" Fill="White"/>
+                <Border x:Name="HandleL" Width="10" Height="58" Background="{DynamicResource Accent}" CornerRadius="8,0,0,8" Cursor="SizeWE"
+                        ToolTip="Drag to choose where the clip starts">
+                  <Rectangle Width="2" Height="18" Fill="#99FFFFFF" RadiusX="1" RadiusY="1"/>
+                </Border>
+                <Border x:Name="HandleR" Width="10" Height="58" Background="{DynamicResource Accent}" CornerRadius="0,8,8,0" Cursor="SizeWE"
+                        ToolTip="Drag to choose where the clip ends">
+                  <Rectangle Width="2" Height="18" Fill="#99FFFFFF" RadiusX="1" RadiusY="1"/>
+                </Border>
+              </Canvas>
+            </Grid>
+          </Border>
+        </Grid>
+        <DockPanel Grid.Row="2" Margin="0,10,0,0">
+          <TextBlock x:Name="TrimText" DockPanel.Dock="Right" FontSize="12" Foreground="{DynamicResource Sub}"/>
+          <TextBlock Text="Click a frame to preview it  ·  drag the handles to trim  ·  drag the picture to compare"
+                     FontSize="12" Foreground="{DynamicResource Sub}" TextTrimming="CharacterEllipsis"/>
+        </DockPanel>
+      </Grid>
+
+      <!-- inspector -->
+      <Border Grid.Column="1" Background="{DynamicResource Side}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+          <StackPanel Margin="22,20,22,24">
+
+            <TextBlock Text="NAME" Style="{StaticResource SectionTitle}"/>
+            <TextBox x:Name="NameBox" Style="{StaticResource Field}"/>
+            <TextBlock x:Name="SaveAsText" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,6,0,22" TextWrapping="Wrap"/>
+
+            <TextBlock Text="TRUE BLACK" Style="{StaticResource SectionTitle}"/>
+            <DockPanel><TextBlock x:Name="BlackVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Black level" Style="{StaticResource RowLabel}" ToolTip="Anything darker than this switches fully off. Set automatically for each video."/></DockPanel>
+            <Slider x:Name="BlackSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="60" Margin="0,4,0,14"/>
+            <DockPanel><TextBlock x:Name="ShadowVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Shadow depth" Style="{StaticResource RowLabel}" ToolTip="How gradually dark areas fade into black. Higher is deeper; lower keeps more shadow detail."/></DockPanel>
+            <Slider x:Name="ShadowSlider" Style="{StaticResource ThinSlider}" Minimum="1" Maximum="2" Margin="0,4,0,14"/>
+            <DockPanel><TextBlock x:Name="ColorVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Color boost" Style="{StaticResource RowLabel}" ToolTip="Saturation. A little extra makes neon and lights pop against true black."/></DockPanel>
+            <Slider x:Name="ColorSlider" Style="{StaticResource ThinSlider}" Minimum="0.8" Maximum="1.5" Margin="0,4,0,14"/>
+            <DockPanel Margin="0,0,0,24">
+              <ToggleButton x:Name="CleanSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+              <StackPanel>
+                <TextBlock Text="Clean up noise" Style="{StaticResource RowLabel}"/>
+                <TextBlock Text="Stops flicker in the blacks (applied on export)" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </DockPanel>
+
+            <TextBlock Text="LIGHT" Style="{StaticResource SectionTitle}"/>
+            <DockPanel><TextBlock x:Name="BrightVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Brightness" Style="{StaticResource RowLabel}" ToolTip="Lifts everything that is lit, without touching true black or clipping whites."/></DockPanel>
+            <Slider x:Name="BrightSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1" Margin="0,4,0,14"/>
+            <DockPanel><TextBlock x:Name="HighVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Highlights" Style="{StaticResource RowLabel}" ToolTip="Pushes the brightest parts (lights, signs, neon) harder."/></DockPanel>
+            <Slider x:Name="HighSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1" Margin="0,4,0,14"/>
+            <DockPanel><TextBlock x:Name="GlowVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Glow" Style="{StaticResource RowLabel}" ToolTip="Soft bloom around bright areas. Turns some black pixels back on, so watch the counter."/></DockPanel>
+            <Slider x:Name="GlowSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1" Margin="0,4,0,14"/>
+            <DockPanel x:Name="GlowSizeRow"><TextBlock x:Name="GlowSizeVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+              <TextBlock Text="Glow size" Style="{StaticResource RowLabel}"/></DockPanel>
+            <Slider x:Name="GlowSizeSlider" Style="{StaticResource ThinSlider}" Minimum="6" Maximum="48" Margin="0,4,0,24"/>
+
+            <TextBlock Text="DETAIL" Style="{StaticResource SectionTitle}"/>
+            <DockPanel x:Name="EnhanceRow" Margin="0,0,0,24">
+              <ToggleButton x:Name="EnhanceSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+              <StackPanel>
+                <TextBlock Text="AI enhance" Style="{StaticResource RowLabel}"
+                           ToolTip="Real-ESRGAN redraws the video at a higher resolution, then fits it to the panel: sharper edges and text, not just more contrast. Runs on your graphics card."/>
+                <TextBlock x:Name="EnhanceNote" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </DockPanel>
+
+            <TextBlock Text="MOTION" Style="{StaticResource SectionTitle}"/>
+            <DockPanel Margin="0,0,0,14">
+              <ToggleButton x:Name="LoopSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+              <StackPanel>
+                <TextBlock Text="Seamless loop" Style="{StaticResource RowLabel}"/>
+                <TextBlock Text="Crossfades the end into the start" FontSize="12" Foreground="{DynamicResource Sub}"/>
+              </StackPanel>
+            </DockPanel>
+            <DockPanel x:Name="SmoothRow">
+              <ToggleButton x:Name="SmoothSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+              <StackPanel>
+                <TextBlock Text="Smooth to 60 fps" Style="{StaticResource RowLabel}"/>
+                <TextBlock x:Name="SmoothNote" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </DockPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>
