@@ -1,0 +1,12 @@
+bin/
+obj/
+dist/
+.vs/
+*.user
+# local settings and downloads when running from the repo folder
+HydroShift-Recorder.json
+rife/
+*.mp4
+logs/
+bench/
+dist-installer/

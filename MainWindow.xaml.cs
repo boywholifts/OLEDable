@@ -75,6 +75,13 @@ namespace HydroShiftRecorder
             StateChanged += (s, e) => FitMaximized();
             JobCancel.Click += (s, e) => { if (jobCts != null) jobCts.Cancel(); };
             DisplayCard.MouseLeftButtonUp += (s, e) => DetectDisplay();
+            UpdateNow.Click += (s, e) => InstallUpdate();
+            UpdateNotes.Click += (s, e) => { if (update != null) OpenInShell(update.Page); };
+            UpdateDismiss.Click += (s, e) =>
+            {
+                if (update != null) { S.SkippedVersion = update.Version.ToString(); SaveSettings(); }
+                UpdateCard.Visibility = Visibility.Collapsed;
+            };
             toastTimer.Tick += (s, e) => { toastTimer.Stop(); Toast.Visibility = Visibility.Collapsed; };
 
             Drop += (s, e) =>
@@ -95,6 +102,9 @@ namespace HydroShiftRecorder
             Loaded += async (s, e) =>
             {
                 NavLibrary.IsChecked = true;
+                // updates: in the background, at most every 3 hours; local builds (dist folder) never prompt on their own
+                if (snapshotDir == null && S.AutoUpdateCheck && !Updater.IsLocalBuild && (DateTime.Now - S.LastUpdateCheck).TotalHours >= 3)
+                    _ = CheckForUpdate(false);
                 if (Ffmpeg == null)
                 {
                     SetDisplay(false, "ffmpeg is not installed", "Run  winget install Gyan.FFmpeg  then reopen the app.");
@@ -337,6 +347,50 @@ namespace HydroShiftRecorder
                 if (library != null) library.Refresh();
             }
             return ok;
+        }
+
+        // ---------------------------------------------------------------- updates
+
+        Updater.Release update;
+
+        /// <summary>
+        /// Looks for a newer release on the chosen channel and shows the sidebar card. Returns a short status for
+        /// Settings. <paramref name="manual"/> = asked for in Settings: shows skipped versions too.
+        /// </summary>
+        public async Task<string> CheckForUpdate(bool manual)
+        {
+            try
+            {
+                var r = await Updater.CheckAsync(S.UpdateChannel, CancellationToken.None);
+                S.LastUpdateCheck = DateTime.Now;
+                SaveSettings();
+                if (r == null) { UpdateCard.Visibility = Visibility.Collapsed; return "You're up to date (" + Updater.CurrentText + ")."; }
+                if (!manual && S.SkippedVersion == r.Version.ToString()) return "";
+                update = r;
+                UpdateTitle.Text = "Update available";
+                UpdateText.Text = "Version " + r.Version + (r.Prerelease ? " (dev build)" : "") + " is ready. You have " + Updater.CurrentText + ".";
+                UpdateCard.Visibility = Visibility.Visible;
+                return "Version " + r.Version + " is available: see the card in the sidebar.";
+            }
+            catch (Exception ex)
+            {
+                return manual ? "Couldn't check for updates: " + ex.Message : "";
+            }
+        }
+
+        /// <summary>Downloads the update, then closes the app while the setup updates it in place and reopens it.</summary>
+        async void InstallUpdate()
+        {
+            if (update == null) return;
+            if (editor != null && editor.Unsaved && !editor.AutoSaved &&
+                !Dialog.Ask(this, "Install update", "“" + editor.SessionTitle + "” has changes that haven't been exported. Update anyway and lose them?", "Update")) return;
+            string setup = null;
+            var r = update;
+            bool ok = await RunJob("Updating to " + r.Version, async (pr, ct) => { setup = await Updater.DownloadAsync(r, pr, ct); });
+            if (!ok || setup == null) return;
+            try { Updater.Install(setup); }
+            catch (Exception ex) { Dialog.Tell(this, "Couldn't start the update", ex.Message); return; }
+            Close();
         }
 
         // ---------------------------------------------------------------- the HydroShift display

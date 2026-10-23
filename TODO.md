@@ -55,6 +55,23 @@
 - Themed pop-ups (Dialog.cs) replace the white Windows message boxes.
 - The workflow reads the version from the csproj (now 2.2.0).
 
+## Done after 2.2 (needs a build and a test)
+- Filmstrip clicks select the frame (handled on the strip itself).
+- Realistic and other 4× models: the input is shrunk so the output is 2× the panel, which is about 4× faster. Estimates now count megapixels.
+- Model download only adds missing files (no "file in use" error).
+- Public repo prep: README (work-in-progress note, not-affiliated line, privacy, signing policy), MIT LICENSE; removed snapshot test scripts.
+- In-app updates from GitHub Releases:
+  - Stable/Dev channel in Settings, plus automatic check (at most every 3 h), Check now, and the current version.
+  - A sidebar card with Update now, What's new, and skip (×).
+  - Update now downloads the setup, runs it silently, and the installer reopens the app.
+  - Local `dist` builds never prompt by themselves.
+  - Workflow: every push to main publishes a dev pre-release `vX.Y.Z-dev.N`; a `vX.Y.Z` tag publishes a stable release.
+
+## Release routine
+1. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
+2. Tag `vX.Y.Z` and push the tag; everyone on Stable is offered it.
+3. Bump `<Version>` in the csproj to the next version (e.g. 2.3.0), so later dev builds count as newer than the release.
+
 ## Still open
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.

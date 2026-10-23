@@ -46,6 +46,8 @@ Name: "{autodesktop}\HydroShift Recorder"; Filename: "{app}\HydroShiftRecorder.e
 
 [Run]
 Filename: "{app}\HydroShiftRecorder.exe"; Description: "Open HydroShift Recorder"; Flags: nowait postinstall skipifsilent
+; an update started from inside the app runs silently: reopen the app when it's done
+Filename: "{app}\HydroShiftRecorder.exe"; Flags: nowait; Check: WizardSilent
 
 [UninstallDelete]
 ; tools the installer or the app downloaded; the library folder and its videos are never touched

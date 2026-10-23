@@ -51,9 +51,7 @@ namespace HydroShiftRecorder
 
             for (int i = 0; i < N; i++)
             {
-                int idx = i;
                 var b = new Border { BorderThickness = new Thickness(0), Background = Brushes.Black, Cursor = Cursors.Hand };
-                b.MouseLeftButtonUp += (o, e) => Select(idx);
                 thumbs[i] = b;
                 Thumbs.Children.Add(b);
             }
@@ -96,6 +94,25 @@ namespace HydroShiftRecorder
             PreviewHost.MouseLeftButtonUp += (o, e) => PreviewHost.ReleaseMouseCapture();
 
             Strip.SizeChanged += (o, e) => UpdateTrim();
+            // a click anywhere on the filmstrip previews the frame under it. Handled as a "preview" (tunnelling)
+            // event on the strip itself, so no layer drawn on top (trim shading, marker) can swallow it; a press on
+            // a trim handle, or a drag, doesn't count as a click
+            Point? stripDown = null;
+            Strip.PreviewMouseLeftButtonDown += (o, e) =>
+            {
+                bool onHandle = e.OriginalSource is DependencyObject hit && (IsInside(hit, HandleL) || IsInside(hit, HandleR));
+                stripDown = onHandle ? (Point?)null : e.GetPosition(Strip);
+            };
+            Strip.PreviewMouseLeftButtonUp += (o, e) =>
+            {
+                if (stripDown == null || dragging != null) { stripDown = null; return; }
+                var at = e.GetPosition(Strip);
+                bool moved = Math.Abs(at.X - stripDown.Value.X) > 6;
+                stripDown = null;
+                if (moved || Strip.ActualWidth <= 0) return;
+                int frameNo = (int)Clamp(Math.Floor(at.X / Strip.ActualWidth * N), 0, N - 1);
+                Select(frameNo);
+            };
             foreach (var h in new[] { HandleL, HandleR })
             {
                 var handle = h;
@@ -282,7 +299,10 @@ namespace HydroShiftRecorder
             if (s == null) return;
             if (s.Width <= 0) { EnhanceNote.Text = "Sharpens with AI before the rest (runs on your GPU)"; return; }
             var m = EsrModel.Find(shell.P.EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
-            int f = m.ScaleFor(s.Width, s.Height);
+            // overall growth: a fixed 4× model gets a shrunk input first (see FfArgs.EsrInputSize)
+            var inSz = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale);
+            double cropW = Math.Min(s.Width, s.Height * 2288.0 / 1048);
+            int f = Math.Max(1, (int)Math.Round(inSz[0] * m.ScaleFor(s.Width, s.Height) / cropW));
             string size = s.Width + " × " + s.Height;
             string what = s.EnhanceSuggested
                 ? "Source is " + size + ", smaller than the panel: AI redraws it " + f + "× larger instead of stretching it"
@@ -321,6 +341,14 @@ namespace HydroShiftRecorder
                 else { enhanced[idx] = f; if (idx == sel) dirty = true; }
             }
             EnsureEnhanced();   // next frame, or the new selection / new options
+        }
+
+        /// <summary>Whether <paramref name="d"/> is <paramref name="parent"/> or inside it.</summary>
+        static bool IsInside(DependencyObject d, DependencyObject parent)
+        {
+            for (; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+                if (d == parent) return true;
+            return false;
         }
 
         /// <summary>Mixes the AI frame with the plain one: strength 1 = all AI.</summary>

@@ -54,9 +54,30 @@ namespace HydroShiftRecorder
                 shell.SaveSettings();
                 Sync();
             };
+            ChStable.Checked += (o, e) => SetChannel(Updater.Stable);
+            ChDev.Checked += (o, e) => SetChannel(Updater.Dev);
+            AutoUpdSw.Click += (o, e) => { shell.S.AutoUpdateCheck = AutoUpdSw.IsChecked == true; shell.SaveSettings(); };
+            CheckUpdBtn.Click += async (o, e) =>
+            {
+                CheckUpdBtn.IsEnabled = false;
+                UpdStatus.Text = "Checking…";
+                UpdStatus.Text = await shell.CheckForUpdate(true);
+                CheckUpdBtn.IsEnabled = true;
+            };
             KeepSw.Click += (o, e) => { shell.S.KeepSources = KeepSw.IsChecked == true; shell.SaveSettings(); };
             DataBtn.Click += (o, e) => MainWindow.OpenInShell(shell.DataDir);
             Theme.Changed += Sync;
+        }
+
+        bool syncing;
+
+        void SetChannel(string ch)
+        {
+            if (syncing || shell.S.UpdateChannel == ch) return;
+            shell.S.UpdateChannel = ch;
+            shell.S.SkippedVersion = null;
+            shell.SaveSettings();
+            UpdStatus.Text = ch == Updater.Dev ? "Dev channel: you'll get every new build. Click Check now to look." : "Stable channel: tested releases only.";
         }
 
         public void OnShown() { Sync(); }
@@ -81,10 +102,17 @@ namespace HydroShiftRecorder
                 b.BorderBrush = string.Equals((string)b.Tag, S.Accent, StringComparison.OrdinalIgnoreCase) ? (Brush)FindResource("Text") : Brushes.Transparent;
             FolderText.Text = S.OutDir;
             ConvText.Text = S.ConvertedPath;
+            syncing = true;
+            ChStable.IsChecked = S.UpdateChannel != Updater.Dev;
+            ChDev.IsChecked = S.UpdateChannel == Updater.Dev;
+            syncing = false;
+            AutoUpdSw.IsChecked = S.AutoUpdateCheck;
+            VersionText.Text = "Version " + Updater.CurrentText + (Updater.IsLocalBuild ? " (local build)" : "");
+            if (string.IsNullOrEmpty(UpdStatus.Text))
+                UpdStatus.Text = S.LastUpdateCheck > DateTime.MinValue ? "Last checked " + S.LastUpdateCheck.ToString("MMM d, h:mm tt") : "Not checked yet";
             KeepSw.IsChecked = S.KeepSources;
 
-            var v = Assembly.GetExecutingAssembly().GetName().Version;
-            AboutText.Text = "HydroShift Recorder " + v.Major + "." + v.Minor + "." + v.Build +
+            AboutText.Text = "HydroShift Recorder " + Updater.CurrentText +
                              "\nffmpeg: " + (shell.Ffmpeg ?? "not found") +
                              "\nRIFE smoothing: " + (shell.P.HasRife ? "installed" : "downloads on first use") +
                              "\nAI enhance (Real-ESRGAN): " + (shell.P.HasEsrgan ? "installed" : "downloads on first use") +

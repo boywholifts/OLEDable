@@ -148,12 +148,12 @@ namespace HydroShiftRecorder
             if (key == "fit") return 110;
             if (key == "rife") return 70;
             if (key == "finish") return 80;
-            if (key.StartsWith("esr:"))
+            if (key.StartsWith("esrmp:"))
             {
-                // esr:<model>:<scale>[:tta]
+                // esrmp:<model>:<scale>[:tta], in megapixels of input per second; the cost follows the output size
                 var p = key.Split(':');
                 int sc; int.TryParse(p.Length > 2 ? p[2] : "2", out sc); sc = Math.Max(1, sc);
-                double r = p[1] == EsrModel.Anime ? 160.0 / (sc * sc) : 3;
+                double r = p[1] == EsrModel.Anime ? 240.0 / (sc * sc) : 1.2;
                 return key.EndsWith(":tta") ? r / 8 : r;
             }
             return 100;

@@ -177,6 +177,12 @@ namespace HydroShiftRecorder
         [DataMember] public bool EnhanceSharpen;
         /// <summary>Measured export step speeds on this PC, for time estimates (see <see cref="SpeedBook"/>).</summary>
         [DataMember] public Dictionary<string, double> Rates;
+        // updates (see Updater)
+        [DataMember] public string UpdateChannel;
+        [DataMember] public bool AutoUpdateCheck;
+        [DataMember] public DateTime LastUpdateCheck;
+        /// <summary>A version the user dismissed; not offered again (a newer one is).</summary>
+        [DataMember] public string SkippedVersion;
 
         public Settings() { SetDefaults(); }
 
@@ -193,6 +199,7 @@ namespace HydroShiftRecorder
             Theme = "dark"; Accent = "#A970FF"; FollowWindows = false; KeepSources = true;
             EnhanceStyle = "anime"; EnhanceStrength = 0.75; EnhanceCleanup = false; EnhanceTta = false; EnhanceSharpen = false;
             Rates = new Dictionary<string, double>();
+            UpdateChannel = "stable"; AutoUpdateCheck = true;
         }
 
         /// <summary>The look the editor starts from for a new video (black level is filled in automatically).</summary>
@@ -248,6 +255,7 @@ namespace HydroShiftRecorder
                     if (s.Theme != "light" && s.Theme != "dark" && s.Theme != "black") s.Theme = "dark";
                     if (string.IsNullOrWhiteSpace(s.Accent)) s.Accent = "#A970FF";
                     if (s.Rates == null) s.Rates = new Dictionary<string, double>();
+                    if (s.UpdateChannel != "dev") s.UpdateChannel = "stable";
                     if (s.EnhanceStrength <= 0 || s.EnhanceStrength > 1) s.EnhanceStrength = 0.75;
                     return s;
                 }

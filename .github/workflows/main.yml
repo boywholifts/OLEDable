@@ -1,7 +1,8 @@
 name: Build EXE
 
-# Builds HydroShiftRecorder.exe on every push to main (download it from the run's "Artifacts"),
-# and attaches it to a GitHub Release when you push a version tag like v1.0.0.
+# Every push to main: builds the app and installer and publishes them as a *dev* pre-release
+# (version like 2.3.0-dev.14), which the app offers to people on the Dev update channel.
+# Pushing a version tag like v2.3.0: publishes a normal release, which everyone on Stable is offered.
 on:
   push:
     branches: [main]
@@ -21,15 +22,22 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Version
+        shell: pwsh
+        run: |
+          # the base version comes from the project file; a tag like v2.3.0 sets it instead
+          $ver = (Select-Xml -Path HydroShiftRecorder.csproj -XPath '//Version').Node.InnerText
+          $stable = $false
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)$') { $ver = $Matches[1]; $stable = $true }
+          else { $ver = "$ver-dev.$env:GITHUB_RUN_NUMBER" }
+          "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Building $ver (stable: $stable)"
+
       - name: Build
         shell: pwsh
         run: |
-          # the version comes from the project file, unless a tag like v2.3.0 says otherwise
-          $ver = (Select-Xml -Path HydroShiftRecorder.csproj -XPath '//Version').Node.InnerText
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)') { $ver = $Matches[1] }
-          dotnet build HydroShiftRecorder.csproj -c Release -p:Version=$ver -o dist
+          dotnet build HydroShiftRecorder.csproj -c Release -p:Version=$env:APP_VERSION -o dist
           if (-not (Test-Path dist\HydroShiftRecorder.exe)) { throw 'Build failed: exe was not created' }
-          "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build installer
         shell: pwsh
@@ -41,16 +49,33 @@ jobs:
       - name: Upload build
         uses: actions/upload-artifact@v6
         with:
-          name: HydroShiftRecorder
+          name: HydroShiftRecorder-${{ env.APP_VERSION }}
           path: |
             dist/HydroShiftRecorder.exe
             dist-installer/*.exe
+
+      - name: Publish dev pre-release
+        if: github.ref_type != 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: Dev build ${{ env.APP_VERSION }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          body: |
+            Automatic dev build for testing (Dev update channel). Not a tested release.
+
+            ${{ github.event.head_commit.message }}
+          files: dist-installer/*.exe
 
       - name: Publish release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true
           files: |
             dist/HydroShiftRecorder.exe
             dist-installer/*.exe
-          generate_release_notes: true

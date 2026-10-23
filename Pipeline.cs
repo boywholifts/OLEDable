@@ -142,6 +142,30 @@ namespace HydroShiftRecorder
             return Math.Max(W / cw, H / ch);
         }
 
+        /// <summary>
+        /// The size frames go into Real-ESRGAN at: the source cropped to the panel's shape, shrunk first when a
+        /// fixed-scale model (4×) would otherwise make them far bigger than needed. Aims for twice the panel,
+        /// which keeps the detail but avoids e.g. 9152 × 4192 frames for a full-size source (about 4× faster).
+        /// </summary>
+        public static int[] EsrInputSize(int w, int h, int fixedScale)
+        {
+            double cw = Math.Min(w, h * (double)W / H), ch = Math.Min(h, w * (double)H / W);
+            if (fixedScale > 0 && cw * fixedScale > 2 * W)
+            {
+                double k = 2.0 * W / (cw * fixedScale);
+                cw *= k; ch *= k;
+            }
+            return new[] { Math.Max(2, (int)Math.Round(cw / 2) * 2), Math.Max(2, (int)Math.Round(ch / 2) * 2) };
+        }
+
+        /// <summary>The crop (and shrink, see <see cref="EsrInputSize"/>) applied before Real-ESRGAN.</summary>
+        public static string EsrPrep(int w, int h, int fixedScale)
+        {
+            double cw = Math.Min(w, h * (double)W / H);
+            var sz = EsrInputSize(w, h, fixedScale);
+            return sz[0] < cw - 1 ? AspectCrop + ",scale=" + sz[0] + ":" + sz[1] + ":flags=area" : AspectCrop;
+        }
+
         /// <summary>Real-ESRGAN's factor (2, 3 or 4) for a source: the smallest that covers the panel, 2 at least.</summary>
         public static int EsrganFactor(int w, int h)
         {
@@ -167,9 +191,9 @@ namespace HydroShiftRecorder
         /// Frames for RIFE / Real-ESRGAN: fitted to the panel, or only cropped to its shape when they'll be
         /// AI-enhanced first. Light PNG compression: 40% faster to write.
         /// </summary>
-        public static string PrepPng(string src, double t0, double dur, double fps, string dir, bool fit = true, bool clean = false)
+        public static string PrepPng(string src, double t0, double dur, double fps, string dir, string shape, bool clean = false)
         {
-            return Quiet + "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(src) + " -vf \"" + (fit ? Fit : AspectCrop) + (clean ? "," + Clean : "") +
+            return Quiet + "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(src) + " -vf \"" + shape + (clean ? "," + Clean : "") +
                    ",fps=" + Num(fps) + "\" -an -compression_level 1 " + Q(Path.Combine(dir, "%08d.png"));
         }
 
@@ -380,8 +404,11 @@ namespace HydroShiftRecorder
                             if (rel.Length == 0 || rel.EndsWith("/")) continue;
                             if (!Regex.IsMatch(rel, "^(realesrgan-ncnn-vulkan\\.exe|vcomp140\\.dll|models/(realesr-animevideov3-x\\d|realesrgan-x4plus|realesrgan-x4plus-anime)\\.(bin|param))$")) continue;
                             var dest = Path.Combine(EsrganDir, rel.Replace('/', '\\'));
+                            // only add what's missing: files already there may be in use by a preview right now
+                            if (File.Exists(dest)) continue;
                             Directory.CreateDirectory(Path.GetDirectoryName(dest));
-                            e.ExtractToFile(dest, true);
+                            try { e.ExtractToFile(dest, false); }
+                            catch (IOException) { if (!File.Exists(dest)) throw; }
                         }
                 }, ct);
             }
@@ -402,7 +429,8 @@ namespace HydroShiftRecorder
                 var a = Path.Combine(dir, "a.png");
                 var b = Path.Combine(dir, "b.png");
                 var j = new FfJob(Ffmpeg, "-y -hide_banner -loglevel error -ss " + Num(Math.Max(0, seconds)) + " -i " + Q(src) +
-                                          " -frames:v 1 -an -vf \"" + FfArgs.AspectCrop + (cleanup ? "," + FfArgs.Clean : "") + "\" " + Q(a));
+                                          " -frames:v 1 -an -vf \"" + FfArgs.EsrPrep(srcW, srcH, EsrModel.Find(EsrganDir, modelKey).FixedScale) +
+                                          (cleanup ? "," + FfArgs.Clean : "") + "\" " + Q(a));
                 if (!j.Wait(20000)) j.Kill();
                 j.Drain();
                 if (!File.Exists(a)) return null;
@@ -460,7 +488,8 @@ namespace HydroShiftRecorder
             if (enhance)
             {
                 var m = EsrModel.Find(EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
-                steps.Add(new Step(EsrKey(m, s), frames));
+                var inSize = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale);
+                steps.Add(new Step(EsrKey(m, s), frames * inSize[0] * inSize[1] / 1e6));   // megapixels in
                 if (NeedsFit(s, from)) steps.Add(new Step("fit", frames));
             }
             if (from > 0) steps.Add(new Step("rife", dur * 60));
@@ -470,7 +499,7 @@ namespace HydroShiftRecorder
 
         string EsrKey(EsrModel m, EditSession s)
         {
-            return "esr:" + (m.Key.StartsWith("m:") ? "custom" : m.Key) + ":" + m.ScaleFor(s.Width, s.Height) + (s.EnhanceTta ? ":tta" : "");
+            return "esrmp:" + (m.Key.StartsWith("m:") ? "custom" : m.Key) + ":" + m.ScaleFor(s.Width, s.Height) + (s.EnhanceTta ? ":tta" : "");
         }
 
         static bool NeedsFit(EditSession s, double from) { return from > 0 || s.EnhanceStrength < 0.995 || s.EnhanceSharpen; }
@@ -536,7 +565,8 @@ namespace HydroShiftRecorder
                     clock.Start();
                     string plain = Path.Combine(work, "in"), frames = plain;
                     Directory.CreateDirectory(plain);
-                    await RunFf(FfArgs.PrepPng(s.SourcePath, t0, dur, rate, plain, !enhance, enhance && s.EnhanceCleanup), dur, "Preparing frames", pr, ct, later());
+                    string shape = enhance ? FfArgs.EsrPrep(s.Width, s.Height, model.FixedScale) : FfArgs.Fit;
+                    await RunFf(FfArgs.PrepPng(s.SourcePath, t0, dur, rate, plain, shape, enhance && s.EnhanceCleanup), dur, "Preparing frames", pr, ct, later());
                     int count = Directory.GetFiles(plain, "*.png").Length;
                     if (count < 2) throw new Exception("Preparing frames failed: no frames were written.");
                     done(count);
@@ -547,7 +577,8 @@ namespace HydroShiftRecorder
                         Directory.CreateDirectory(esr);
                         await RunFrames(EsrganExe, FfArgs.Esrgan(plain, esr, model.Name, factor, Path.Combine(EsrganDir, "models"), s.EnhanceTta), esr, count,
                                         "AI enhancing " + factor + "× (" + model.Label + ")", later(), pr, ct);
-                        done(count);
+                        var inSz = FfArgs.EsrInputSize(s.Width, s.Height, model.FixedScale);
+                        done(count * inSz[0] * inSz[1] / 1e6);
                         frames = esr;
                         if (NeedsFit(s, from))
                         {

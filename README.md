@@ -1,30 +1,67 @@
 # HydroShift Recorder
 
-A small Windows app that makes seamless-looping videos for the **Lian Li HydroShift II OLED Curved** AIO display (2288 × 1048, 60 Hz). You upload the result as a custom theme in L-Connect 3, so the screen can play it on its own instead of relying on the secondary-screen mode.
+> **Work in progress.** This is a personal hobby project, shared as-is. Features, settings and file formats may change between versions, and there's no support schedule. Bug reports are welcome, but replies and fixes happen when they happen.
 
-- **Record** whatever is playing on the HydroShift, such as a Wallpaper Engine scene, straight from the display.
-- **Convert** a video or a Wallpaper Engine video wallpaper (drag in the file, its folder or its `project.json`). It's cropped to 2288 × 1048 and, if it's below 60 fps, smoothed to 60 fps with RIFE AI frame interpolation on your GPU.
-- **Smooth recordings**: if the wallpaper drew fewer frames than the recording captured (for example Wallpaper Engine capped at 30 fps, or recording at 30), the repeated frames are detected and RIFE fills in real in-between frames for smooth 60 fps.
-- **Seamless loop**: the end crossfades into the start.
-- **True black tuner**: before saving, a live before/after preview shows the video with its grey "haze" pushed to pure black so OLED pixels switch fully off. The black level is detected automatically for each video, and you can fine-tune black level, shadow depth, color boost, brightness, highlights, glow and noise cleanup with the result updating instantly. The preview uses the same maths as the saved file, so what you see is what you get.
+A Windows app that makes seamless-looping, true-black videos for the **Lian Li HydroShift II OLED Curved** AIO display (2288 × 1048). You upload the result as a custom theme in L-Connect 3, so the screen plays it on its own instead of relying on secondary-screen mode.
 
-## Requirements
+*Not affiliated with or endorsed by Lian Li. "HydroShift" and "L-Connect" are Lian Li's names for their products.*
 
-- Windows 10/11 (uses the built-in .NET Framework 4.8)
-- ffmpeg: `winget install Gyan.FFmpeg`
-- The HydroShift enabled as a secondary screen in L-Connect 3 (needed for recording only)
+## What it does
 
-## Use
+- **Library:** browse the videos in a folder, see which are already converted, and click one to edit it.
+- **Record** whatever is playing on the HydroShift (for example a Wallpaper Engine scene), straight from the display, with a live preview.
+- **Convert** any video or Wallpaper Engine video wallpaper. It's cropped to 2288 × 1048 to fit the panel.
+- **True black:** a live before/after preview pushes the grey "haze" to pure black so the OLED pixels switch fully off. The black level is detected for each video, and you can fine-tune shadows, color, brightness, highlights and glow.
+- **Smooth to 60 fps:** videos or recordings with fewer frames get real in-between frames from RIFE, running on your GPU.
+- **AI enhance:** Real-ESRGAN redraws small or soft videos at a higher resolution for a sharper picture. You can choose the style and the strength, and add community models.
+- **Seamless loop:** the end crossfades into the start.
+- Light, dark and true-black themes.
 
-Download `HydroShiftRecorder.exe` from [Releases](../../releases) and put it in its own folder. Settings and the one-time RIFE download are stored next to it, or in `%LOCALAPPDATA%\HydroShift Recorder` if that folder isn't writable.
+## Install
 
-## Build
+Download `HydroShiftRecorder-Setup-x.y.z.exe` from [Releases](../../releases) and run it.
 
-GitHub Actions builds the exe on every push to `main`; download it from the run's **Artifacts**. Pushing a tag like `v1.0.0` publishes a Release with the exe attached.
+- **Express** puts your library in `Videos\HydroShift`, uses ffmpeg, RIFE and Real-ESRGAN if they're already on your PC, and downloads them if not.
+- **Advanced** lets you choose each of these.
 
-To build locally: `dotnet build HydroShiftRecorder.csproj -c Release`
+It installs for your user only (no admin prompt) and can be removed from Windows' *Apps* settings. The uninstaller never touches your library folder.
+
+**Needs:** Windows 10 or 11 and a GPU with Vulkan support for RIFE and AI enhance (any recent NVIDIA, AMD or Intel GPU). To record, the HydroShift must be turned on as a secondary screen in L-Connect 3.
+
+## Build it yourself
+
+GitHub Actions builds the app and the installer on every push to `main`; you can download them from the run's **Artifacts**. Pushing a tag like `v2.2.0` publishes a Release.
+
+Locally (needs the .NET 8 SDK; the app itself targets .NET Framework 4.8, which is built into Windows):
+
+```
+build.cmd             # app → dist\HydroShiftRecorder.exe
+build-installer.cmd   # installer → dist-installer\ (needs Inno Setup 6.6+)
+```
+
+## Privacy
+
+The app has no telemetry, no accounts and no analytics. It only goes online to download the tools it uses, from their official release pages, when you choose to (in the installer, or the first time a feature needs one):
+
+- ffmpeg: [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)
+- RIFE: [github.com/nihui/rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan/releases)
+- Real-ESRGAN: [github.com/xinntao/Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN/releases)
+
+Settings and edits stay on your PC: next to the app, and in a hidden `.hydroshift` folder inside your library.
+
+## Code signing policy
+
+*Planned:* release builds are to be signed through the [SignPath Foundation](https://signpath.org) (free code signing for open-source projects; code signing certificate by SignPath Foundation). Only builds made by this repository's GitHub Actions from its source are signed, and every release is approved by hand by the maintainer.
+
+- Author, reviewer and approver: [@boywholifts](https://github.com/boywholifts)
 
 ## Credits
 
-- [RIFE / rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan) (MIT), downloaded on first use
-- [FFmpeg](https://ffmpeg.org)
+- [RIFE / rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan) (MIT): frame interpolation
+- [Real-ESRGAN / realesrgan-ncnn-vulkan](https://github.com/xinntao/Real-ESRGAN) (BSD-3-Clause): AI upscaling
+- [FFmpeg](https://ffmpeg.org) (LGPL/GPL): video work, downloaded separately and not bundled
+- [Inno Setup](https://jrsoftware.org/isinfo.php): installer
+
+## License
+
+[MIT](LICENSE)

@@ -98,10 +98,11 @@
           <Border CornerRadius="8" Background="Black" ClipToBounds="True" Height="58">
             <Grid x:Name="Strip">
               <UniformGrid x:Name="Thumbs" Rows="1" Columns="8"/>
-              <Canvas x:Name="TrimLayer" Background="Transparent" ClipToBounds="True">
-                <Rectangle x:Name="DimL" Fill="#B3000000" Height="58"/>
-                <Rectangle x:Name="DimR" Fill="#B3000000" Height="58"/>
-                <Rectangle x:Name="SelMark" Width="2" Height="58" Fill="White"/>
+              <!-- no background, and the shading ignores the mouse: clicks reach the frames; only the handles take them -->
+              <Canvas x:Name="TrimLayer" ClipToBounds="True">
+                <Rectangle x:Name="DimL" Fill="#B3000000" Height="58" IsHitTestVisible="False"/>
+                <Rectangle x:Name="DimR" Fill="#B3000000" Height="58" IsHitTestVisible="False"/>
+                <Rectangle x:Name="SelMark" Width="2" Height="58" Fill="White" IsHitTestVisible="False"/>
                 <Border x:Name="HandleL" Width="10" Height="58" Background="{DynamicResource Accent}" CornerRadius="8,0,0,8" Cursor="SizeWE"
                         ToolTip="Drag to choose where the clip starts">
                   <Rectangle Width="2" Height="18" Fill="#99FFFFFF" RadiusX="1" RadiusY="1"/>
