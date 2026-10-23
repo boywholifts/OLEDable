@@ -2,12 +2,19 @@ name: Build EXE
 
 # Every push to main: builds the app and installer and publishes them as a *dev* pre-release
 # (version like 2.3.0-dev.14), which the app offers to people on the Dev update channel.
-# Pushing a version tag like v2.3.0: publishes a normal release, which everyone on Stable is offered.
+# Stable release: Actions tab -> Build EXE -> Run workflow -> tick "Publish as a stable release".
+# It uses the <Version> in the csproj (e.g. 2.3.0), creates the tag v2.3.0 and the release, which
+# everyone on Stable is offered. (Pushing a tag like v2.3.0 does the same.)
 on:
   push:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release:
+        description: Publish as a stable release (uses the Version in HydroShiftRecorder.csproj)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -29,8 +36,10 @@ jobs:
           $ver = (Select-Xml -Path HydroShiftRecorder.csproj -XPath '//Version').Node.InnerText
           $stable = $false
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)$') { $ver = $Matches[1]; $stable = $true }
+          elseif ('${{ inputs.release }}' -eq 'true') { $stable = $true }
           else { $ver = "$ver-dev.$env:GITHUB_RUN_NUMBER" }
           "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "STABLE=$($stable.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "Building $ver (stable: $stable)"
 
       - name: Build
@@ -55,7 +64,7 @@ jobs:
             dist-installer/*.exe
 
       - name: Publish dev pre-release
-        if: github.ref_type != 'tag'
+        if: env.STABLE != 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.APP_VERSION }}
@@ -70,9 +79,12 @@ jobs:
           files: dist-installer/*.exe
 
       - name: Publish release
-        if: github.ref_type == 'tag'
+        if: env.STABLE == 'true'
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: HydroShift Recorder ${{ env.APP_VERSION }}
+          target_commitish: ${{ github.sha }}
           prerelease: false
           make_latest: true
           generate_release_notes: true
