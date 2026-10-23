@@ -1,4 +1,4 @@
-﻿﻿; HydroShift Recorder installer (Inno Setup 6.6 or newer, for the dark mode that follows Windows)
+; HydroShift Recorder installer (Inno Setup 6.6 or newer, for the dark mode that follows Windows)
 ; Build: run build-installer.cmd in the project folder, or let the GitHub workflow do it.
 ; Sets everything up before the first launch: the library folder (with its Converted subfolder), ffmpeg,
 ; RIFE smoothing and Real-ESRGAN AI enhance, and writes the choices into the app's settings file.
