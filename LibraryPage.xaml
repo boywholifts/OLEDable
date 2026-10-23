@@ -60,7 +60,7 @@
       <RadioButton x:Name="FAll" Content="All" GroupName="lf" Style="{StaticResource Chip}" IsChecked="True"/>
       <RadioButton x:Name="FRec" Content="Recordings" GroupName="lf" Style="{StaticResource Chip}"/>
       <RadioButton x:Name="FConv" Content="Converted" GroupName="lf" Style="{StaticResource Chip}"/>
-      <RadioButton x:Name="FTodo" Content="Not tuned yet" GroupName="lf" Style="{StaticResource Chip}"/>
+      <RadioButton x:Name="FTodo" Content="Originals" GroupName="lf" Style="{StaticResource Chip}" ToolTip="Source videos the app hasn't made"/>
       <TextBlock x:Name="CountText" DockPanel.Dock="Right" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center"/>
     </DockPanel>
 

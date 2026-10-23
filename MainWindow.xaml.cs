@@ -57,10 +57,12 @@ namespace HydroShiftRecorder
             P = new Pipeline(Ffmpeg, Ffprobe,
                              string.IsNullOrWhiteSpace(S.RifeDir) ? Path.Combine(DataDir, "rife") : S.RifeDir,
                              string.IsNullOrWhiteSpace(S.EsrganDir) ? Path.Combine(DataDir, "realesrgan") : S.EsrganDir);
+            P.Speeds = new SpeedBook(S.Rates);   // learns as exports run; saved with the settings
             ImportOldDisplaySetting();
 
             Theme.Apply(Theme.Effective(S), S.Accent);
             InitializeComponent();
+            TaskbarItemInfo = new System.Windows.Shell.TaskbarItemInfo();   // job progress on the taskbar button
 
             NavLibrary.Checked += (s, e) => ShowPage(Library);
             NavRecord.Checked += (s, e) => ShowPage(Record);
@@ -147,10 +149,11 @@ namespace HydroShiftRecorder
         bool ConfirmLeaveEdit()
         {
             if (editor == null || !editor.Unsaved) return true;
-            var r = MessageBox.Show(this, "“" + editor.SessionTitle + "” has changes that haven't been exported." +
-                                    (editor.AutoSaved ? "\n\nThey're kept: reopen it from the library to carry on." : "\n\nClose it anyway and lose them?"),
-                                    "Close edit", editor.AutoSaved ? MessageBoxButton.OKCancel : MessageBoxButton.YesNo, MessageBoxImage.Question);
-            return r == MessageBoxResult.OK || r == MessageBoxResult.Yes;
+            if (editor.AutoSaved)
+                return Dialog.Ask(this, "Close edit", "“" + editor.SessionTitle + "” has changes that haven't been exported. " +
+                                  "They're saved: open it from the library to carry on.", "Close");
+            return Dialog.Ask(this, "Close edit", "“" + editor.SessionTitle + "” has changes that haven't been exported.\n\n" +
+                              "Close anyway? Your changes will be lost.", "Close anyway");
         }
 
         /// <summary>Closes the current edit (the × on the sidebar item).</summary>
@@ -282,6 +285,9 @@ namespace HydroShiftRecorder
                 JobText.Text = st.Text;
                 JobProg.IsIndeterminate = st.Fraction < 0;
                 if (st.Fraction >= 0) JobProg.Value = st.Fraction;
+                TaskbarItemInfo.ProgressState = st.Fraction < 0 ? System.Windows.Shell.TaskbarItemProgressState.Indeterminate
+                                                                : System.Windows.Shell.TaskbarItemProgressState.Normal;
+                if (st.Fraction >= 0) TaskbarItemInfo.ProgressValue = st.Fraction;
                 if (also != null) also.Report(st);
             });
             try
@@ -293,13 +299,14 @@ namespace HydroShiftRecorder
             catch (Exception ex)
             {
                 if (jobCts.IsCancellationRequested) { ShowToast("Cancelled"); return false; }
-                MessageBox.Show(this, ex.Message, "HydroShift Recorder", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Dialog.Tell(this, "Something went wrong", ex.Message);
                 return false;
             }
             finally
             {
                 jobCts.Dispose(); jobCts = null;
                 JobCard.Visibility = Visibility.Collapsed;
+                TaskbarItemInfo.ProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
                 Busy = false; BusyChanged?.Invoke();
             }
         }
@@ -314,8 +321,10 @@ namespace HydroShiftRecorder
             var snap = s.Clone();
             Store.Save(snap);
             S.RememberOled(snap.Oled); S.Loop = snap.Loop; S.Smooth = snap.Smooth;
+            S.RememberEnhance(snap);
             SaveSettings();
             bool ok = await RunJob("Exporting " + (s.Title ?? s.OutputName), (pr, ct) => P.ExportAsync(snap, outPath, pr, ct));
+            SaveSettings();   // keeps the step speeds it measured, for better time estimates next time
             if (ok)
             {
                 if (!S.KeepSources && snap.Kind == "recording")

@@ -73,6 +73,14 @@
             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" CornerRadius="6" Background="#BF000000" Padding="9,3">
               <TextBlock Text="HydroShift" FontSize="12" FontWeight="SemiBold" Foreground="#FFC9A6FF"/>
             </Border>
+            <!-- AI enhance working on the preview -->
+            <Border x:Name="EnhPill" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="12" CornerRadius="6" Background="#D9000000"
+                    Padding="12,6" Visibility="Collapsed">
+              <StackPanel>
+                <TextBlock x:Name="EnhPillText" Text="AI enhancing the preview…" FontSize="12" Foreground="#FFF2F2F5" HorizontalAlignment="Center"/>
+                <ProgressBar Style="{StaticResource Thin}" IsIndeterminate="True" Width="160" Margin="0,6,0,0"/>
+              </StackPanel>
+            </Border>
             <Border x:Name="OffPill" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" CornerRadius="6" Background="#BF000000"
                     Padding="10,4" Visibility="Hidden">
               <TextBlock x:Name="OffText" FontSize="12" Foreground="#FFF2F2F5"/>
@@ -155,7 +163,7 @@
             <Slider x:Name="GlowSizeSlider" Style="{StaticResource ThinSlider}" Minimum="6" Maximum="48" Margin="0,4,0,24"/>
 
             <TextBlock Text="DETAIL" Style="{StaticResource SectionTitle}"/>
-            <DockPanel x:Name="EnhanceRow" Margin="0,0,0,24">
+            <DockPanel x:Name="EnhanceRow" Margin="0,0,0,14">
               <ToggleButton x:Name="EnhanceSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
               <StackPanel>
                 <TextBlock Text="AI enhance" Style="{StaticResource RowLabel}"
@@ -163,6 +171,44 @@
                 <TextBlock x:Name="EnhanceNote" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
               </StackPanel>
             </DockPanel>
+            <!-- options, shown while AI enhance is on -->
+            <StackPanel x:Name="EnhanceOpts" Margin="0,0,0,24" Visibility="Collapsed">
+              <TextBlock Text="Style" Style="{StaticResource RowLabel}"/>
+              <WrapPanel x:Name="StyleChips" Margin="0,8,0,14"/>
+              <DockPanel><TextBlock x:Name="StrengthVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
+                <TextBlock Text="Strength" Style="{StaticResource RowLabel}"
+                           ToolTip="How much of the AI result is used, mixed with a plain upscale. Lower it if things look painted or waxy."/></DockPanel>
+              <Slider x:Name="StrengthSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1" Margin="0,4,0,14"/>
+              <DockPanel Margin="0,0,0,12">
+                <ToggleButton x:Name="CleanFirstSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+                <StackPanel>
+                  <TextBlock Text="Clean up first" Style="{StaticResource RowLabel}"/>
+                  <TextBlock Text="Smooths out compression blocks and grain so they aren't sharpened into fake detail" FontSize="12"
+                             Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </DockPanel>
+              <Button x:Name="MoreBtn" Content="More options" Style="{StaticResource Link}" HorizontalAlignment="Left"/>
+              <StackPanel x:Name="MorePanel" Visibility="Collapsed" Margin="0,12,0,0">
+                <DockPanel Margin="0,0,0,12">
+                  <ToggleButton x:Name="TtaSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+                  <StackPanel>
+                    <TextBlock Text="Quality mode" Style="{StaticResource RowLabel}"/>
+                    <TextBlock Text="Slightly cleaner edges, about 8× slower" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,12">
+                  <ToggleButton x:Name="SharpenSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+                  <StackPanel>
+                    <TextBlock Text="Sharpen a little" Style="{StaticResource RowLabel}"/>
+                    <TextBlock Text="A light sharpening pass after the upscale (export only)" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </DockPanel>
+                <TextBlock FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap">
+                  Add community models (ncnn .param + .bin, e.g. the ones Upscayl uses) to the models folder and they appear as styles.
+                </TextBlock>
+                <Button x:Name="ModelsBtn" Content="Open the models folder" Style="{StaticResource Link}" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+              </StackPanel>
+            </StackPanel>
 
             <TextBlock Text="MOTION" Style="{StaticResource SectionTitle}"/>
             <DockPanel Margin="0,0,0,14">

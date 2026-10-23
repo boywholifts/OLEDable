@@ -169,6 +169,14 @@ namespace HydroShiftRecorder
         [DataMember] public string FfmpegPath;
         [DataMember] public string RifeDir;
         [DataMember] public string EsrganDir;
+        // last-used AI enhance choices (new videos start from these)
+        [DataMember] public string EnhanceStyle;
+        [DataMember] public double EnhanceStrength;
+        [DataMember] public bool EnhanceCleanup;
+        [DataMember] public bool EnhanceTta;
+        [DataMember] public bool EnhanceSharpen;
+        /// <summary>Measured export step speeds on this PC, for time estimates (see <see cref="SpeedBook"/>).</summary>
+        [DataMember] public Dictionary<string, double> Rates;
 
         public Settings() { SetDefaults(); }
 
@@ -183,6 +191,8 @@ namespace HydroShiftRecorder
             OledShadows = 1.2; OledColor = 1.08; OledCleanup = true;
             OledBright = 0; OledHighlights = 0; OledGlow = 0; OledGlowSize = 20;
             Theme = "dark"; Accent = "#A970FF"; FollowWindows = false; KeepSources = true;
+            EnhanceStyle = "anime"; EnhanceStrength = 0.75; EnhanceCleanup = false; EnhanceTta = false; EnhanceSharpen = false;
+            Rates = new Dictionary<string, double>();
         }
 
         /// <summary>The look the editor starts from for a new video (black level is filled in automatically).</summary>
@@ -207,6 +217,22 @@ namespace HydroShiftRecorder
             get { return string.IsNullOrWhiteSpace(ConvertedDir) ? Path.Combine(OutDir, "Converted") : ConvertedDir; }
         }
 
+        /// <summary>Gives a new session the last-used AI enhance choices.</summary>
+        public void FillEnhance(EditSession s)
+        {
+            if (s.EnhanceStyle != null) return;
+            s.EnhanceStyle = EnhanceStyle ?? "anime";
+            s.EnhanceStrength = EnhanceStrength > 0 ? EnhanceStrength : 0.75;
+            s.EnhanceCleanup = EnhanceCleanup; s.EnhanceTta = EnhanceTta; s.EnhanceSharpen = EnhanceSharpen;
+        }
+
+        public void RememberEnhance(EditSession s)
+        {
+            if (s.EnhanceStyle == null) return;
+            EnhanceStyle = s.EnhanceStyle; EnhanceStrength = s.EnhanceStrength;
+            EnhanceCleanup = s.EnhanceCleanup; EnhanceTta = s.EnhanceTta; EnhanceSharpen = s.EnhanceSharpen;
+        }
+
         public static Settings Load(string path)
         {
             try
@@ -221,6 +247,8 @@ namespace HydroShiftRecorder
                     if (s.OledGlowSize < 6 || s.OledGlowSize > 48) s.OledGlowSize = 20;
                     if (s.Theme != "light" && s.Theme != "dark" && s.Theme != "black") s.Theme = "dark";
                     if (string.IsNullOrWhiteSpace(s.Accent)) s.Accent = "#A970FF";
+                    if (s.Rates == null) s.Rates = new Dictionary<string, double>();
+                    if (s.EnhanceStrength <= 0 || s.EnhanceStrength > 1) s.EnhanceStrength = 0.75;
                     return s;
                 }
             }

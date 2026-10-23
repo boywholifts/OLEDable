@@ -111,10 +111,9 @@ namespace HydroShiftRecorder
             S.ConvertedOffered = true;
             shell.SaveSettings();
             if (old.Count == 0) return;
-            var r = MessageBox.Show(shell, "Exports now go to their own folder:\n" + S.ConvertedPath +
-                                    "\n\nMove the " + old.Count + " converted video" + (old.Count == 1 ? "" : "s") + " already in your library there too?",
-                                    "Converted videos folder", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (r != MessageBoxResult.Yes) return;
+            if (!Dialog.Ask(shell, "Converted videos folder", "Exports now go to their own folder:\n" + S.ConvertedPath +
+                            "\n\nMove the " + old.Count + " converted video" + (old.Count == 1 ? "" : "s") + " already in your library there too?",
+                            "Move them", "Not now")) return;
             int moved = 0;
             try { Directory.CreateDirectory(S.ConvertedPath); } catch { }
             foreach (var it in old)
@@ -135,9 +134,11 @@ namespace HydroShiftRecorder
         void ApplyFilter()
         {
             IEnumerable<LibraryItem> items = all;
+            // Converted = everything the app exported (recordings too); Recordings = exports that started as a
+            // recording; Originals = source videos the app didn't make
             if (FRec.IsChecked == true) items = items.Where(i => i.Kind == "recording");
-            else if (FConv.IsChecked == true) items = items.Where(i => i.Kind == "video" || (i.InConverted && i.Kind != "recording"));
-            else if (FTodo.IsChecked == true) items = items.Where(i => !i.Tuned);
+            else if (FConv.IsChecked == true) items = items.Where(i => i.Id != null || i.InConverted);
+            else if (FTodo.IsChecked == true) items = items.Where(i => i.Id == null && !i.InConverted);
             var list = items.ToList();
             view.Clear();
             foreach (var i in list) view.Add(i);
@@ -213,10 +214,8 @@ namespace HydroShiftRecorder
 
         void Delete(LibraryItem it)
         {
-            var r = MessageBox.Show(shell, "Move “" + it.Name + "” to the Recycle Bin?" +
-                                    (it.Id != null ? "\n\nIts kept original and settings are removed too." : ""),
-                                    "Delete video", MessageBoxButton.OKCancel, MessageBoxImage.Question);
-            if (r != MessageBoxResult.OK) return;
+            if (!Dialog.Ask(shell, "Delete video", "Move “" + it.Name + "” to the Recycle Bin?" +
+                            (it.Id != null ? "\n\nIts kept original and settings are removed too." : ""), "Delete")) return;
             try
             {
                 Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(it.Path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,

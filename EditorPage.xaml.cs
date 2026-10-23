@@ -32,8 +32,11 @@ namespace HydroShiftRecorder
         EditSession s;
         string titleAtOpen;
         byte[][] frames = new byte[N][];
-        byte[][] enhanced = new byte[N][];   // AI-enhanced preview frames, made on demand
+        byte[][] enhanced = new byte[N][];   // AI-enhanced preview frames (before strength), made on demand
+        bool[] enhFailed = new bool[N];
         bool enhancing;
+        int enhancingIdx = -1, enhGen;       // enhGen changes when the model/cleanup/quality change: old frames are stale
+        byte[] blendBuf = new byte[W * H * 3];
         double[] origOff = new double[N];
         int sel = -1, openGen;
         double autoBlack = -1, split = 0.5;
@@ -58,6 +61,8 @@ namespace HydroShiftRecorder
             renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
             renderTimer.Tick += (o, e) => StartRender();
             autosaveTimer.Tick += (o, e) => FlushAutosave();
+            SetupEnhanceControls();
+            SetupValueEditing();
 
             BackBtn.Click += (o, e) => shell.ShowLibrary();
             ExportBtn.Click += async (o, e) =>
@@ -145,6 +150,7 @@ namespace HydroShiftRecorder
             unsaved = true;
             autosaveTimer.Stop();
             autosaveTimer.Start();
+            UpdateSaveAs();
         }
 
         /// <summary>
@@ -174,18 +180,99 @@ namespace HydroShiftRecorder
 
         // ---------------------------------------------------------------- AI enhance
 
+        void SetupEnhanceControls()
+        {
+            StrengthSlider.ValueChanged += (o, e) =>
+            {
+                StrengthVal.Text = Pct(StrengthSlider.Value);
+                if (sync || s == null) return;
+                s.EnhanceStrength = Math.Round(StrengthSlider.Value, 2);
+                dirty = true;            // blended in the preview, no new AI run needed
+                Touched();
+            };
+            CleanFirstSw.Click += (o, e) => { if (s != null) { s.EnhanceCleanup = CleanFirstSw.IsChecked == true; EnhanceOptionsChanged(true); } };
+            TtaSw.Click += (o, e) => { if (s != null) { s.EnhanceTta = TtaSw.IsChecked == true; EnhanceOptionsChanged(true); } };
+            SharpenSw.Click += (o, e) => { if (s != null) { s.EnhanceSharpen = SharpenSw.IsChecked == true; EnhanceOptionsChanged(false); } };
+            MoreBtn.Click += (o, e) =>
+            {
+                bool open = MorePanel.Visibility != Visibility.Visible;
+                MorePanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                MoreBtn.Content = open ? "Fewer options" : "More options";
+                if (open) BuildStyleChips();   // picks up models added to the folder meanwhile
+            };
+            ModelsBtn.Click += (o, e) =>
+            {
+                var dir = Path.Combine(shell.P.EsrganDir, "models");
+                try { Directory.CreateDirectory(dir); } catch { }
+                MainWindow.OpenInShell(dir);
+            };
+        }
+
+        /// <summary>One chip per model: the two built-in styles plus any community models in the models folder.</summary>
+        void BuildStyleChips()
+        {
+            if (s == null) return;
+            StyleChips.Children.Clear();
+            foreach (var m in EsrModel.All(shell.P.EsrganDir))
+            {
+                var model = m;
+                var chip = new RadioButton
+                {
+                    Content = model.Label, ToolTip = model.Tip, GroupName = "esrstyle", Tag = model.Key,
+                    Margin = new Thickness(0, 0, 6, 6), IsChecked = model.Key == (s.EnhanceStyle ?? EsrModel.Anime),
+                };
+                chip.SetResourceReference(FrameworkElement.StyleProperty, "Chip");
+                chip.Checked += async (o, e) =>
+                {
+                    if (sync || s == null || s.EnhanceStyle == model.Key) return;
+                    var before = s.EnhanceStyle;
+                    s.EnhanceStyle = model.Key;
+                    if (!await EnsureModel()) { s.EnhanceStyle = before; BuildStyleChips(); return; }
+                    EnhanceOptionsChanged(true);
+                };
+                StyleChips.Children.Add(chip);
+            }
+        }
+
+        /// <summary>Downloads Real-ESRGAN or the chosen built-in model if it isn't there yet. False if it couldn't.</summary>
+        async Task<bool> EnsureModel()
+        {
+            var key = s.EnhanceStyle ?? EsrModel.Anime;
+            if (shell.P.HasModel(key)) return true;
+            bool ok = await shell.RunJob("Getting AI enhance", (pr, ct) => shell.P.EnsureEsrganAsync(pr, ct, key));
+            return ok && shell.P.HasModel(key);
+        }
+
+        /// <summary>An enhance option changed; <paramref name="rerun"/> = the AI preview frames must be made again.</summary>
+        void EnhanceOptionsChanged(bool rerun)
+        {
+            if (rerun)
+            {
+                enhanced = new byte[N][];
+                enhFailed = new bool[N];
+                enhGen++;
+            }
+            Touched();
+            UpdateEnhanceNote();
+            dirty = true;
+            EnsureEnhanced();
+        }
+
         async void OnEnhanceToggled()
         {
             if (s == null) return;
             bool on = EnhanceSw.IsChecked == true;
             s.Enhance = on;
             Touched();
-            if (on && !shell.P.HasEsrgan)
+            if (on && !await EnsureModel())
             {
-                bool ok = await shell.RunJob("Getting AI enhance", (pr, ct) => shell.P.EnsureEsrganAsync(pr, ct));
-                if (!ok || !shell.P.HasEsrgan) { sync = true; EnhanceSw.IsChecked = false; sync = false; s.Enhance = false; UpdateEnhanceNote(); return; }
+                sync = true; EnhanceSw.IsChecked = false; sync = false;
+                s.Enhance = false;
             }
+            EnhanceOpts.Visibility = EnhanceSw.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            BuildStyleChips();
             UpdateEnhanceNote();
+            UpdateSaveAs();
             dirty = true;
             EnsureEnhanced();
         }
@@ -194,31 +281,54 @@ namespace HydroShiftRecorder
         {
             if (s == null) return;
             if (s.Width <= 0) { EnhanceNote.Text = "Sharpens with AI before the rest (runs on your GPU)"; return; }
-            int f = FfArgs.EsrganFactor(s.Width, s.Height);
+            var m = EsrModel.Find(shell.P.EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
+            int f = m.ScaleFor(s.Width, s.Height);
             string size = s.Width + " × " + s.Height;
             string what = s.EnhanceSuggested
                 ? "Source is " + size + ", smaller than the panel: AI redraws it " + f + "× larger instead of stretching it"
                 : "Source is already " + size + ": AI redraws it " + f + "× and scales back down, for crisper detail";
             if (!shell.P.HasEsrgan) what += ". Downloads Real-ESRGAN (about 50 MB) the first time.";
-            else if (EnhanceSw.IsChecked == true) what += ". Adds time to the export.";
             EnhanceNote.Text = what;
         }
 
-        /// <summary>Makes the AI-enhanced version of the selected preview frame, in the background.</summary>
+        /// <summary>
+        /// Makes the AI-enhanced preview frames in the background: the selected one first (with a progress badge
+        /// on the preview), then the rest of the filmstrip, so clicking around is instant.
+        /// </summary>
         async void EnsureEnhanced()
         {
-            if (s == null || EnhanceSw.IsChecked != true || !shell.P.HasEsrgan || sel < 0 || enhanced[sel] != null || enhancing) return;
-            enhancing = true;
-            int gen = openGen, idx = sel;
-            OffText.Text = "AI enhancing the preview…";
+            EnhPill.Visibility = enhancing && enhancingIdx == sel ? Visibility.Visible : Visibility.Collapsed;
+            if (s == null || enhancing || EnhanceSw.IsChecked != true || !shell.P.HasModel(s.EnhanceStyle ?? EsrModel.Anime)) return;
+            int idx = -1;
+            if (sel >= 0 && frames[sel] != null && enhanced[sel] == null && !enhFailed[sel]) idx = sel;
+            else if (!shell.Busy)   // don't compete with an export for the GPU
+                for (int k = 1; k < N && idx < 0; k++)
+                    foreach (int c in new[] { sel + k, sel - k })   // nearest frames first
+                        if (c >= 0 && c < N && frames[c] != null && enhanced[c] == null && !enhFailed[c]) { idx = c; break; }
+            if (idx < 0) return;
+
+            enhancing = true; enhancingIdx = idx;
+            EnhPill.Visibility = idx == sel ? Visibility.Visible : Visibility.Collapsed;
+            int gen = openGen, eg = enhGen;
             var src = s.SourcePath; double t = s.Duration * (idx + 0.5) / N; int sw = s.Width, sh = s.Height;
-            var f = await Task.Run(() => shell.P.EnhanceFrame(src, t, sw, sh, W, H));
-            enhancing = false;
-            if (gen != openGen) return;
-            if (f == null) { OffText.Text = "AI enhance couldn't run on this frame"; return; }
-            enhanced[idx] = f;
-            dirty = true;
-            EnsureEnhanced();   // the selection may have moved on meanwhile
+            string key = s.EnhanceStyle ?? EsrModel.Anime; bool clean = s.EnhanceCleanup, tta = s.EnhanceTta;
+            var f = await Task.Run(() => shell.P.EnhanceFrame(src, t, sw, sh, W, H, key, clean, tta));
+            enhancing = false; enhancingIdx = -1;
+            if (gen != openGen) { EnhPill.Visibility = Visibility.Collapsed; return; }
+            if (eg == enhGen)
+            {
+                if (f == null) { enhFailed[idx] = true; if (idx == sel) OffText.Text = "AI enhance couldn't run on this frame"; }
+                else { enhanced[idx] = f; if (idx == sel) dirty = true; }
+            }
+            EnsureEnhanced();   // next frame, or the new selection / new options
+        }
+
+        /// <summary>Mixes the AI frame with the plain one: strength 1 = all AI.</summary>
+        static byte[] Blend(byte[] ai, byte[] plain, double strength, byte[] into)
+        {
+            int w = (int)Math.Round(Clamp(strength, 0, 1) * 256), v = 256 - w;
+            for (int i = 0; i < into.Length; i++) into[i] = (byte)((ai[i] * w + plain[i] * v) >> 8);
+            return into;
         }
 
         // ---------------------------------------------------------------- opening a session
@@ -230,7 +340,9 @@ namespace HydroShiftRecorder
             titleAtOpen = s.Title;
             frames = new byte[N][];
             enhanced = new byte[N][];
-            enhancing = false;
+            enhFailed = new bool[N];
+            enhGen++;
+            shell.S.FillEnhance(s);
             unsaved = false;
             autosaveTimer.Stop();
             origOff = new double[N];
@@ -261,6 +373,13 @@ namespace HydroShiftRecorder
             SmoothSw.IsEnabled = true;
             SmoothRow.Opacity = 1;
             EnhanceSw.IsChecked = s.Enhance == true;
+            StrengthSlider.Value = Clamp(s.EnhanceStrength, 0, 1);
+            StrengthVal.Text = Pct(StrengthSlider.Value);
+            CleanFirstSw.IsChecked = s.EnhanceCleanup;
+            TtaSw.IsChecked = s.EnhanceTta;
+            SharpenSw.IsChecked = s.EnhanceSharpen;
+            EnhanceOpts.Visibility = EnhanceSw.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            BuildStyleChips();
             sync = false;
             UpdateLabels();
             UpdateSaveAs();
@@ -282,8 +401,10 @@ namespace HydroShiftRecorder
             SmoothRow.Opacity = nothingToFill ? 0.45 : 1;
             if (nothingToFill) SmoothSw.IsChecked = false;
             EnhanceSw.IsChecked = s.EnhanceOn;
+            EnhanceOpts.Visibility = EnhanceSw.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             sync = false;
             UpdateEnhanceNote();
+            UpdateSaveAs();
             UpdateTrim();
 
             // fetch all frames at once, straight at preview size
@@ -362,6 +483,12 @@ namespace HydroShiftRecorder
             string folder = exists ? Path.GetFileName(Path.GetDirectoryName(shell.OutputPathFor(s))) : Path.GetFileName(shell.S.ConvertedPath.TrimEnd('\\'));
             SaveAsText.Text = exists ? "Export updates " + s.OutputName + " in " + folder + "."
                                      : "Export saves " + (renamed || s.OutputName == null ? SafeName(NameBox.Text) + ".mp4" : s.OutputName) + " to " + folder + ".";
+            if (s.Duration > 0)
+            {
+                // from how fast each step ran in earlier exports on this PC
+                double est = shell.P.EstimateSeconds(Snapshot());
+                SaveAsText.Text += "  Takes about " + Eta.Fmt(est) + (s.Kind == "recording" && s.Smooth ? " (longer if it needs smoothing)." : ".");
+            }
         }
 
         OledParams Current()
@@ -399,18 +526,21 @@ namespace HydroShiftRecorder
         {
             if (!dirty || rendering || sel < 0 || frames[sel] == null) return;
             bool useEnh = EnhanceSw.IsChecked == true && enhanced[sel] != null;
-            if (EnhanceSw.IsChecked == true && !useEnh && enhancing) return;   // wait for it rather than flash the plain frame
+            if (EnhanceSw.IsChecked == true && !useEnh && enhancing && enhancingIdx == sel) return;   // wait for it rather than flash the plain frame
             dirty = false;
             rendering = true;
-            var frame = useEnh ? enhanced[sel] : frames[sel];
+            var plainFrame = frames[sel];
+            var aiFrame = useEnh ? enhanced[sel] : null;
+            double strength = s != null ? s.EnhanceStrength : 1;
+            var into = blendBuf;
             var was = origOff[sel];
             var p = Current();
-            Task.Run(() => Oled.Apply(frame, W, H, buf, p, scratch)).ContinueWith(t =>
+            Task.Run(() => Oled.Apply(aiFrame != null ? Blend(aiFrame, plainFrame, strength, into) : plainFrame, W, H, buf, p, scratch)).ContinueWith(t =>
             {
                 rendering = false;
                 if (t.IsFaulted) return;
                 oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
-                OffText.Text = string.Format(Inv, "{0:0}% of pixels off   ·   was {1:0}%", t.Result * 100, was * 100) + (useEnh ? "   ·   AI enhanced" : "");
+                OffText.Text = string.Format(Inv, "{0:0}% of pixels off   ·   was {1:0}%", t.Result * 100, was * 100) + (useEnh ? string.Format(Inv, "   ·   AI {0:0}%", strength * 100) : "");
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 

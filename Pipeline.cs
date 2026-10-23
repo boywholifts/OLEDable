@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -45,6 +46,16 @@ namespace HydroShiftRecorder
         [DataMember] public string OutputName;
         /// <summary>AI enhance (Real-ESRGAN) before everything else; null = not chosen yet (on for small sources).</summary>
         [DataMember] public bool? Enhance;
+        /// <summary>Model: "anime", "real" or "m:name" (see <see cref="EsrModel"/>); null until the editor fills in the last-used one.</summary>
+        [DataMember] public string EnhanceStyle;
+        /// <summary>0..1: how much of the AI result is used, blended with a plain upscale.</summary>
+        [DataMember] public double EnhanceStrength;
+        /// <summary>Light denoise/deblock before enhancing, so compression blocks aren't sharpened into "detail".</summary>
+        [DataMember] public bool EnhanceCleanup;
+        /// <summary>Real-ESRGAN's TTA mode: a little cleaner, about 8× slower.</summary>
+        [DataMember] public bool EnhanceTta;
+        /// <summary>A light unsharp mask after the upscale.</summary>
+        [DataMember] public bool EnhanceSharpen;
 
         /// <summary>Where the exported video already is, when the session was opened from it; not saved.</summary>
         public string ExistingPath;
@@ -138,10 +149,13 @@ namespace HydroShiftRecorder
             return need <= 2 ? 2 : need <= 3 ? 3 : 4;
         }
 
-        /// <summary>Real-ESRGAN "animevideov3": a small, fast model made for video frames (no flicker between frames).</summary>
-        public static string Esrgan(string inPath, string outPath, int factor, string modelDir)
+        /// <summary>Light denoise used before AI enhance (on the cropped source, so it's cheap).</summary>
+        public const string Clean = "hqdn3d=2:1.5:3:2.25";
+
+        /// <summary>Real-ESRGAN with a model (see <see cref="EsrModel"/>) and scale; TTA = slower, slightly cleaner.</summary>
+        public static string Esrgan(string inPath, string outPath, string model, int scale, string modelDir, bool tta)
         {
-            return "-i " + Q(inPath) + " -o " + Q(outPath) + " -n realesr-animevideov3 -s " + factor + " -m " + Q(modelDir) + " -f png -j 4:4:4";
+            return "-i " + Q(inPath) + " -o " + Q(outPath) + " -n " + model + " -s " + scale + " -m " + Q(modelDir) + " -f png -j 4:4:4" + (tta ? " -x" : "");
         }
 
         public static string Cadence(string src, double t0, double dur, string md5)
@@ -153,17 +167,30 @@ namespace HydroShiftRecorder
         /// Frames for RIFE / Real-ESRGAN: fitted to the panel, or only cropped to its shape when they'll be
         /// AI-enhanced first. Light PNG compression: 40% faster to write.
         /// </summary>
-        public static string PrepPng(string src, double t0, double dur, double fps, string dir, bool fit = true)
+        public static string PrepPng(string src, double t0, double dur, double fps, string dir, bool fit = true, bool clean = false)
         {
-            return Quiet + "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(src) + " -vf \"" + (fit ? Fit : AspectCrop) + ",fps=" + Num(fps) + "\" -an -compression_level 1 " +
-                   Q(Path.Combine(dir, "%08d.png"));
+            return Quiet + "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(src) + " -vf \"" + (fit ? Fit : AspectCrop) + (clean ? "," + Clean : "") +
+                   ",fps=" + Num(fps) + "\" -an -compression_level 1 " + Q(Path.Combine(dir, "%08d.png"));
         }
 
-        /// <summary>Fits a folder of (enhanced) frames to the panel, so RIFE works at panel size, not 4K.</summary>
-        public static string FitPng(string inDir, double fps, string outDir)
+        /// <summary>
+        /// Fits enhanced frames to the panel (so RIFE and the finish work at panel size, not 4K). With
+        /// <paramref name="plainDir"/> and a strength below 1, blends them with a plain upscale of the
+        /// original frames; <paramref name="sharpen"/> adds a light unsharp mask.
+        /// </summary>
+        public static string FitPng(string enhDir, string plainDir, double strength, bool sharpen, double fps, string outDir)
         {
-            return Quiet + "-framerate " + Num(fps) + " -i " + Q(Path.Combine(inDir, "%08d.png")) + " -vf \"" + Fit + "\" -compression_level 1 " +
-                   Q(Path.Combine(outDir, "%08d.png"));
+            string inE = "-framerate " + Num(fps) + " -i " + Q(Path.Combine(enhDir, "%08d.png"));
+            string tail = sharpen ? ",unsharp=5:5:0.6:5:5:0" : "";
+            if (plainDir != null && strength < 0.995)
+            {
+                double a = Clamp(strength, 0, 1);
+                string inP = " -framerate " + Num(fps) + " -i " + Q(Path.Combine(plainDir, "%08d.png"));
+                return Quiet + inE + inP + " -filter_complex \"[0:v]" + Fit + ",format=gbrp[e];[1:v]" + Fit + ",format=gbrp[o];" +
+                       "[e][o]blend=all_expr='A*" + Num(a) + "+B*" + Num(1 - a) + "'" + tail + "[v]\" -map \"[v]\" -compression_level 1 " +
+                       Q(Path.Combine(outDir, "%08d.png"));
+            }
+            return Quiet + inE + " -vf \"" + Fit + tail + "\" -compression_level 1 " + Q(Path.Combine(outDir, "%08d.png"));
         }
 
         /// <summary>RIFE 4.6 with 8 load / 8 GPU / 8 save threads: 2.9x faster than 2:2:2 on an RTX 5090.</summary>
@@ -202,6 +229,8 @@ namespace HydroShiftRecorder
         const string EsrganUrl = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip";
 
         public readonly string Ffmpeg, Ffprobe, RifeDir, RifeExe, EsrganDir, EsrganExe;
+        /// <summary>Measured step speeds on this PC, for time estimates (kept in the settings).</summary>
+        public SpeedBook Speeds = new SpeedBook(null);
 
         public Pipeline(string ffmpeg, string ffprobe, string rifeDir, string esrganDir)
         {
@@ -212,15 +241,20 @@ namespace HydroShiftRecorder
             EsrganExe = Path.Combine(EsrganDir, "realesrgan-ncnn-vulkan.exe");
         }
 
-        /// <summary>Runs a frame tool (RIFE, Real-ESRGAN), reporting how many of <paramref name="target"/> frames are done.</summary>
-        static async Task RunFrames(string exe, string args, string outDir, int target, string label, IProgress<JobStatus> pr, CancellationToken ct)
+        /// <summary>
+        /// Runs a frame tool (RIFE, Real-ESRGAN), reporting how many of <paramref name="target"/> frames are done,
+        /// the percentage and the time left. <paramref name="later"/> = estimated seconds of the steps after this one.
+        /// </summary>
+        static async Task RunFrames(string exe, string args, string outDir, int target, string label, double later, IProgress<JobStatus> pr, CancellationToken ct)
         {
             var job = new FfJob(exe, args);
             var wait = job.WaitAsync(ct);
+            var eta = new Eta();
             while (!wait.IsCompleted)
             {
                 int n = Directory.EnumerateFiles(outDir, "*.png").Count();
-                pr.Report(new JobStatus(string.Format(Inv, "{0}…  {1:N0} of {2:N0} frames", label, n, target), Clamp((double)n / target, 0, 1)));
+                double f = Clamp((double)n / target, 0, 1);
+                pr.Report(new JobStatus(eta.Line(label, f, later), f));
                 await Task.WhenAny(wait, Task.Delay(500));
             }
             await wait;
@@ -231,15 +265,19 @@ namespace HydroShiftRecorder
 
         // ------------------------------------------------------------ helpers
 
-        /// <summary>Runs ffmpeg, reporting progress against <paramref name="expectedSeconds"/> of output. Throws on failure.</summary>
-        async Task RunFf(string args, double expectedSeconds, string label, IProgress<JobStatus> pr, CancellationToken ct)
+        /// <summary>
+        /// Runs ffmpeg, reporting progress against <paramref name="expectedSeconds"/> of output, with the time left.
+        /// <paramref name="later"/> = estimated seconds of the steps after this one (0 = none). Throws on failure.
+        /// </summary>
+        async Task RunFf(string args, double expectedSeconds, string label, IProgress<JobStatus> pr, CancellationToken ct, double later = 0)
         {
             var job = new FfJob(Ffmpeg, args);
             var wait = job.WaitAsync(ct);
+            var eta = new Eta();
             while (!wait.IsCompleted)
             {
                 double f = expectedSeconds > 0 ? Clamp(job.Seconds / expectedSeconds, 0, 1) : -1;
-                pr.Report(new JobStatus(f >= 0 ? string.Format(Inv, "{0}…  {1:0}%", label, f * 100) : label + "…", f));
+                pr.Report(new JobStatus(f >= 0 ? eta.Line(label, f, later) : label + "…", f));
                 await Task.WhenAny(wait, Task.Delay(150));
             }
             int code = await wait;
@@ -316,10 +354,16 @@ namespace HydroShiftRecorder
 
         public bool HasEsrgan { get { return File.Exists(EsrganExe); } }
 
-        /// <summary>Downloads Real-ESRGAN (ncnn/Vulkan build, ~50 MB) once: the exe and the video model only.</summary>
-        public async Task EnsureEsrganAsync(IProgress<JobStatus> pr, CancellationToken ct)
+        /// <summary>Is Real-ESRGAN there with this model?</summary>
+        public bool HasModel(string key) { return HasEsrgan && EsrModel.Find(EsrganDir, key).Installed(EsrganDir); }
+
+        /// <summary>
+        /// Downloads Real-ESRGAN (ncnn/Vulkan build, ~50 MB) when it or the chosen model is missing: the exe and
+        /// the built-in models (video "animevideov3", "x4plus" for realistic, "x4plus-anime").
+        /// </summary>
+        public async Task EnsureEsrganAsync(IProgress<JobStatus> pr, CancellationToken ct, string modelKey = EsrModel.Anime)
         {
-            if (HasEsrgan) return;
+            if (HasModel(modelKey)) return;
             var zip = Path.Combine(Path.GetTempPath(), "realesrgan-ncnn-vulkan.zip");
             TryDelete(zip);
             try
@@ -334,7 +378,7 @@ namespace HydroShiftRecorder
                         {
                             var rel = e.FullName;
                             if (rel.Length == 0 || rel.EndsWith("/")) continue;
-                            if (!Regex.IsMatch(rel, "^(realesrgan-ncnn-vulkan\\.exe|vcomp140\\.dll|models/realesr-animevideov3-x\\d\\.(bin|param))$")) continue;
+                            if (!Regex.IsMatch(rel, "^(realesrgan-ncnn-vulkan\\.exe|vcomp140\\.dll|models/(realesr-animevideov3-x\\d|realesrgan-x4plus|realesrgan-x4plus-anime)\\.(bin|param))$")) continue;
                             var dest = Path.Combine(EsrganDir, rel.Replace('/', '\\'));
                             Directory.CreateDirectory(Path.GetDirectoryName(dest));
                             e.ExtractToFile(dest, true);
@@ -346,9 +390,10 @@ namespace HydroShiftRecorder
 
         /// <summary>
         /// One AI-enhanced frame for the editor preview, at <paramref name="w"/> × <paramref name="h"/> as RGB24
-        /// (null on failure). Takes a second or two: the model loads for each call.
+        /// (null on failure), with the session's model, cleanup and quality mode. Strength is blended by the
+        /// editor. Takes a second or two: the model loads for each call.
         /// </summary>
-        public byte[] EnhanceFrame(string src, double seconds, int srcW, int srcH, int w, int h)
+        public byte[] EnhanceFrame(string src, double seconds, int srcW, int srcH, int w, int h, string modelKey, bool cleanup, bool tta)
         {
             var dir = Path.Combine(Path.GetTempPath(), "hsr_enh_" + Guid.NewGuid().ToString("N").Substring(0, 8));
             try
@@ -357,12 +402,13 @@ namespace HydroShiftRecorder
                 var a = Path.Combine(dir, "a.png");
                 var b = Path.Combine(dir, "b.png");
                 var j = new FfJob(Ffmpeg, "-y -hide_banner -loglevel error -ss " + Num(Math.Max(0, seconds)) + " -i " + Q(src) +
-                                          " -frames:v 1 -an -vf \"" + FfArgs.AspectCrop + "\" " + Q(a));
+                                          " -frames:v 1 -an -vf \"" + FfArgs.AspectCrop + (cleanup ? "," + FfArgs.Clean : "") + "\" " + Q(a));
                 if (!j.Wait(20000)) j.Kill();
                 j.Drain();
                 if (!File.Exists(a)) return null;
-                var e = new FfJob(EsrganExe, FfArgs.Esrgan(a, b, FfArgs.EsrganFactor(srcW, srcH), Path.Combine(EsrganDir, "models")));
-                if (!e.Wait(60000)) e.Kill();
+                var m = EsrModel.Find(EsrganDir, modelKey);
+                var e = new FfJob(EsrganExe, FfArgs.Esrgan(a, b, m.Name, m.ScaleFor(srcW, srcH), Path.Combine(EsrganDir, "models"), tta));
+                if (!e.Wait(120000)) e.Kill();
                 e.Drain();
                 return File.Exists(b) ? Oled.GrabFrame(Ffmpeg, b, 0, w, h) : null;
             }
@@ -388,10 +434,61 @@ namespace HydroShiftRecorder
 
         // ------------------------------------------------------------ export
 
+        /// <summary>One step of an export, for time estimates: its speed key and how many units it processes.</summary>
+        class Step
+        {
+            public string Key; public double Units;
+            public Step(string key, double units) { Key = key; Units = units; }
+        }
+
+        /// <summary>Fills AI enhance settings a session saved before they existed.</summary>
+        static void Normalize(EditSession s)
+        {
+            if (s.EnhanceStyle == null) { s.EnhanceStyle = EsrModel.Anime; s.EnhanceStrength = 0.75; }
+        }
+
+        /// <summary>The steps an export will run, given whether it smooths from <paramref name="from"/> fps.</summary>
+        List<Step> Plan(EditSession s, double from)
+        {
+            Normalize(s);
+            double dur = s.UsedLength;
+            bool enhance = s.EnhanceOn;
+            double rate = from > 0 ? from : Math.Min(60, s.Fps > 0 ? s.Fps : 60);
+            double frames = dur * rate;
+            var steps = new List<Step>();
+            if (enhance || from > 0) steps.Add(new Step("prep", frames));
+            if (enhance)
+            {
+                var m = EsrModel.Find(EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
+                steps.Add(new Step(EsrKey(m, s), frames));
+                if (NeedsFit(s, from)) steps.Add(new Step("fit", frames));
+            }
+            if (from > 0) steps.Add(new Step("rife", dur * 60));
+            steps.Add(new Step("finish", (s.Loop ? Math.Max(1, dur - 1) : dur) * 60));
+            return steps;
+        }
+
+        string EsrKey(EsrModel m, EditSession s)
+        {
+            return "esr:" + (m.Key.StartsWith("m:") ? "custom" : m.Key) + ":" + m.ScaleFor(s.Width, s.Height) + (s.EnhanceTta ? ":tta" : "");
+        }
+
+        static bool NeedsFit(EditSession s, double from) { return from > 0 || s.EnhanceStrength < 0.995 || s.EnhanceSharpen; }
+
         /// <summary>
-        /// Renders the session to <paramref name="outPath"/>: trim, optional smoothing to 60 fps, the OLED look,
-        /// the loop crossfade, and the size-capped encode. Writes to a temporary file first and only then replaces
-        /// the target, so a failed or cancelled export never destroys the previous version.
+        /// Estimated export time in seconds from this PC's measured speeds (assumes no smoothing is needed for a
+        /// 60 fps recording; that's only known once it's checked).
+        /// </summary>
+        public double EstimateSeconds(EditSession s)
+        {
+            double from = s.Smooth && s.Fps > 0 && s.Fps < 58 ? s.Fps : 0;
+            return Plan(s, from).Sum(st => Speeds.Seconds(st.Key, st.Units));
+        }
+
+        /// <summary>
+        /// Renders the session to <paramref name="outPath"/>: trim, optional AI enhance, optional smoothing to 60 fps,
+        /// the OLED look, the loop crossfade, and the size-capped encode. Writes to a temporary file first and only
+        /// then replaces the target, so a failed or cancelled export never destroys the previous version.
         /// </summary>
         public async Task ExportAsync(EditSession s, string outPath, IProgress<JobStatus> pr, CancellationToken ct)
         {
@@ -399,6 +496,7 @@ namespace HydroShiftRecorder
             if (dur < 1) throw new Exception("The selected part is shorter than a second.");
             string folder = Path.GetDirectoryName(outPath);
             Directory.CreateDirectory(folder);
+            Normalize(s);
 
             // 1. does it need smoothing, and from what frame rate?
             double from = 0;
@@ -413,44 +511,55 @@ namespace HydroShiftRecorder
             }
 
             bool enhance = s.EnhanceOn;
+            var model = EsrModel.Find(EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
+            var plan = Plan(s, from);
+            int stepNo = 0;
+            Func<double> later = () => plan.Skip(stepNo + 1).Sum(st => Speeds.Seconds(st.Key, st.Units));
+            var clock = new System.Diagnostics.Stopwatch();
+            Action<double> done = units => { Speeds.Learn(plan[stepNo].Key, units, clock.Elapsed.TotalSeconds); stepNo++; clock.Restart(); };
+
             string work = null, input, pre;
             try
             {
                 if (from > 0 || enhance)
                 {
                     // 2a. frame by frame: AI enhance and/or RIFE smoothing, then back in as a video
-                    if (enhance) await EnsureEsrganAsync(pr, ct);
+                    if (enhance) await EnsureEsrganAsync(pr, ct, model.Key);
                     if (from > 0) await EnsureRifeAsync(pr, ct);
                     work = Path.Combine(folder, ".hydroshift", "temp");   // same drive as the library
                     TryDeleteDir(work);
                     double rate = from > 0 ? from : Math.Min(60, s.Fps > 0 ? s.Fps : 60);
-                    int factor = FfArgs.EsrganFactor(s.Width, s.Height);
-                    double perFrameMB = 6 + (enhance ? 6.0 * factor * factor / 4 : 0);
+                    int factor = model.ScaleFor(s.Width, s.Height);
+                    double perFrameMB = 6 + (enhance ? 6.0 * factor * factor / 4 + 3 : 0);
                     CheckSpace(folder, dur * (rate * perFrameMB + (from > 0 ? 60 * 6 : 0)) / 1024);
 
-                    string frames = Path.Combine(work, "in");
-                    Directory.CreateDirectory(frames);
-                    await RunFf(FfArgs.PrepPng(s.SourcePath, t0, dur, rate, frames, !enhance), dur, "Preparing frames", pr, ct);
-                    int count = Directory.GetFiles(frames, "*.png").Length;
+                    clock.Start();
+                    string plain = Path.Combine(work, "in"), frames = plain;
+                    Directory.CreateDirectory(plain);
+                    await RunFf(FfArgs.PrepPng(s.SourcePath, t0, dur, rate, plain, !enhance, enhance && s.EnhanceCleanup), dur, "Preparing frames", pr, ct, later());
+                    int count = Directory.GetFiles(plain, "*.png").Length;
                     if (count < 2) throw new Exception("Preparing frames failed: no frames were written.");
+                    done(count);
 
                     if (enhance)
                     {
                         var esr = Path.Combine(work, "enhanced");
                         Directory.CreateDirectory(esr);
-                        await RunFrames(EsrganExe, FfArgs.Esrgan(frames, esr, factor, Path.Combine(EsrganDir, "models")), esr, count,
-                                        "AI enhancing " + factor + "×", pr, ct);
-                        TryDeleteDir(frames);
+                        await RunFrames(EsrganExe, FfArgs.Esrgan(plain, esr, model.Name, factor, Path.Combine(EsrganDir, "models"), s.EnhanceTta), esr, count,
+                                        "AI enhancing " + factor + "× (" + model.Label + ")", later(), pr, ct);
+                        done(count);
                         frames = esr;
-                        if (from > 0)
+                        if (NeedsFit(s, from))
                         {
-                            // RIFE at panel size, not at the enhanced size
+                            // blend with a plain upscale (strength), sharpen, and bring to panel size for RIFE and the finish
                             var fit = Path.Combine(work, "fit");
                             Directory.CreateDirectory(fit);
-                            await RunFf(FfArgs.FitPng(esr, rate, fit), count / rate, "Fitting frames", pr, ct);
+                            await RunFf(FfArgs.FitPng(esr, plain, s.EnhanceStrength, s.EnhanceSharpen, rate, fit), count / rate, "Blending and fitting frames", pr, ct, later());
+                            done(count);
                             TryDeleteDir(esr);
                             frames = fit;
                         }
+                        TryDeleteDir(plain);
                     }
 
                     if (from > 0)
@@ -459,19 +568,21 @@ namespace HydroShiftRecorder
                         Directory.CreateDirectory(outDir);
                         int target = (int)Math.Round(count * 60 / from);
                         await RunFrames(RifeExe, FfArgs.Rife(frames, outDir, target, Path.Combine(RifeDir, "rife-v4.6")), outDir, target,
-                                        string.Format(Inv, "Smoothing {0:0} → 60 fps", from), pr, ct);
+                                        string.Format(Inv, "Smoothing {0:0} → 60 fps", from), later(), pr, ct);
+                        done(target);
                         frames = outDir;
                         rate = 60;
                     }
 
                     int made = Directory.GetFiles(frames, "*.png").Length;
                     input = "-framerate " + Num(rate) + " -i " + Q(Path.Combine(frames, "%08d.png"));
-                    pre = enhance && from <= 0 ? FfArgs.Fit + "," : "";
+                    pre = enhance && !NeedsFit(s, from) ? FfArgs.Fit + "," : "";
                     dur = made / rate;
                 }
                 else
                 {
                     // 2b. straight from the source
+                    clock.Start();
                     bool over = s.Fps > 61;
                     input = "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(s.SourcePath);
                     pre = FfArgs.Fit + "," + (over ? "fps=60," : "");
@@ -488,6 +599,7 @@ namespace HydroShiftRecorder
                             FfArgs.Encode(outSec) + " " + meta + " " + Q(tmp),
                             outSec, s.Loop ? "Finishing and looping" : "Finishing", pr, ct);
                 if (!File.Exists(tmp)) throw new Exception("Finishing failed: no file was written.");
+                if (stepNo < plan.Count) done(outSec * 60);
                 TryDelete(outPath);
                 File.Move(tmp, outPath);
             }

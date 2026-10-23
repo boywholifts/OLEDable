@@ -1,10 +1,15 @@
-﻿; HydroShift Recorder installer (Inno Setup 6.1 or newer)
+﻿﻿; HydroShift Recorder installer (Inno Setup 6.6 or newer, for the dark mode that follows Windows)
 ; Build: run build-installer.cmd in the project folder, or let the GitHub workflow do it.
-; Sets everything up before the first launch: the library folder (and its converted-videos subfolder),
-; ffmpeg, RIFE smoothing and AI enhance, and writes the choices into the app's settings file.
+; Sets everything up before the first launch: the library folder (with its Converted subfolder), ffmpeg,
+; RIFE smoothing and Real-ESRGAN AI enhance, and writes the choices into the app's settings file.
+; Express (default) uses the tools it finds and downloads the rest; Advanced shows every choice.
+
+#if Ver < EncodeVer(6,6,0)
+  #error Inno Setup 6.6 or newer is needed (dark mode). Update it with: winget upgrade JRSoftware.InnoSetup
+#endif
 
 #ifndef AppVersion
-  #define AppVersion "2.1.0"
+  #define AppVersion "2.2.0"
 #endif
 
 [Setup]
@@ -21,7 +26,8 @@ OutputBaseFilename=HydroShiftRecorder-Setup-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\HydroShiftRecorder.exe
 UninstallDisplayName=HydroShift Recorder
-WizardStyle=modern
+; light or dark, following the Windows setting
+WizardStyle=modern dynamic
 Compression=lzma2
 SolidCompression=yes
 
@@ -55,15 +61,15 @@ const
   EsrganUrl = 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip';
 
 var
+  ModePage: TInputOptionWizardPage;
   LibPage: TInputDirWizardPage;
-  ConvPage: TInputQueryWizardPage;
-  FfPage: TInputOptionWizardPage;
+  FfPage, RifePage, EsrPage: TInputOptionWizardPage;
   FfFilePage: TInputFileWizardPage;
-  RifePage: TInputOptionWizardPage;
   RifeDirPage: TInputDirWizardPage;
-  EsrPage: TInputOptionWizardPage;
   DownloadPage: TDownloadWizardPage;
-  FoundFfmpeg: String;
+  { what each option on the tool pages does: 'found', 'download', 'later' or 'browse' }
+  FfActs, RifeActs, EsrActs: TArrayOfString;
+  FoundFfmpeg, FoundRife, FoundEsr: String;
 
 function SettingsFile: String;
 begin
@@ -76,98 +82,146 @@ begin
   Result := FileExists(SettingsFile);
 end;
 
+function Advanced: Boolean;
+begin
+  Result := ModePage.SelectedValueIndex = 1;
+end;
+
+{ ---------------------------------------------------------------- finding tools that are already there }
+
+function FirstExisting(Candidates: TArrayOfString): String;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 0 to GetArrayLength(Candidates) - 1 do
+    if (Candidates[I] <> '') and FileExists(Candidates[I]) then
+    begin
+      Result := Candidates[I];
+      Exit;
+    end;
+end;
+
 function FindFfmpeg: String;
 var
-  Links: String;
+  C: TArrayOfString;
 begin
   Result := FileSearch('ffmpeg.exe', GetEnv('PATH'));
+  if Result <> '' then Exit;
+  SetArrayLength(C, 4);
+  C[0] := ExpandConstant('{localappdata}\Microsoft\WinGet\Links\ffmpeg.exe');
+  C[1] := ExpandConstant('{localappdata}\Programs\HydroShift Recorder\ffmpeg\ffmpeg.exe');
+  C[2] := 'C:\ffmpeg\bin\ffmpeg.exe';
+  C[3] := ExpandConstant('{commonpf}\ffmpeg\bin\ffmpeg.exe');
+  Result := FirstExisting(C);
+end;
+
+{ The folder holding Exe: on PATH, or where this app (or its portable version) keeps it. }
+function FindToolDir(Exe, Sub: String): String;
+var
+  C: TArrayOfString;
+begin
+  Result := FileSearch(Exe, GetEnv('PATH'));
   if Result = '' then
   begin
-    Links := ExpandConstant('{localappdata}\Microsoft\WinGet\Links');
-    if FileExists(Links + '\ffmpeg.exe') then Result := Links + '\ffmpeg.exe';
+    SetArrayLength(C, 2);
+    C[0] := ExpandConstant('{localappdata}\Programs\HydroShift Recorder\' + Sub + '\' + Exe);
+    C[1] := ExpandConstant('{localappdata}\HydroShift Recorder\' + Sub + '\' + Exe);
+    Result := FirstExisting(C);
   end;
+  if Result <> '' then Result := ExtractFileDir(Result);
 end;
+
+procedure AddOpt(Page: TInputOptionWizardPage; var Acts: TArrayOfString; Text, Act: String);
+var
+  N: Integer;
+begin
+  Page.Add(Text);
+  N := GetArrayLength(Acts);
+  SetArrayLength(Acts, N + 1);
+  Acts[N] := Act;
+end;
+
+{ The chosen action for a tool. Express always takes the first option: use what was found, else download. }
+function Choice(Page: TInputOptionWizardPage; Acts: TArrayOfString): String;
+begin
+  if Advanced then Result := Acts[Page.SelectedValueIndex] else Result := Acts[0];
+end;
+
+{ ---------------------------------------------------------------- pages }
 
 procedure InitializeWizard;
 begin
-  LibPage := CreateInputDirPage(wpSelectDir, 'Library folder',
-    'Where should your HydroShift videos live?',
-    'The app''s library shows the videos in this folder. It''s created now if it doesn''t exist.',
-    False, 'HydroShift');
-  LibPage.Add('Library folder:');
+  FoundFfmpeg := FindFfmpeg;
+  FoundRife := FindToolDir('rife-ncnn-vulkan.exe', 'rife');
+  FoundEsr := FindToolDir('realesrgan-ncnn-vulkan.exe', 'realesrgan');
+
+  ModePage := CreateInputOptionPage(wpWelcome, 'Setup type', '',
+    'Express puts your library in Videos\HydroShift, uses the tools already on this PC and downloads the rest. ' +
+    'Advanced lets you choose the folders and each tool.', True, False);
+  ModePage.Add('Express (recommended)');
+  ModePage.Add('Advanced');
+  ModePage.SelectedValueIndex := 0;
+
+  LibPage := CreateInputDirPage(wpSelectDir, 'Library folder', '',
+    'Choose your library location (your video files are stored here).', False, 'HydroShift');
+  LibPage.Add('');
   LibPage.Values[0] := ExpandConstant('{%USERPROFILE}') + '\Videos\HydroShift';
 
-  ConvPage := CreateInputQueryPage(LibPage.ID, 'Converted videos',
-    'Finished videos get their own folder inside the library',
-    'Originals and recordings stay in the library folder; everything you export goes into this subfolder.');
-  ConvPage.Add('Subfolder name:', False);
-  ConvPage.Values[0] := 'Converted';
+  FfPage := CreateInputOptionPage(LibPage.ID, 'ffmpeg', '', 'ffmpeg records and converts the videos.', True, False);
+  if FoundFfmpeg <> '' then AddOpt(FfPage, FfActs, 'Use the ffmpeg found on this PC (' + FoundFfmpeg + ')', 'found');
+  AddOpt(FfPage, FfActs, 'Download ffmpeg (about 100 MB, from gyan.dev)', 'download');
+  AddOpt(FfPage, FfActs, 'Use a different ffmpeg.exe', 'browse');
+  FfPage.SelectedValueIndex := 0;
 
-  FoundFfmpeg := FindFfmpeg;
-  FfPage := CreateInputOptionPage(ConvPage.ID, 'ffmpeg',
-    'ffmpeg records and converts the videos',
-    'Choose which ffmpeg the app should use.', True, False);
-  if FoundFfmpeg <> '' then
-    FfPage.Add('Use the ffmpeg already on this PC (' + FoundFfmpeg + ')')
-  else
-    FfPage.Add('Use the ffmpeg already on this PC (none found)');
-  FfPage.Add('Download ffmpeg now (about 100 MB, from gyan.dev)');
-  FfPage.Add('Choose ffmpeg.exe myself');
-  if FoundFfmpeg <> '' then FfPage.SelectedValueIndex := 0 else FfPage.SelectedValueIndex := 1;
+  FfFilePage := CreateInputFilePage(FfPage.ID, 'ffmpeg', '', 'Choose ffmpeg.exe (ffprobe.exe should be in the same folder).');
+  FfFilePage.Add('', 'ffmpeg.exe|ffmpeg.exe|Programs|*.exe', '.exe');
 
-  FfFilePage := CreateInputFilePage(FfPage.ID, 'ffmpeg',
-    'Where is ffmpeg.exe?', 'ffprobe.exe should be in the same folder.');
-  FfFilePage.Add('ffmpeg.exe:', 'ffmpeg.exe|ffmpeg.exe|Programs|*.exe', '.exe');
-
-  RifePage := CreateInputOptionPage(FfFilePage.ID, 'Smoothing (RIFE)',
-    'RIFE fills in frames to make videos smooth 60 fps',
-    'It runs on your graphics card.', True, False);
-  RifePage.Add('Download RIFE now (about 30 MB)');
-  RifePage.Add('Download it the first time it''s needed');
-  RifePage.Add('Use a RIFE folder I already have');
+  RifePage := CreateInputOptionPage(FfFilePage.ID, 'Smoothing (RIFE)', '',
+    'RIFE fills in frames to make videos smooth 60 fps. It runs on your graphics card.', True, False);
+  if FoundRife <> '' then AddOpt(RifePage, RifeActs, 'Use RIFE found on this PC (' + FoundRife + ')', 'found');
+  AddOpt(RifePage, RifeActs, 'Download RIFE now (about 30 MB)', 'download');
+  AddOpt(RifePage, RifeActs, 'Download it the first time it''s needed', 'later');
+  AddOpt(RifePage, RifeActs, 'Use a different RIFE folder', 'browse');
   RifePage.SelectedValueIndex := 0;
 
-  RifeDirPage := CreateInputDirPage(RifePage.ID, 'Smoothing (RIFE)',
-    'Where is RIFE?', 'Choose the folder that contains rife-ncnn-vulkan.exe and the rife-v4.6 model folder.',
-    False, '');
-  RifeDirPage.Add('RIFE folder:');
+  RifeDirPage := CreateInputDirPage(RifePage.ID, 'Smoothing (RIFE)', '',
+    'Choose the folder with rife-ncnn-vulkan.exe and the rife-v4.6 model folder.', False, '');
+  RifeDirPage.Add('');
 
-  EsrPage := CreateInputOptionPage(RifeDirPage.ID, 'AI enhance (Real-ESRGAN)',
-    'Real-ESRGAN redraws small videos at a higher resolution, for a sharper picture',
-    'It runs on your graphics card.', True, False);
-  EsrPage.Add('Download Real-ESRGAN now (about 50 MB)');
-  EsrPage.Add('Download it the first time it''s needed');
+  EsrPage := CreateInputOptionPage(RifeDirPage.ID, 'AI enhance (Real-ESRGAN)', '',
+    'Real-ESRGAN redraws small videos at a higher resolution for a sharper picture. It runs on your graphics card.', True, False);
+  if FoundEsr <> '' then AddOpt(EsrPage, EsrActs, 'Use Real-ESRGAN found on this PC (' + FoundEsr + ')', 'found');
+  AddOpt(EsrPage, EsrActs, 'Download Real-ESRGAN now (about 50 MB)', 'download');
+  AddOpt(EsrPage, EsrActs, 'Download it the first time it''s needed', 'later');
   EsrPage.SelectedValueIndex := 0;
 
-  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), 'Downloading the tools you chose...', nil);
+  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), 'Downloading the tools...', nil);
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
-  if ((PageID = LibPage.ID) or (PageID = ConvPage.ID) or (PageID = FfPage.ID) or (PageID = FfFilePage.ID) or
-      (PageID = RifePage.ID) or (PageID = RifeDirPage.ID) or (PageID = EsrPage.ID)) and IsUpdate then
-    Result := True
-  else if PageID = FfFilePage.ID then
-    Result := FfPage.SelectedValueIndex <> 2
-  else if PageID = RifeDirPage.ID then
-    Result := RifePage.SelectedValueIndex <> 2;
+  if (PageID = ModePage.ID) or (PageID = wpSelectDir) or (PageID = LibPage.ID) or (PageID = FfPage.ID) or
+     (PageID = FfFilePage.ID) or (PageID = RifePage.ID) or (PageID = RifeDirPage.ID) or (PageID = EsrPage.ID) then
+  begin
+    if IsUpdate then
+      Result := PageID <> wpSelectDir   { an update only shows where it's installed }
+    else if PageID = ModePage.ID then
+      Result := False
+    else if not Advanced then
+      Result := True
+    else if PageID = FfFilePage.ID then
+      Result := Choice(FfPage, FfActs) <> 'browse'
+    else if PageID = RifeDirPage.ID then
+      Result := Choice(RifePage, RifeActs) <> 'browse';
+  end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  if (CurPageID = ConvPage.ID) and (Trim(ConvPage.Values[0]) = '') then
-  begin
-    MsgBox('Enter a name for the converted videos folder.', mbError, MB_OK);
-    Result := False;
-  end
-  else if (CurPageID = FfPage.ID) and (FfPage.SelectedValueIndex = 0) and (FoundFfmpeg = '') then
-  begin
-    MsgBox('No ffmpeg was found on this PC. Download it, or choose ffmpeg.exe yourself.', mbError, MB_OK);
-    Result := False;
-  end
-  else if (CurPageID = FfFilePage.ID) and not FileExists(FfFilePage.Values[0]) then
+  if (CurPageID = FfFilePage.ID) and not FileExists(FfFilePage.Values[0]) then
   begin
     MsgBox('Choose the ffmpeg.exe file.', mbError, MB_OK);
     Result := False;
@@ -180,9 +234,9 @@ begin
   else if (CurPageID = wpReady) and not IsUpdate then
   begin
     DownloadPage.Clear;
-    if FfPage.SelectedValueIndex = 1 then DownloadPage.Add(FfmpegUrl, 'ffmpeg.zip', '');
-    if RifePage.SelectedValueIndex = 0 then DownloadPage.Add(RifeUrl, 'rife.zip', '');
-    if EsrPage.SelectedValueIndex = 0 then DownloadPage.Add(EsrganUrl, 'realesrgan.zip', '');
+    if Choice(FfPage, FfActs) = 'download' then DownloadPage.Add(FfmpegUrl, 'ffmpeg.zip', '');
+    if Choice(RifePage, RifeActs) = 'download' then DownloadPage.Add(RifeUrl, 'rife.zip', '');
+    if Choice(EsrPage, EsrActs) = 'download' then DownloadPage.Add(EsrganUrl, 'realesrgan.zip', '');
     DownloadPage.Show;
     try
       try
@@ -200,6 +254,8 @@ begin
     end;
   end;
 end;
+
+{ ---------------------------------------------------------------- installing }
 
 { Unpacks a downloaded zip into Dest, keeping only the folder that contains Exe. }
 function Unpack(ZipName, Dest, Exe: String): Boolean;
@@ -226,40 +282,41 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  Lib, ConvName, Conv, Ff, Rife, Esr: String;
+  Lib, Ff, Rife, Esr, Act: String;
   Lines: TArrayOfString;
 begin
   if (CurStep <> ssPostInstall) or IsUpdate then Exit;
 
-  WizardForm.StatusLabel.Caption := 'Setting up the library and tools…';
-  Lib := RemoveBackslashUnlessRoot(LibPage.Values[0]);
-  ConvName := Trim(ConvPage.Values[0]);
+  WizardForm.StatusLabel.Caption := 'Setting up the library and tools...';
+  if Advanced then
+    Lib := RemoveBackslashUnlessRoot(LibPage.Values[0])
+  else
+    Lib := ExpandConstant('{%USERPROFILE}') + '\Videos\HydroShift';
   ForceDirectories(Lib);
-  ForceDirectories(Lib + '\' + ConvName);
-  { "Converted" is the app's default and follows the library if it's moved later }
-  if CompareText(ConvName, 'Converted') = 0 then Conv := '' else Conv := Lib + '\' + ConvName;
+  ForceDirectories(Lib + '\Converted');   { exports go here; the app's default, so it follows the library if it moves }
 
   Ff := '';
-  case FfPage.SelectedValueIndex of
-    0: Ff := FoundFfmpeg;
-    1: if Unpack('ffmpeg.zip', ExpandConstant('{app}\ffmpeg'), 'ffmpeg.exe') then Ff := ExpandConstant('{app}\ffmpeg\ffmpeg.exe');
-    2: Ff := FfFilePage.Values[0];
-  end;
+  Act := Choice(FfPage, FfActs);
+  if Act = 'found' then Ff := FoundFfmpeg
+  else if Act = 'browse' then Ff := FfFilePage.Values[0]
+  else if (Act = 'download') and Unpack('ffmpeg.zip', ExpandConstant('{app}\ffmpeg'), 'ffmpeg.exe') then
+    Ff := ExpandConstant('{app}\ffmpeg\ffmpeg.exe');
 
   Rife := '';
-  if RifePage.SelectedValueIndex = 0 then
-  begin
-    if Unpack('rife.zip', ExpandConstant('{app}\rife'), 'rife-ncnn-vulkan.exe') then Rife := ExpandConstant('{app}\rife');
-  end
-  else if RifePage.SelectedValueIndex = 2 then
-    Rife := RemoveBackslashUnlessRoot(RifeDirPage.Values[0]);
+  Act := Choice(RifePage, RifeActs);
+  if Act = 'found' then Rife := FoundRife
+  else if Act = 'browse' then Rife := RemoveBackslashUnlessRoot(RifeDirPage.Values[0])
+  else if (Act = 'download') and Unpack('rife.zip', ExpandConstant('{app}\rife'), 'rife-ncnn-vulkan.exe') then
+    Rife := ExpandConstant('{app}\rife');
 
   Esr := '';
-  if EsrPage.SelectedValueIndex = 0 then
-    if Unpack('realesrgan.zip', ExpandConstant('{app}\realesrgan'), 'realesrgan-ncnn-vulkan.exe') then Esr := ExpandConstant('{app}\realesrgan');
+  Act := Choice(EsrPage, EsrActs);
+  if Act = 'found' then Esr := FoundEsr
+  else if (Act = 'download') and Unpack('realesrgan.zip', ExpandConstant('{app}\realesrgan'), 'realesrgan-ncnn-vulkan.exe') then
+    Esr := ExpandConstant('{app}\realesrgan');
 
   SetArrayLength(Lines, 1);
-  Lines[0] := '{"OutDir":' + JsonStr(Lib) + ',"ConvertedDir":' + JsonStr(Conv) + ',"ConvertedOffered":true' +
+  Lines[0] := '{"OutDir":' + JsonStr(Lib) + ',"ConvertedDir":"","ConvertedOffered":true' +
               ',"FfmpegPath":' + JsonStr(Ff) + ',"RifeDir":' + JsonStr(Rife) + ',"EsrganDir":' + JsonStr(Esr) + '}';
   SaveStringsToUTF8File(SettingsFile, Lines, False);
 end;

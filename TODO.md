@@ -25,8 +25,38 @@
   - Pages: library folder, converted subfolder name, ffmpeg (found / download / browse), RIFE (download now / later / existing folder), Real-ESRGAN (now / later).
   - Writes the settings JSON before first launch. Per-user install, no admin prompt.
 
+## Done in 2.2 (needs a build and a test on the PC)
+- Library chips:
+  - Converted = everything the app exported (recordings included).
+  - Recordings = exports that started as a recording.
+  - Originals (replaces "Not tuned yet") = source videos.
+- Editor values you can type:
+  - Click a slider's number, or double-click the slider, to type a value. Enter applies, Esc cancels, the arrow keys nudge (Shift ×10).
+  - The mouse wheel over a slider nudges it.
+  - Trim times can be typed too (click the "0:00 – 0:23" text).
+- Progress and estimates:
+  - Every step shows "· 42% · about 1 min 10 s left (3 min for the whole export)".
+  - Step speeds are learned per PC and saved in the settings (`Rates`).
+  - The editor shows "Takes about …" under the name.
+  - Progress on the taskbar button.
+  - The AI preview shows a progress badge, and the other filmstrip frames are enhanced in the background.
+- AI enhance controls:
+  - Style chips: Animated, Realistic, plus any community model in `realesrgan\models`.
+  - Strength slider (blends with a plain upscale; instant in the preview).
+  - Clean up first.
+  - More options: Quality mode (TTA), Sharpen a little, Open models folder.
+  - Remembered as defaults for new videos.
+  - Realistic downloads its model if it's missing.
+- Installer 2.2 (needs Inno Setup 6.6+):
+  - Dark mode follows Windows (`WizardStyle=modern dynamic`).
+  - Express (default) or Advanced.
+  - The library page is one line, and the Converted page is gone (always `<Library>\Converted`).
+  - Tools are found automatically: if found, they're used; Advanced offers to pick a different one.
+- Themed pop-ups (Dialog.cs) replace the white Windows message boxes.
+- The workflow reads the version from the csproj (now 2.2.0).
+
 ## Still open
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
-- Code signing (optional; it would help with Malwarebytes/SmartScreen).
+- Code signing: on hold. Options are Azure Trusted Signing (~$10/mo) or SignPath Foundation (free for open source); meanwhile, report false positives to Malwarebytes.
 - Push to GitHub, including `.github/workflows/main.yml` (it now builds the installer too). That file can't be written to the PC folder from here.
