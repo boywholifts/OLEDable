@@ -56,7 +56,7 @@
 - The workflow reads the version from the csproj (now 2.2.0).
 
 ## Done after 2.2 (needs a build and a test)
-- Filmstrip clicks select the frame (handled on the strip itself).
+- Filmstrip clicks select the frame (handled on the strip itself). Tested and working.
 - Realistic and other 4× models: the input is shrunk so the output is 2× the panel, which is about 4× faster. Estimates now count megapixels.
 - Model download only adds missing files (no "file in use" error).
 - Public repo prep: README (work-in-progress note, not-affiliated line, privacy, signing policy), MIT LICENSE; removed snapshot test scripts.
