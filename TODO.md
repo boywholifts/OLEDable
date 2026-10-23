@@ -69,8 +69,9 @@
 
 ## Release routine
 1. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
-2. Tag `vX.Y.Z` and push the tag; everyone on Stable is offered it.
-3. Bump `<Version>` in the csproj to the next version (e.g. 2.3.0), so later dev builds count as newer than the release.
+2. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
+3. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.
+- v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
 - Make a recording with the HydroShift in second screen mode (end-to-end).
