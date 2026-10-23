@@ -24,7 +24,8 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          $ver = '2.1.0'
+          # the version comes from the project file, unless a tag like v2.3.0 says otherwise
+          $ver = (Select-Xml -Path HydroShiftRecorder.csproj -XPath '//Version').Node.InnerText
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)') { $ver = $Matches[1] }
           dotnet build HydroShiftRecorder.csproj -c Release -p:Version=$ver -o dist
           if (-not (Test-Path dist\HydroShiftRecorder.exe)) { throw 'Build failed: exe was not created' }
