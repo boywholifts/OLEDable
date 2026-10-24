@@ -159,7 +159,8 @@ begin
   FoundEsr := FindToolDir('realesrgan-ncnn-vulkan.exe', 'realesrgan');
 
   ModePage := CreateInputOptionPage(wpWelcome, 'Setup type', '',
-    'Express puts your library in Videos\HydroShift, uses the tools already on this PC and downloads the rest. ' +
+    'Express puts your library in Videos\HydroShift, uses the tools already on this PC and downloads ffmpeg and AI enhance if needed ' +
+    '(RIFE smoothing is downloaded the first time a video needs it). ' +
     'Advanced lets you choose the folders and each tool.', True, False);
   ModePage.Add('Express (recommended)');
   ModePage.Add('Advanced');
@@ -181,9 +182,11 @@ begin
 
   RifePage := CreateInputOptionPage(FfFilePage.ID, 'Smoothing (RIFE)', '',
     'RIFE fills in frames to make videos smooth 60 fps. It runs on your graphics card.', True, False);
+  { RIFE is a big download (about 430 MB, all its models), so by default the app fetches it the first time a
+    video needs smoothing; Express takes the first option }
   if FoundRife <> '' then AddOpt(RifePage, RifeActs, 'Use RIFE found on this PC (' + FoundRife + ')', 'found');
-  AddOpt(RifePage, RifeActs, 'Download RIFE now (about 30 MB)', 'download');
-  AddOpt(RifePage, RifeActs, 'Download it the first time it''s needed', 'later');
+  AddOpt(RifePage, RifeActs, 'Download it the first time it''s needed (recommended)', 'later');
+  AddOpt(RifePage, RifeActs, 'Download RIFE now (about 430 MB)', 'download');
   AddOpt(RifePage, RifeActs, 'Use a different RIFE folder', 'browse');
   RifePage.SelectedValueIndex := 0;
 
@@ -247,7 +250,7 @@ begin
         if DownloadPage.AbortedByUser then
           Result := False
         else
-          Result := MsgBox('A download failed: ' + GetExceptionMessage + #13#10#13#10 +
+          Result := MsgBox('A download failed or was stopped: ' + GetExceptionMessage + #13#10#13#10 +
                            'Continue anyway? The app downloads RIFE and Real-ESRGAN itself when needed; ffmpeg can be installed later with: winget install Gyan.FFmpeg',
                            mbConfirmation, MB_YESNO) = IDYES;
       end;

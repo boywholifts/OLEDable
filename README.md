@@ -44,7 +44,7 @@ build-installer.cmd   # installer → dist-installer\ (needs Inno Setup 6.6+)
 The app has no telemetry, no accounts and no analytics. It only goes online to download the tools it uses, from their official release pages, when you choose to (in the installer, or the first time a feature needs one):
 
 - ffmpeg: [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)
-- RIFE: [github.com/nihui/rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan/releases)
+- RIFE (about 430 MB, downloaded the first time a video needs smoothing): [github.com/nihui/rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan/releases)
 - Real-ESRGAN: [github.com/xinntao/Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN/releases)
 
 Settings and edits stay on your PC: next to the app, and in a hidden `.hydroshift` folder inside your library.

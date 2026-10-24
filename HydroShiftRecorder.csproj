@@ -11,7 +11,7 @@
     <RootNamespace>HydroShiftRecorder</RootNamespace>
     <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>2.3.0</Version>
+    <Version>2.2.1</Version>
     <Product>HydroShift Recorder</Product>
     <AssemblyTitle>HydroShift Recorder</AssemblyTitle>
     <Description>Records and converts seamless loops for the Lian Li HydroShift II OLED Curved display</Description>
