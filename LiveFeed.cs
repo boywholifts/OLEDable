@@ -16,9 +16,11 @@ namespace HydroShiftRecorder
     /// </summary>
     public sealed class LiveFeed : IDisposable
     {
-        public const int W = 1144, H = 524, Fps = 30;
+        public const int Fps = 30;
+        /// <summary>Preview frame size (the screen's shape, scaled down).</summary>
+        public readonly int W, H;
 
-        public readonly WriteableBitmap Bitmap = new WriteableBitmap(W, H, 96, 96, PixelFormats.Bgra32, null);
+        public readonly WriteableBitmap Bitmap;
         /// <summary>Raised on the UI thread when the feed stops on its own (display gone, ffmpeg failed).</summary>
         public event Action Failed;
         /// <summary>Raised on the UI thread for the first frame.</summary>
@@ -27,15 +29,18 @@ namespace HydroShiftRecorder
         readonly string ffmpeg;
         readonly int adapter, output;
         readonly Dispatcher ui;
-        readonly byte[] front = new byte[W * H * 4];
+        readonly byte[] front;
         volatile bool stopped;
         int pending;   // 1 while a frame is waiting for the UI thread; newer frames are dropped meanwhile
         Process proc;
         Thread reader;
 
-        public LiveFeed(string ffmpeg, int adapter, int output, Dispatcher ui)
+        public LiveFeed(string ffmpeg, int adapter, int output, int w, int h, Dispatcher ui)
         {
             this.ffmpeg = ffmpeg; this.adapter = adapter; this.output = output; this.ui = ui;
+            W = Math.Max(2, w / 2 * 2); H = Math.Max(2, h / 2 * 2);
+            Bitmap = new WriteableBitmap(W, H, 96, 96, PixelFormats.Bgra32, null);
+            front = new byte[W * H * 4];
         }
 
         public void Start()

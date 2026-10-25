@@ -9,7 +9,7 @@ using static HydroShiftRecorder.Tools;
 
 namespace HydroShiftRecorder
 {
-    /// <summary>Records the HydroShift display, then opens the clip in the editor.</summary>
+    /// <summary>Records one of the screens (the HydroShift or any monitor), then opens the clip in the editor.</summary>
     public partial class RecordPage : UserControl, IPage
     {
         readonly MainWindow shell;
@@ -41,19 +41,49 @@ namespace HydroShiftRecorder
             Fps60.Checked += (o, e) => { S.Fps = 60; shell.SaveSettings(); };
             CountSw.Click += (o, e) => { S.Countdown = CountSw.IsChecked == true; shell.SaveSettings(); };
             NameBox.TextChanged += (o, e) => NamePh.Visibility = NameBox.Text.Length > 0 ? Visibility.Hidden : Visibility.Visible;
-            FindBtn.Click += (o, e) => shell.DetectDisplay();
+            FindBtn.Click += async (o, e) => { LiveMsg.Text = "Looking for screens…"; await shell.ScanScreens(); };
             RecBtn.MouseLeftButtonUp += (o, e) => OnRecClick();
-            PreviewFrame.SizeChanged += (o, e) => PreviewHost.Height = PreviewFrame.ActualWidth * 1048 / 2288;
+            PreviewFrame.SizeChanged += (o, e) => SizePreview();
 
-            shell.DisplayChanged += () => { UpdateDisplayState(); StopFeed(); StartFeed(); };
+            shell.DisplayChanged += () => { BuildScreenChips(); SizePreview(); UpdateDisplayState(); StopFeed(); StartFeed(); };
             shell.BusyChanged += UpdateDisplayState;
         }
 
-        public void OnShown()
+        public async void OnShown()
         {
             shown = true;
+            BuildScreenChips();
             UpdateDisplayState();
-            StartFeed();
+            if (shell.Screens == null) await shell.ScanScreens();   // the first time: find the screens
+            else StartFeed();
+        }
+
+        /// <summary>One chip per screen found; the chosen one is the one recorded.</summary>
+        void BuildScreenChips()
+        {
+            ScreenChips.Children.Clear();
+            if (shell.Screens == null) return;
+            foreach (var sc in shell.Screens)
+            {
+                var screen = sc;
+                var chip = new RadioButton
+                {
+                    Content = sc.Label, GroupName = "screen", Margin = new Thickness(0, 0, 6, 6),
+                    IsChecked = sc.Adapter == shell.S.Adapter && sc.Output == shell.S.Output,
+                };
+                chip.SetResourceReference(FrameworkElement.StyleProperty, "Chip");
+                chip.Checked += (o, e) => { if (!recording && !(screen.Adapter == shell.S.Adapter && screen.Output == shell.S.Output)) shell.ChooseScreen(screen); };
+                ScreenChips.Children.Add(chip);
+            }
+        }
+
+        /// <summary>The live view takes the chosen screen's shape.</summary>
+        void SizePreview()
+        {
+            var sc = shell.CurrentScreen;
+            double aspect = sc != null ? (double)sc.H / sc.W : 1048.0 / 2288;
+            PreviewHost.Height = Math.Min(PreviewFrame.ActualWidth * aspect, 640);
+            PreviewHost.Width = PreviewHost.Height / aspect;
         }
 
         public void OnHidden()
@@ -75,7 +105,8 @@ namespace HydroShiftRecorder
                 LiveImg.Source = null;
                 LiveMsg.Visibility = Visibility.Visible;
                 LiveMsg.Text = shell.Ffmpeg == null ? "ffmpeg is not installed. Run  winget install Gyan.FFmpeg  and reopen the app."
-                             : "The HydroShift wasn't found. Turn it on as a secondary screen in L-Connect 3, then click “Find display again”.";
+                             : shell.Screens == null ? "Looking for screens…"
+                             : "No screen could be captured. Click “Look for screens again”. (The HydroShift shows up here when it's on as a secondary screen in L-Connect 3.)";
                 LivePill.Visibility = Visibility.Collapsed;
                 StatusText.Text = "";
             }
@@ -90,7 +121,10 @@ namespace HydroShiftRecorder
         void StartFeed()
         {
             if (!shown || feed != null || !shell.DisplayFound || shell.Ffmpeg == null) return;
-            var f = new LiveFeed(shell.Ffmpeg, shell.S.Adapter, shell.S.Output, Dispatcher);
+            var sc = shell.CurrentScreen;
+            if (sc == null) return;
+            double k = Math.Min(1144.0 / sc.W, 1144.0 / sc.H);
+            var f = new LiveFeed(shell.Ffmpeg, sc.Adapter, sc.Output, (int)(sc.W * k), (int)(sc.H * k), Dispatcher);
             f.Started += () => { if (feed == f) { LiveImg.Source = f.Bitmap; LiveMsg.Visibility = Visibility.Collapsed; } };
             f.Failed += () =>
             {
@@ -98,7 +132,7 @@ namespace HydroShiftRecorder
                 feed = null;
                 LiveImg.Source = null;
                 LiveMsg.Visibility = Visibility.Visible;
-                LiveMsg.Text = "Can't see the HydroShift right now. If you changed displays, click “Find display again”.";
+                LiveMsg.Text = "Can't see this screen right now. If you changed displays, click “Look for screens again”.";
             };
             feed = f;
             f.Start();
@@ -122,7 +156,7 @@ namespace HydroShiftRecorder
         {
             if (counting) { if (countCts != null) countCts.Cancel(); return; }
             if (recording) { if (stop != null) stop.Requested = true; StatusText.Text = "Finishing up…"; return; }
-            if (!shell.DisplayFound) { shell.DetectDisplay(); return; }
+            if (!shell.DisplayFound || shell.CurrentScreen == null) { var _ = shell.ScanScreens(); return; }
             if (shell.Busy) { shell.ShowToast("Wait for the running job to finish first."); return; }
 
             var S = shell.S;
@@ -143,6 +177,7 @@ namespace HydroShiftRecorder
                 if (countCts.IsCancellationRequested) { StatusText.Text = "Ready"; return; }
             }
 
+            var screenUsed = shell.CurrentScreen;
             var id = SourceStore.NewId();
             var dest = shell.Store.RecordingPath(id);
             var title = string.IsNullOrWhiteSpace(NameBox.Text) ? "Recording " + DateTime.Now.ToString("MMM d, h.mm tt") : NameBox.Text.Trim();
@@ -178,6 +213,8 @@ namespace HydroShiftRecorder
                 Id = id, Title = title, SourcePath = dest, Kind = "recording",
                 Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
                 OutputName = shell.UniqueOutputName(title),
+                // the HydroShift's own size stays the HydroShift output; any other screen keeps its size
+                OutputMode = screenUsed != null && !screenUsed.IsHydroShift ? OutputSpec.Original : null,
             };
             session.Oled.Black = -1;   // detect
             shell.Store.Save(session);

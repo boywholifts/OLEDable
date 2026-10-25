@@ -62,12 +62,6 @@
             <TextBlock Text="Wallpaper Engine" Margin="12,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
         </RadioButton>
-        <RadioButton x:Name="NavRecord" DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource NavItem}" Margin="0,0,0,4">
-          <StackPanel Orientation="Horizontal">
-            <Path Style="{StaticResource Icon}" Data="M12,3.5 A8.5,8.5 0 1 1 11.99,3.5 Z M12,9 A3,3 0 1 1 11.99,9 Z"/>
-            <TextBlock Text="Record" Margin="12,0,0,0" VerticalAlignment="Center"/>
-          </StackPanel>
-        </RadioButton>
         <RadioButton x:Name="NavSettings" DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource NavItem}">
           <StackPanel Orientation="Horizontal">
             <Path Style="{StaticResource Icon}" Data="M4,7 H14 M18,7 H20 M4,17 H8 M12,17 H20 M14,7 A2,2 0 1 0 18,7 A2,2 0 1 0 14,7 Z M8,17 A2,2 0 1 0 12,17 A2,2 0 1 0 8,17 Z"/>
@@ -75,9 +69,9 @@
           </StackPanel>
         </RadioButton>
 
-        <!-- display status, bottom -->
+        <!-- a warning at the bottom, shown only when ffmpeg is missing -->
         <Border x:Name="DisplayCard" DockPanel.Dock="Bottom" CornerRadius="12" Padding="14,12" Background="{DynamicResource Raised}"
-                BorderBrush="{DynamicResource Line}" BorderThickness="1" Cursor="Hand" ToolTip="Click to look for the HydroShift again">
+                BorderBrush="{DynamicResource Line}" BorderThickness="1" Visibility="Collapsed">
           <StackPanel>
             <StackPanel Orientation="Horizontal">
               <Ellipse x:Name="DisplayDot" Width="8" Height="8" Fill="#FF8E8E93" VerticalAlignment="Center" Margin="0,0,8,0"/>

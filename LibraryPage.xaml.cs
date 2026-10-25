@@ -48,8 +48,9 @@ namespace HydroShiftRecorder
             };
             ImportBtn.Click += (s, e) => shell.PickAndImport();
             EmptyImport.Click += (s, e) => shell.PickAndImport();
-            RecordBtn.Click += (s, e) => shell.ShowRecord();
-            EmptyRecord.Click += (s, e) => shell.ShowRecord();
+            RecordBtn.Click += (s, e) => shell.ShowWallpaperEngine();
+            EmptyRecord.Click += (s, e) => shell.ShowWallpaperEngine();
+            RecScreenBtn.Click += (s, e) => shell.ShowRecord();
             foreach (var r in new[] { FAll, FRec, FConv, FTodo }) r.Checked += (s, e) => ApplyFilter();
             Scroller.SizeChanged += (s, e) => Layout();
             debounce.Tick += (s, e) => { debounce.Stop(); Refresh(); };
@@ -187,7 +188,7 @@ namespace HydroShiftRecorder
         {
             var it = (sender as FrameworkElement)?.Tag as LibraryItem;
             if (it == null) return;
-            if (it.IsAddTile) shell.ShowRecord();
+            if (it.IsAddTile) shell.PickAndImport();
             else shell.OpenItem(it);
         }
 

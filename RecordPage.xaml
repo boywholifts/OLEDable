@@ -8,9 +8,9 @@
     </Grid.RowDefinitions>
 
     <StackPanel>
-      <TextBlock Text="Record" FontSize="26" FontWeight="Bold"/>
-      <TextBlock Text="Records whatever is playing on the HydroShift, such as a Wallpaper Engine scene, then opens it in the editor."
-                 Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,6,0,0"/>
+      <TextBlock Text="Record a screen" FontSize="26" FontWeight="Bold"/>
+      <TextBlock Text="Records whatever is on one of your screens (the HydroShift, or any monitor), then opens it in the editor. For Wallpaper Engine wallpapers, the Wallpaper Engine page records them directly at any size."
+                 Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap"/>
     </StackPanel>
 
     <Grid Grid.Row="1" Margin="0,22,0,0">
@@ -25,7 +25,7 @@
         <Border x:Name="PreviewFrame" CornerRadius="14" Background="Black" BorderBrush="{DynamicResource Line}" BorderThickness="1" ClipToBounds="True">
           <Grid x:Name="PreviewHost">
             <Image x:Name="LiveImg" Stretch="UniformToFill"/>
-            <TextBlock x:Name="LiveMsg" Text="Looking for your HydroShift…" Foreground="#FF9E9E9E" FontSize="13"
+            <TextBlock x:Name="LiveMsg" Text="Looking for screens…" Foreground="#FF9E9E9E" FontSize="13"
                        HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="24"/>
             <Border x:Name="LivePill" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" CornerRadius="10" Background="#CC000000" Padding="10,4">
               <StackPanel Orientation="Horizontal">
@@ -50,6 +50,10 @@
       <Border Grid.Column="2" VerticalAlignment="Top" CornerRadius="14" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}"
               BorderThickness="1" Padding="20,18,20,20">
         <StackPanel>
+          <TextBlock Text="SCREEN" Style="{StaticResource SectionTitle}"/>
+          <WrapPanel x:Name="ScreenChips" Margin="0,0,0,4"/>
+          <Button x:Name="FindBtn" Content="Look for screens again" Style="{StaticResource Link}" HorizontalAlignment="Left" Margin="0,4,0,20"/>
+
           <TextBlock Text="NAME" Style="{StaticResource SectionTitle}"/>
           <Grid>
             <TextBox x:Name="NameBox" Style="{StaticResource Field}"/>
@@ -81,9 +85,8 @@
           </DockPanel>
 
           <Border Height="1" Background="{DynamicResource Line}" Margin="0,20,0,16"/>
-          <TextBlock Text="Tip: in Wallpaper Engine, set the FPS limit to 60 for the smoothest recordings. If a wallpaper draws fewer frames, the editor can fill them in."
+          <TextBlock Text="Tip: if what you record draws fewer than 60 frames a second, the editor can fill in the missing ones."
                      FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
-          <Button x:Name="FindBtn" Content="Find display again" Style="{StaticResource Link}" HorizontalAlignment="Left" Margin="0,14,0,0"/>
         </StackPanel>
       </Border>
     </Grid>

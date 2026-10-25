@@ -9,7 +9,7 @@ A Windows app that makes seamless-looping, true-black videos for the **Lian Li H
 ## What it does
 
 - **Library:** browse the videos in a folder, see which are already converted, and click one to edit it.
-- **Record** whatever is playing on the HydroShift (for example a Wallpaper Engine scene), straight from the display, with a live preview.
+- **Record a screen:** for anything that isn't a Wallpaper Engine wallpaper, record one of your screens (the HydroShift or any monitor) with a live preview.
 - **Convert** any video or Wallpaper Engine video wallpaper. It's cropped to 2288 × 1048 to fit the panel.
 - **Wallpaper Engine browser:** see every wallpaper you've downloaded from the Workshop. Video wallpapers are copied into your library in one click; scenes can be unpacked (with [RePKG](https://github.com/notscuffed/repkg)) for their background image or a video inside them. Wallpaper Engine's own files are never changed.
 - **Any wallpaper, not just the HydroShift:** videos and still images (PNG, JPEG, WebP…) can keep their original size, be upscaled 2× or 4× keeping their shape, or fill a size you choose (4K, a phone screen…). Images are saved as PNG.
@@ -28,7 +28,7 @@ Download `HydroShiftRecorder-Setup-x.y.z.exe` from [Releases](../../releases) an
 
 It installs for your user only (no admin prompt) and can be removed from Windows' *Apps* settings. The uninstaller never touches your library folder.
 
-**Needs:** Windows 10 or 11 and a GPU with Vulkan support for RIFE and AI enhance (any recent NVIDIA, AMD or Intel GPU). To record, the HydroShift must be turned on as a secondary screen in L-Connect 3.
+**Needs:** Windows 10 or 11 and a GPU with Vulkan support for RIFE and AI enhance (any recent NVIDIA, AMD or Intel GPU). Recording Wallpaper Engine scenes uses its pop-out window, so the HydroShift doesn't need secondary screen mode; ffmpeg 8 or newer is recommended for that.
 
 ## Build it yourself
 

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -58,14 +60,12 @@ namespace HydroShiftRecorder
                              string.IsNullOrWhiteSpace(S.RifeDir) ? Path.Combine(DataDir, "rife") : S.RifeDir,
                              string.IsNullOrWhiteSpace(S.EsrganDir) ? Path.Combine(DataDir, "realesrgan") : S.EsrganDir);
             P.Speeds = new SpeedBook(S.Rates);   // learns as exports run; saved with the settings
-            ImportOldDisplaySetting();
 
             Theme.Apply(Theme.Effective(S), S.Accent);
             InitializeComponent();
             TaskbarItemInfo = new System.Windows.Shell.TaskbarItemInfo();   // job progress on the taskbar button
 
             NavLibrary.Checked += (s, e) => ShowPage(Library);
-            NavRecord.Checked += (s, e) => ShowPage(Record);
             NavSettings.Checked += (s, e) => ShowPage(SettingsPg);
             NavEditing.Checked += (s, e) => ShowPage(Editor);
             NavWe.Checked += (s, e) => ShowPage(WePage);
@@ -75,7 +75,6 @@ namespace HydroShiftRecorder
             BtnClose.Click += (s, e) => Close();
             StateChanged += (s, e) => FitMaximized();
             JobCancel.Click += (s, e) => { if (jobCts != null) jobCts.Cancel(); };
-            DisplayCard.MouseLeftButtonUp += (s, e) => DetectDisplay();
             UpdateNow.Click += (s, e) => InstallUpdate();
             UpdateNotes.Click += (s, e) => { if (update != null) OpenInShell(update.Page); };
             UpdateDismiss.Click += (s, e) =>
@@ -109,11 +108,10 @@ namespace HydroShiftRecorder
                 if (Ffmpeg == null)
                 {
                     SetDisplay(false, "ffmpeg is not installed", "Run  winget install Gyan.FFmpeg  then reopen the app.");
+                    DisplayCard.Visibility = Visibility.Visible;
                     return;
                 }
                 if (snapshotDir != null) { await RunSnapshots(snapshotDir); return; }
-                if (S.Adapter >= 0) { SetDisplay(true, "HydroShift connected", "2288 × 1048"); DisplayChanged?.Invoke(); }
-                else DetectDisplay();
             };
         }
 
@@ -136,7 +134,14 @@ namespace HydroShiftRecorder
         }
 
         public void ShowLibrary() { if (NavLibrary.IsChecked == true) ShowPage(Library); else NavLibrary.IsChecked = true; }
-        public void ShowRecord() { if (NavRecord.IsChecked == true) ShowPage(Record); else NavRecord.IsChecked = true; }
+        /// <summary>The screen recorder: no sidebar item of its own (it's opened from the Library).</summary>
+        public void ShowRecord()
+        {
+            NavLibrary.IsChecked = NavEditing.IsChecked = NavWe.IsChecked = NavSettings.IsChecked = false;
+            ShowPage(Record);
+        }
+
+        public void ShowWallpaperEngine() { if (NavWe.IsChecked == true) ShowPage(WePage); else NavWe.IsChecked = true; }
 
         /// <summary>
         /// Opens a session in the editor. The sidebar gets an "Editing" item, so you can go to other pages and
@@ -231,8 +236,8 @@ namespace HydroShiftRecorder
                 title = proj.Title;
                 if (type != "video")
                 {
-                    ShowToast("“" + title + "” is a " + (type.Length > 0 ? type : "non-video") + " wallpaper. Set it on the HydroShift and record it instead.");
-                    ShowRecord();
+                    ShowToast("“" + title + "” is a " + (type.Length > 0 ? type : "non-video") + " wallpaper: record it from the Wallpaper Engine page.");
+                    ShowWallpaperEngine();
                     return;
                 }
                 path = Path.Combine(Path.GetDirectoryName(pj), proj.File ?? "");
@@ -411,21 +416,6 @@ namespace HydroShiftRecorder
 
         // ---------------------------------------------------------------- the HydroShift display
 
-        void ImportOldDisplaySetting()
-        {
-            // reuse the display found by the old PowerShell script, if it was in this folder
-            var oldCfg = Path.Combine(DataDir, "hydroshift-capture.json");
-            if (S.Adapter >= 0 || !File.Exists(oldCfg)) return;
-            try
-            {
-                var t = File.ReadAllText(oldCfg);
-                var a = System.Text.RegularExpressions.Regex.Match(t, "\"Adapter\"\\s*:\\s*(\\d+)");
-                var o = System.Text.RegularExpressions.Regex.Match(t, "\"Output\"\\s*:\\s*(\\d+)");
-                if (t.Contains("\"dda\"") && a.Success && o.Success) { S.Adapter = int.Parse(a.Groups[1].Value); S.Output = int.Parse(o.Groups[1].Value); }
-            }
-            catch { }
-        }
-
         void SetDisplay(bool ok, string text, string sub)
         {
             DisplayDot.Fill = Theme.Brush(ok ? "#FF22B07D" : "#FF8E8E93");
@@ -433,59 +423,81 @@ namespace HydroShiftRecorder
             DisplaySub.Text = sub;
         }
 
-        bool detecting;
-
-        /// <summary>Looks for the 2288 × 1048 display on every graphics adapter, in the background.</summary>
-        public async void DetectDisplay()
+        /// <summary>A screen the recorder can capture (Desktop Duplication adapter/output and its size).</summary>
+        public class ScreenInfo
         {
-            if (detecting || Ffmpeg == null) return;
-            detecting = true;
-            SetDisplay(false, "Looking for HydroShift…", "");
+            public int Adapter, Output, W, H;
+            public bool IsHydroShift { get { return (W == 2288 && H == 1048) || (W == 1048 && H == 2288); } }
+            public string Label { get { return (IsHydroShift ? "HydroShift  ·  " : "Screen " + (Output + 1) + (Adapter > 0 ? " (GPU " + (Adapter + 1) + ")" : "") + "  ·  ") + W + " × " + H; } }
+        }
+
+        /// <summary>Screens found by the last <see cref="ScanScreens"/>; null until then.</summary>
+        public List<ScreenInfo> Screens { get; private set; }
+        bool scanning;
+
+        /// <summary>
+        /// Finds every screen that can be recorded, by grabbing one frame from each graphics adapter's outputs
+        /// (in the background; takes a few seconds). Keeps the chosen one if it's still there.
+        /// </summary>
+        public async Task ScanScreens()
+        {
+            if (scanning || Ffmpeg == null) return;
+            scanning = true;
             var ff = Ffmpeg;
-            int lastA = S.Adapter >= 0 ? S.Adapter : S.LastAdapter, lastO = S.Adapter >= 0 ? S.Output : S.LastOutput;
             var found = await Task.Run(() =>
             {
+                var list = new List<ScreenInfo>();
                 var png = Path.Combine(Path.GetTempPath(), "hsr_probe.png");
-                // try the last known spot first, then every adapter/output; an output that
-                // can't be captured (e.g. an HDR monitor) must not hide the ones after it
-                var spots = new System.Collections.Generic.List<int[]>();
-                if (lastA >= 0) spots.Add(new[] { lastA, lastO });
-                for (int a = 0; a <= 3; a++) for (int o = 0; o <= 5; o++) spots.Add(new[] { a, o });
-                int missAdapter = -1;
-                foreach (var spot in spots)
+                for (int a = 0; a <= 3; a++)
                 {
-                        int a = spot[0], o = spot[1];
-                        if (a == missAdapter) continue;
+                    int misses = 0;
+                    for (int o = 0; o <= 5; o++)
+                    {
                         TryDelete(png);
                         var j = new FfJob(ff, FfArgs.Grab(a, o, png));
                         if (!j.Wait(10000)) j.Kill();
                         j.Drain();
                         if (!File.Exists(png))
                         {
-                            if (o == 0 && a > 0) missAdapter = a;   // a second card with no output 0 has no screens
+                            // one output that can't be captured (e.g. HDR) mustn't hide the next ones; two in a row = no more
+                            if (++misses >= 2) break;
                             continue;
                         }
+                        misses = 0;
                         try
                         {
                             var f = BitmapFrame.Create(new Uri(png), BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
-                            if ((f.PixelWidth == 2288 && f.PixelHeight == 1048) || (f.PixelWidth == 1048 && f.PixelHeight == 2288))
-                                return new[] { a, o };
+                            list.Add(new ScreenInfo { Adapter = a, Output = o, W = f.PixelWidth, H = f.PixelHeight });
                         }
                         catch { }
+                    }
                 }
-                return null;
+                TryDelete(png);
+                return list;
             });
-            detecting = false;
-            if (found != null)
+            scanning = false;
+            Screens = found;
+            if (!found.Any(sc => sc.Adapter == S.Adapter && sc.Output == S.Output))
             {
-                S.Adapter = S.LastAdapter = found[0]; S.Output = S.LastOutput = found[1]; SaveSettings();
-                SetDisplay(true, "HydroShift connected", "2288 × 1048");
+                // default: the HydroShift if it's on, otherwise the first screen
+                var pick = found.FirstOrDefault(sc => sc.IsHydroShift) ?? found.FirstOrDefault();
+                S.Adapter = pick != null ? pick.Adapter : -1;
+                S.Output = pick != null ? pick.Output : -1;
+                SaveSettings();
             }
-            else
-            {
-                S.Adapter = -1; SaveSettings();
-                SetDisplay(false, "HydroShift not found", "Turn it on as a secondary screen in L-Connect 3, then click here.");
-            }
+            DisplayChanged?.Invoke();
+        }
+
+        /// <summary>The screen the recorder captures.</summary>
+        public ScreenInfo CurrentScreen
+        {
+            get { return Screens == null ? null : Screens.FirstOrDefault(sc => sc.Adapter == S.Adapter && sc.Output == S.Output); }
+        }
+
+        public void ChooseScreen(ScreenInfo sc)
+        {
+            S.Adapter = sc.Adapter; S.Output = sc.Output;
+            SaveSettings();
             DisplayChanged?.Invoke();
         }
 
