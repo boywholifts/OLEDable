@@ -292,6 +292,7 @@ namespace HydroShiftRecorder
         [DataMember(Name = "type")] public string Type;
         [DataMember(Name = "file")] public string File;
         [DataMember(Name = "title")] public string Title;
+        [DataMember(Name = "preview")] public string Preview;
 
         public static WeProject Load(string path) { return Json.Read<WeProject>(System.IO.File.ReadAllText(path)); }
     }

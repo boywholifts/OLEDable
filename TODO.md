@@ -74,6 +74,10 @@
   - Library lists images; exported PNGs reopen their session by file name (PNG can't carry the app's tag).
 - The editor preview takes the output's shape; images hide the filmstrip, trim, motion and noise cleanup.
 - Installer: RIFE (about 430 MB) downloads on first use by default.
+- Wallpaper Engine page (sidebar): every Workshop wallpaper and your own projects, with previews, type badges, search and filters.
+  - Video: copy into `<Library>\Wallpaper Engine` and open in the editor.
+  - Scene: RePKG (downloaded on first use) unpacks it; "Extract still image" takes the largest picture, "Extract video" a video layer if there is one.
+  - Next: "Record animation": play the scene in a Wallpaper Engine pop-out window (`wallpaper64.exe -control openWallpaper -file … -playInWindow … -width -height -borderless`) and capture that window.
 
 
 1. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.

@@ -40,10 +40,10 @@
         </Button>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-        <Button x:Name="ImportBtn" Style="{StaticResource Pill}" Margin="0,0,10,0" ToolTip="Convert a video or a Wallpaper Engine video wallpaper (you can also drop one on the window)">
+        <Button x:Name="ImportBtn" Style="{StaticResource Pill}" Margin="0,0,10,0" ToolTip="Open a video or image (you can also drop one on the window)">
           <StackPanel Orientation="Horizontal">
             <Path Style="{StaticResource Icon}" Width="16" Height="16" Data="M12,4 V15 M7,10 L12,15 L17,10 M5,20 H19"/>
-            <TextBlock Text="Import video" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock Text="Import" Margin="8,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
         </Button>
         <Button x:Name="RecordBtn" Style="{StaticResource PrimaryPill}">
@@ -120,7 +120,7 @@
       <TextBlock Text="Record what's on the HydroShift, or import a video or a Wallpaper Engine wallpaper." Foreground="{DynamicResource Sub}"
                  HorizontalAlignment="Center" Margin="0,8,0,18"/>
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-        <Button x:Name="EmptyImport" Content="Import video" Style="{StaticResource Pill}" Margin="0,0,10,0"/>
+        <Button x:Name="EmptyImport" Content="Import" Style="{StaticResource Pill}" Margin="0,0,10,0"/>
         <Button x:Name="EmptyRecord" Content="Record display" Style="{StaticResource PrimaryPill}"/>
       </StackPanel>
     </StackPanel>

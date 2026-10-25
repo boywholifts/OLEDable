@@ -56,6 +56,12 @@
             </StackPanel>
           </DockPanel>
         </RadioButton>
+        <RadioButton x:Name="NavWe" DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource NavItem}" Margin="0,0,0,4">
+          <StackPanel Orientation="Horizontal">
+            <Path Style="{StaticResource Icon}" Data="M4.5,4.5 H19.5 A1.5,1.5 0 0 1 21,6 V15 A1.5,1.5 0 0 1 19.5,16.5 H4.5 A1.5,1.5 0 0 1 3,15 V6 A1.5,1.5 0 0 1 4.5,4.5 Z M9,20 H15 M12,16.5 V20 M6.5,13.5 L10,9.5 L12.5,12 L14.5,10 L17.5,13.5"/>
+            <TextBlock Text="Wallpaper Engine" Margin="12,0,0,0" VerticalAlignment="Center"/>
+          </StackPanel>
+        </RadioButton>
         <RadioButton x:Name="NavRecord" DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource NavItem}" Margin="0,0,0,4">
           <StackPanel Orientation="Horizontal">
             <Path Style="{StaticResource Icon}" Data="M12,3.5 A8.5,8.5 0 1 1 11.99,3.5 Z M12,9 A3,3 0 1 1 11.99,9 Z"/>

@@ -144,11 +144,12 @@ namespace HydroShiftRecorder
         /// Quick listing (names, sizes, dates) of the library folder and the converted-videos folder;
         /// details come later from <see cref="LoadDetails"/>.
         /// </summary>
-        public static List<LibraryItem> List(string folder, string converted)
+        public static List<LibraryItem> List(string folder, string converted, string extra = null)
         {
             var list = new List<LibraryItem>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var dirs = new[] { converted, folder };   // converted first, so a shared folder counts as converted
+            // converted first, so a shared folder counts as converted; "extra" = copies of Wallpaper Engine wallpapers
+            var dirs = new[] { converted, folder, extra };
             for (int d = 0; d < dirs.Length; d++)
             {
                 var dir = dirs[d];

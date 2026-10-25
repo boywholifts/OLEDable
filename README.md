@@ -11,6 +11,7 @@ A Windows app that makes seamless-looping, true-black videos for the **Lian Li H
 - **Library:** browse the videos in a folder, see which are already converted, and click one to edit it.
 - **Record** whatever is playing on the HydroShift (for example a Wallpaper Engine scene), straight from the display, with a live preview.
 - **Convert** any video or Wallpaper Engine video wallpaper. It's cropped to 2288 × 1048 to fit the panel.
+- **Wallpaper Engine browser:** see every wallpaper you've downloaded from the Workshop. Video wallpapers are copied into your library in one click; scenes can be unpacked (with [RePKG](https://github.com/notscuffed/repkg)) for their background image or a video inside them. Wallpaper Engine's own files are never changed.
 - **Any wallpaper, not just the HydroShift:** videos and still images (PNG, JPEG, WebP…) can keep their original size, be upscaled 2× or 4× keeping their shape, or fill a size you choose (4K, a phone screen…). Images are saved as PNG.
 - **True black:** a live before/after preview pushes the grey "haze" to pure black so the OLED pixels switch fully off. The black level is detected for each video, and you can fine-tune shadows, color, brightness, highlights and glow.
 - **Smooth to 60 fps:** videos or recordings with fewer frames get real in-between frames from RIFE, running on your GPU.
@@ -60,6 +61,7 @@ Settings and edits stay on your PC: next to the app, and in a hidden `.hydroshif
 
 - [RIFE / rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan) (MIT): frame interpolation
 - [Real-ESRGAN / realesrgan-ncnn-vulkan](https://github.com/xinntao/Real-ESRGAN) (BSD-3-Clause): AI upscaling
+- [RePKG](https://github.com/notscuffed/repkg) (MIT): unpacking Wallpaper Engine scenes, downloaded on first use
 - [FFmpeg](https://ffmpeg.org) (LGPL/GPL): video work, downloaded separately and not bundled
 - [Inno Setup](https://jrsoftware.org/isinfo.php): installer
 

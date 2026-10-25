@@ -68,6 +68,7 @@ namespace HydroShiftRecorder
             NavRecord.Checked += (s, e) => ShowPage(Record);
             NavSettings.Checked += (s, e) => ShowPage(SettingsPg);
             NavEditing.Checked += (s, e) => ShowPage(Editor);
+            NavWe.Checked += (s, e) => ShowPage(WePage);
             EditCloseBtn.Click += (s, e) => { e.Handled = true; CloseEditor(); };
             BtnMin.Click += (s, e) => WindowState = WindowState.Minimized;
             BtnMax.Click += (s, e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
@@ -120,6 +121,8 @@ namespace HydroShiftRecorder
 
         LibraryPage Library { get { return library ?? (library = new LibraryPage(this)); } }
         RecordPage Record { get { return record ?? (record = new RecordPage(this)); } }
+        WallpaperEnginePage wePage;
+        WallpaperEnginePage WePage { get { return wePage ?? (wePage = new WallpaperEnginePage(this)); } }
         SettingsPage SettingsPg { get { return settings ?? (settings = new SettingsPage(this)); } }
         EditorPage Editor { get { return editor ?? (editor = new EditorPage(this)); } }
 

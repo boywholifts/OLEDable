@@ -71,7 +71,8 @@ namespace HydroShiftRecorder
             FolderText.Text = shell.S.OutDir;
             var folder = shell.S.OutDir;
             var converted = shell.S.ConvertedPath;
-            var listed = await Task.Run(() => LibraryScanner.List(folder, converted));
+            var weCopies = Workshop.ImportDir(shell.S);
+            var listed = await Task.Run(() => LibraryScanner.List(folder, converted, weCopies));
             if (gen != generation) return;
 
             // keep details for files that haven't changed; load the rest in the background
