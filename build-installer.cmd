@@ -1,5 +1,5 @@
 @echo off
-rem Builds the app, then the installer (dist-installer\HydroShiftRecorder-Setup-*.exe).
+rem Builds the app, then the installer (dist-installer\OLEDable-Setup-*.exe).
 rem Needs Inno Setup 6:  winget install JRSoftware.InnoSetup
 cd /d "%~dp0"
 if not exist logs mkdir logs
@@ -11,7 +11,7 @@ set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC%" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC%" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC%" (echo Inno Setup 6 not found. Install it with: winget install JRSoftware.InnoSetup >> %LOG% & goto :end)
-"%ISCC%" installer\HydroShiftRecorder.iss >> %LOG% 2>&1
+"%ISCC%" installer\OLEDable.iss >> %LOG% 2>&1
 if errorlevel 1 (echo INSTALLER FAILED >> %LOG%) else (echo INSTALLER OK >> %LOG%)
 :end
 echo === done === >> %LOG%

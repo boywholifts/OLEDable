@@ -1,4 +1,4 @@
-; HydroShift Recorder installer (Inno Setup 6.6 or newer, for the dark mode that follows Windows)
+; OLEDable installer (formerly HydroShift Recorder) (Inno Setup 6.6 or newer, for the dark mode that follows Windows)
 ; Build: run build-installer.cmd in the project folder, or let the GitHub workflow do it.
 ; Sets everything up before the first launch: the library folder (with its Converted subfolder), ffmpeg,
 ; RIFE smoothing and Real-ESRGAN AI enhance, and writes the choices into the app's settings file.
@@ -14,18 +14,18 @@
 
 [Setup]
 AppId={{6B2F0E5C-8C1E-4B7E-9A51-2D1C4F7E9B13}
-AppName=HydroShift Recorder
+AppName=OLEDable
 AppVersion={#AppVersion}
-AppPublisher=HydroShift Recorder
-DefaultDirName={localappdata}\Programs\HydroShift Recorder
+AppPublisher=OLEDable
+DefaultDirName={localappdata}\Programs\OLEDable
 ; per-user install: no admin prompt, and the app folder stays writable (settings and tools live next to the exe)
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 OutputDir=..\dist-installer
-OutputBaseFilename=HydroShiftRecorder-Setup-{#AppVersion}
+OutputBaseFilename=OLEDable-Setup-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
-UninstallDisplayIcon={app}\HydroShiftRecorder.exe
-UninstallDisplayName=HydroShift Recorder
+UninstallDisplayIcon={app}\OLEDable.exe
+UninstallDisplayName=OLEDable
 ; light or dark, following the Windows setting
 WizardStyle=modern dynamic
 Compression=lzma2
@@ -35,25 +35,33 @@ SolidCompression=yes
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
 [Files]
-Source: "..\dist\HydroShiftRecorder.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\HydroShiftRecorder.exe.config"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\dist\OLEDable.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\OLEDable.exe.config"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\dist\*.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "unpack.ps1"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Icons]
-Name: "{autoprograms}\HydroShift Recorder"; Filename: "{app}\HydroShiftRecorder.exe"
-Name: "{autodesktop}\HydroShift Recorder"; Filename: "{app}\HydroShiftRecorder.exe"; Tasks: desktopicon
+Name: "{autoprograms}\OLEDable"; Filename: "{app}\OLEDable.exe"
+Name: "{autodesktop}\OLEDable"; Filename: "{app}\OLEDable.exe"; Tasks: desktopicon
+
+[InstallDelete]
+; the app used to be called HydroShift Recorder: remove the old exe and shortcuts when updating
+Type: files; Name: "{app}\HydroShiftRecorder.exe"
+Type: files; Name: "{app}\HydroShiftRecorder.exe.config"
+Type: files; Name: "{autoprograms}\HydroShift Recorder.lnk"
+Type: files; Name: "{autodesktop}\HydroShift Recorder.lnk"
 
 [Run]
-Filename: "{app}\HydroShiftRecorder.exe"; Description: "Open HydroShift Recorder"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\OLEDable.exe"; Description: "Open OLEDable"; Flags: nowait postinstall skipifsilent
 ; an update started from inside the app runs silently: reopen the app when it's done
-Filename: "{app}\HydroShiftRecorder.exe"; Flags: nowait; Check: WizardSilent
+Filename: "{app}\OLEDable.exe"; Flags: nowait; Check: WizardSilent
 
 [UninstallDelete]
 ; tools the installer or the app downloaded; the library folder and its videos are never touched
 Type: filesandordirs; Name: "{app}\ffmpeg"
 Type: filesandordirs; Name: "{app}\rife"
 Type: filesandordirs; Name: "{app}\realesrgan"
+Type: files; Name: "{app}\OLEDable.json"
 Type: files; Name: "{app}\HydroShift-Recorder.json"
 
 [Code]
@@ -75,13 +83,14 @@ var
 
 function SettingsFile: String;
 begin
-  Result := AddBackslash(WizardDirValue) + 'HydroShift-Recorder.json';
+  Result := AddBackslash(WizardDirValue) + 'OLEDable.json';
 end;
 
-{ An update keeps the existing settings, so the setup pages are only for a first install. }
+{ An update keeps the existing settings, so the setup pages are only for a first install.
+  Installs from before the rename have HydroShift-Recorder.json; the app copies it over on first launch. }
 function IsUpdate: Boolean;
 begin
-  Result := FileExists(SettingsFile);
+  Result := FileExists(SettingsFile) or FileExists(AddBackslash(WizardDirValue) + 'HydroShift-Recorder.json');
 end;
 
 function Advanced: Boolean;
@@ -110,11 +119,12 @@ var
 begin
   Result := FileSearch('ffmpeg.exe', GetEnv('PATH'));
   if Result <> '' then Exit;
-  SetArrayLength(C, 4);
+  SetArrayLength(C, 5);
   C[0] := ExpandConstant('{localappdata}\Microsoft\WinGet\Links\ffmpeg.exe');
-  C[1] := ExpandConstant('{localappdata}\Programs\HydroShift Recorder\ffmpeg\ffmpeg.exe');
-  C[2] := 'C:\ffmpeg\bin\ffmpeg.exe';
-  C[3] := ExpandConstant('{commonpf}\ffmpeg\bin\ffmpeg.exe');
+  C[1] := ExpandConstant('{localappdata}\Programs\OLEDable\ffmpeg\ffmpeg.exe');
+  C[2] := ExpandConstant('{localappdata}\Programs\HydroShift Recorder\ffmpeg\ffmpeg.exe');
+  C[3] := 'C:\ffmpeg\bin\ffmpeg.exe';
+  C[4] := ExpandConstant('{commonpf}\ffmpeg\bin\ffmpeg.exe');
   Result := FirstExisting(C);
 end;
 
@@ -126,9 +136,11 @@ begin
   Result := FileSearch(Exe, GetEnv('PATH'));
   if Result = '' then
   begin
-    SetArrayLength(C, 2);
-    C[0] := ExpandConstant('{localappdata}\Programs\HydroShift Recorder\' + Sub + '\' + Exe);
-    C[1] := ExpandConstant('{localappdata}\HydroShift Recorder\' + Sub + '\' + Exe);
+    SetArrayLength(C, 4);
+    C[0] := ExpandConstant('{localappdata}\Programs\OLEDable\' + Sub + '\' + Exe);
+    C[1] := ExpandConstant('{localappdata}\OLEDable\' + Sub + '\' + Exe);
+    C[2] := ExpandConstant('{localappdata}\Programs\HydroShift Recorder\' + Sub + '\' + Exe);
+    C[3] := ExpandConstant('{localappdata}\HydroShift Recorder\' + Sub + '\' + Exe);
     Result := FirstExisting(C);
   end;
   if Result <> '' then Result := ExtractFileDir(Result);
@@ -159,7 +171,7 @@ begin
   FoundEsr := FindToolDir('realesrgan-ncnn-vulkan.exe', 'realesrgan');
 
   ModePage := CreateInputOptionPage(wpWelcome, 'Setup type', '',
-    'Express puts your library in Videos\HydroShift, uses the tools already on this PC and downloads ffmpeg and AI enhance if needed ' +
+    'Express puts your library in Videos\OLEDable, uses the tools already on this PC and downloads ffmpeg and AI enhance if needed ' +
     '(RIFE smoothing is downloaded the first time a video needs it). ' +
     'Advanced lets you choose the folders and each tool.', True, False);
   ModePage.Add('Express (recommended)');
@@ -167,9 +179,9 @@ begin
   ModePage.SelectedValueIndex := 0;
 
   LibPage := CreateInputDirPage(wpSelectDir, 'Library folder', '',
-    'Choose your library location (your video files are stored here).', False, 'HydroShift');
+    'Choose your library location (your video files are stored here).', False, 'OLEDable');
   LibPage.Add('');
-  LibPage.Values[0] := ExpandConstant('{%USERPROFILE}') + '\Videos\HydroShift';
+  LibPage.Values[0] := ExpandConstant('{%USERPROFILE}') + '\Videos\OLEDable';
 
   FfPage := CreateInputOptionPage(LibPage.ID, 'ffmpeg', '', 'ffmpeg records and converts the videos.', True, False);
   if FoundFfmpeg <> '' then AddOpt(FfPage, FfActs, 'Use the ffmpeg found on this PC (' + FoundFfmpeg + ')', 'found');
@@ -296,7 +308,7 @@ begin
   if Advanced then
     Lib := RemoveBackslashUnlessRoot(LibPage.Values[0])
   else
-    Lib := ExpandConstant('{%USERPROFILE}') + '\Videos\HydroShift';
+    Lib := ExpandConstant('{%USERPROFILE}') + '\Videos\OLEDable';
   ForceDirectories(Lib);
   ForceDirectories(Lib + '\Converted');   { exports go here; the app's default, so it follows the library if it moves }
 

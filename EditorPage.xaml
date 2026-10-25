@@ -58,7 +58,7 @@
         <Border x:Name="PreviewFrame" CornerRadius="14" Background="Black" BorderBrush="{DynamicResource Line}" BorderThickness="1"
                 VerticalAlignment="Top" HorizontalAlignment="Center" ClipToBounds="True">
           <Grid x:Name="PreviewHost" Background="Black" Cursor="SizeWE"
-                ToolTip="Drag to compare the original (left) with the HydroShift version (right)">
+                ToolTip="Drag to compare the original (left) with the OLED version (right)">
             <Image x:Name="OledImg" Stretch="Fill"/>
             <Image x:Name="OrigImg" Stretch="Fill"/>
             <Rectangle x:Name="SplitLine" Width="2" Fill="#E6FFFFFF" HorizontalAlignment="Left" Visibility="Hidden"/>
@@ -71,7 +71,7 @@
               <TextBlock Text="Original" FontSize="12" FontWeight="SemiBold" Foreground="#FFD6D6DE"/>
             </Border>
             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" CornerRadius="6" Background="#BF000000" Padding="9,3">
-              <TextBlock Text="HydroShift" FontSize="12" FontWeight="SemiBold" Foreground="#FFC9A6FF"/>
+              <TextBlock Text="OLED" FontSize="12" FontWeight="SemiBold" Foreground="#FFC9A6FF"/>
             </Border>
             <!-- AI enhance working on the preview -->
             <Border x:Name="EnhPill" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="12" CornerRadius="6" Background="#D9000000"

@@ -1,4 +1,4 @@
-# HydroShift Recorder – to do
+# OLEDable (formerly HydroShift Recorder) – to do
 
 ## Done in 2.1 (needs a build and a test on the PC)
 - Library thumbnails are PNG at 640×293 with accurate RGB conversion, which should fix the banding in the blacks. The old cached JPGs are simply ignored.
@@ -21,7 +21,7 @@
   - Export: crop to the panel's shape → ESRGAN 2/3/4× → (fit → RIFE if smoothing) → OLED → encode.
   - Downloads about 50 MB the first time.
 - Installer (Inno Setup):
-  - `installer\HydroShiftRecorder.iss`, built with `build-installer.cmd` (needs `winget install JRSoftware.InnoSetup`) or by GitHub Actions.
+  - `installer\OLEDable.iss`, built with `build-installer.cmd` (needs `winget install JRSoftware.InnoSetup`) or by GitHub Actions.
   - Pages: library folder, converted subfolder name, ffmpeg (found / download / browse), RIFE (download now / later / existing folder), Real-ESRGAN (now / later).
   - Writes the settings JSON before first launch. Per-user install, no admin prompt.
 
@@ -79,7 +79,10 @@
   - Scene: RePKG (downloaded on first use) unpacks it; "Extract still image" takes the largest picture, "Extract video" a video layer if there is one.
   - Done: "Record animation…" opens a window (size, length, frame rate); play the scene in a Wallpaper Engine pop-out window (`wallpaper64.exe -control openWallpaper -file … -playInWindow … -width -height -borderless`) and capture that window.
 
+- Record moved out of the sidebar: "Record screen" on the Library page records any monitor.
+- Renamed to **OLEDable**: exe `OLEDable.exe`, settings `OLEDable.json` (copied from `HydroShift-Recorder.json` on first launch), installer `installer\OLEDable.iss` (same AppId, so it updates old installs in place and removes the old exe and shortcuts), default library `Videos\OLEDable` for new installs. Updater points at `boywholifts/oledable` (rename the GitHub repo). Internal names (namespace, `.hydroshift` folder, `hsr|` tag) are unchanged.
 
+## Release routine
 1. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
 2. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
 3. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.

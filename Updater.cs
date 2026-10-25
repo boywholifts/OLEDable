@@ -20,7 +20,7 @@ namespace HydroShiftRecorder
     /// </summary>
     public static class Updater
     {
-        public const string Repo = "boywholifts/hydroshift-recorder";
+        public const string Repo = "boywholifts/oledable";   // renamed from hydroshift-recorder (GitHub redirects the old name)
         public const string Stable = "stable", Dev = "dev";
 
         [DataContract]
@@ -79,7 +79,7 @@ namespace HydroShiftRecorder
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var req = (HttpWebRequest)WebRequest.Create("https://api.github.com/repos/" + Repo + "/releases?per_page=30");
-                req.UserAgent = "HydroShift-Recorder";
+                req.UserAgent = "OLEDable";
                 req.Accept = "application/vnd.github+json";
                 req.Timeout = 15000;
                 List<Release> list;
@@ -98,7 +98,7 @@ namespace HydroShiftRecorder
         /// <summary>Downloads the release's setup to a temp folder and returns its path.</summary>
         public static async Task<string> DownloadAsync(Release r, IProgress<JobStatus> pr, CancellationToken ct)
         {
-            var dir = Path.Combine(Path.GetTempPath(), "HydroShift Recorder", "update");
+            var dir = Path.Combine(Path.GetTempPath(), "OLEDable", "update");
             Directory.CreateDirectory(dir);
             var file = Path.Combine(dir, r.Setup.Name);
             Tools.TryDelete(file);

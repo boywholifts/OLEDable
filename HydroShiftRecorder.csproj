@@ -7,13 +7,13 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>HydroShiftRecorder</AssemblyName>
+    <AssemblyName>OLEDable</AssemblyName>
     <RootNamespace>HydroShiftRecorder</RootNamespace>
     <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.3.0</Version>
-    <Product>HydroShift Recorder</Product>
-    <AssemblyTitle>HydroShift Recorder</AssemblyTitle>
+    <Product>OLEDable</Product>
+    <AssemblyTitle>OLEDable</AssemblyTitle>
     <Description>Records and converts seamless loops for the Lian Li HydroShift II OLED Curved display</Description>
     <Copyright>Open source</Copyright>
     <DebugType>none</DebugType>

@@ -112,7 +112,7 @@ namespace HydroShiftRecorder
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var req = (HttpWebRequest)WebRequest.Create(url);
-                req.UserAgent = "HydroShift-Recorder";
+                req.UserAgent = "OLEDable";
                 using (var resp = req.GetResponse())
                 using (var s = resp.GetResponseStream())
                 using (var f = File.Create(path))
@@ -192,7 +192,7 @@ namespace HydroShiftRecorder
         void SetDefaults()
         {
             Seconds = 45; Fps = 60; Loop = true; TrueBlack = true; Countdown = true; Smooth = true; Crossfade = 1;
-            OutDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "HydroShift");
+            OutDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "OLEDable");
             Encoder = "nvenc"; Adapter = -1; Output = -1; LastAdapter = 0; LastOutput = 2;
             OledShadows = 1.2; OledColor = 1.08; OledCleanup = true;
             OledBright = 0; OledHighlights = 0; OledGlow = 0; OledGlowSize = 20;
@@ -302,7 +302,7 @@ namespace HydroShiftRecorder
         public double Fps;
         public double Duration;
         public int Width, Height;
-        /// <summary>The container's "comment" tag; HydroShift Recorder writes "hsr|id|kind" there.</summary>
+        /// <summary>The container's "comment" tag; OLEDable (formerly HydroShift Recorder) writes "hsr|id|kind" there.</summary>
         public string Comment;
     }
 
@@ -470,7 +470,7 @@ namespace HydroShiftRecorder
             return null;
         }
 
-        /// <summary>The app's folder if it's writable (portable), otherwise %LOCALAPPDATA%\HydroShift Recorder.</summary>
+        /// <summary>The app's folder if it's writable (portable), otherwise %LOCALAPPDATA%\OLEDable (or the old HydroShift Recorder folder if that exists).</summary>
         public static string DataDir()
         {
             var app = AppDomain.CurrentDomain.BaseDirectory;
@@ -483,7 +483,9 @@ namespace HydroShiftRecorder
             }
             catch
             {
-                var d = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HydroShift Recorder");
+                var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var d = Path.Combine(local, "HydroShift Recorder");
+                if (!Directory.Exists(d)) d = Path.Combine(local, "OLEDable");
                 Directory.CreateDirectory(d);
                 return d;
             }

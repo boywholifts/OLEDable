@@ -49,8 +49,11 @@ namespace HydroShiftRecorder
         {
             this.snapshotDir = snapshotDir;
             DataDir = Tools.DataDir();
-            SettingsPath = Path.Combine(DataDir, "HydroShift-Recorder.json");
-            CacheDir = Path.Combine(Path.GetTempPath(), "HydroShift Recorder", "thumbs");
+            SettingsPath = Path.Combine(DataDir, "OLEDable.json");
+            // renamed from HydroShift Recorder: carry the old settings over the first time
+            var oldSettings = Path.Combine(DataDir, "HydroShift-Recorder.json");
+            if (!File.Exists(SettingsPath) && File.Exists(oldSettings)) { try { File.Copy(oldSettings, SettingsPath); } catch { } }
+            CacheDir = Path.Combine(Path.GetTempPath(), "OLEDable", "thumbs");
             S = Settings.Load(SettingsPath);
             // tools chosen in the installer win; otherwise look on PATH
             Ffmpeg = !string.IsNullOrWhiteSpace(S.FfmpegPath) && File.Exists(S.FfmpegPath) ? S.FfmpegPath : Find("ffmpeg");

@@ -46,21 +46,21 @@ jobs:
         shell: pwsh
         run: |
           dotnet build HydroShiftRecorder.csproj -c Release -p:Version=$env:APP_VERSION -o dist
-          if (-not (Test-Path dist\HydroShiftRecorder.exe)) { throw 'Build failed: exe was not created' }
+          if (-not (Test-Path dist\OLEDable.exe)) { throw 'Build failed: exe was not created' }
 
       - name: Build installer
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" installer\HydroShiftRecorder.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" installer\OLEDable.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
 
       - name: Upload build
         uses: actions/upload-artifact@v6
         with:
-          name: HydroShiftRecorder-${{ env.APP_VERSION }}
+          name: OLEDable-${{ env.APP_VERSION }}
           path: |
-            dist/HydroShiftRecorder.exe
+            dist/OLEDable.exe
             dist-installer/*.exe
 
       - name: Publish dev pre-release
@@ -83,11 +83,11 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.APP_VERSION }}
-          name: HydroShift Recorder ${{ env.APP_VERSION }}
+          name: OLEDable ${{ env.APP_VERSION }}
           target_commitish: ${{ github.sha }}
           prerelease: false
           make_latest: true
           generate_release_notes: true
           files: |
-            dist/HydroShiftRecorder.exe
+            dist/OLEDable.exe
             dist-installer/*.exe

@@ -16,7 +16,7 @@ namespace HydroShiftRecorder
     /// </summary>
     public static class SceneRecorder
     {
-        public const string WindowName = "HydroShift Recorder capture";
+        public const string WindowName = "OLEDable capture";
 
         /// <summary>Sizes offered for a recording.</summary>
         public static readonly Tuple<string, int, int>[] Sizes =

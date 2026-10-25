@@ -112,7 +112,7 @@ namespace HydroShiftRecorder
                 UpdStatus.Text = S.LastUpdateCheck > DateTime.MinValue ? "Last checked " + S.LastUpdateCheck.ToString("MMM d, h:mm tt") : "Not checked yet";
             KeepSw.IsChecked = S.KeepSources;
 
-            AboutText.Text = "HydroShift Recorder " + Updater.CurrentText +
+            AboutText.Text = "OLEDable " + Updater.CurrentText +
                              "\nffmpeg: " + (shell.Ffmpeg ?? "not found") +
                              "\nRIFE smoothing: " + (shell.P.HasRife ? "installed" : "downloads on first use") +
                              "\nAI enhance (Real-ESRGAN): " + (shell.P.HasEsrgan ? "installed" : "downloads on first use") +
