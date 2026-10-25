@@ -81,7 +81,6 @@ namespace HydroShiftRecorder
         {
             var bits = new List<string> { it.Source };
             if (Workshop.AlreadyCopied(shell.S, it)) bits.Add("in your library");
-            if (!(it.IsVideo || it.IsScene || it.Kind == "web")) bits.Add("can't be imported");
             return string.Join("  ·  ", bits);
         }
 
@@ -112,50 +111,31 @@ namespace HydroShiftRecorder
 
         // ---------------------------------------------------------------- actions
 
-        void Tile_Click(object sender, RoutedEventArgs e)
+        static WeItem ItemOf(object sender) { return (sender as FrameworkElement)?.Tag as WeItem; }
+
+        /// <summary>Clicking the picture: edit a video, record a scene or web wallpaper.</summary>
+        void Main_Click(object sender, RoutedEventArgs e)
         {
-            var el = sender as FrameworkElement;
-            var it = el?.Tag as WeItem;
+            var it = ItemOf(sender);
             if (it == null) return;
-            var menu = new ContextMenu();
-            if (it.IsVideo)
-            {
-                menu.Items.Add(Item("Edit in the app", "Copies the video into your library and opens it", () => ImportVideo(it)));
-            }
-            else if (it.IsScene)
-            {
-                menu.Items.Add(Item("Extract still image", "The scene's background picture, without its animation (instant)", () => ExtractScene(it, false)));
-                menu.Items.Add(Item("Extract video", "For scenes that are really a video layer (instant)", () => ExtractScene(it, true)));
-                menu.Items.Add(RecordMenu(it));
-            }
-            else if (it.Kind == "web")
-            {
-                menu.Items.Add(RecordMenu(it));
-            }
-            else
-            {
-                var none = Item(it.KindLabel + " wallpapers can't be imported", null, () => { });
-                none.IsEnabled = false;
-                menu.Items.Add(none);
-            }
-            menu.Items.Add(new Separator());
-            menu.Items.Add(Item("Show in folder", null, () => MainWindow.OpenInShell(it.Folder)));
-            menu.PlacementTarget = el;
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-            menu.IsOpen = true;
+            if (it.IsVideo) ImportVideo(it);
+            else if (it.CanRecord) AskAndRecord(it);
         }
 
-        /// <summary>"Record animation": opens a small window to pick the size, length and frame rate.</summary>
-        MenuItem RecordMenu(WeItem it)
+        void Edit_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) ImportVideo(it); }
+        void Record_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) AskAndRecord(it); }
+        void Still_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) ExtractScene(it, false); }
+        void VideoLayer_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) ExtractScene(it, true); }
+        void Folder_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) MainWindow.OpenInShell(it.Folder); }
+
+        /// <summary>Opens the small window to pick the size, length and frame rate, then records.</summary>
+        void AskAndRecord(WeItem it)
         {
-            return Item("Record animation…", "Wallpaper Engine plays it in a window at the size you pick, and the app records that window", () =>
-            {
-                var c = RecordSceneDialog.Show(shell, it.Name, shell.S.Seconds, shell.S.Fps);
-                if (c == null) return;
-                shell.S.Seconds = c.Seconds; shell.S.Fps = c.Fps;   // shared with the Record page
-                shell.SaveSettings();
-                RecordScene(it, c.W, c.H, c.Seconds, c.Fps);
-            });
+            var c = RecordSceneDialog.Show(shell, it.Name, shell.S.Seconds, shell.S.Fps);
+            if (c == null) return;
+            shell.S.Seconds = c.Seconds; shell.S.Fps = c.Fps;   // shared with Record screen
+            shell.SaveSettings();
+            RecordScene(it, c.W, c.H, c.Seconds, c.Fps);
         }
 
         async void RecordScene(WeItem it, int w, int h, int secs, int fps)
@@ -185,13 +165,6 @@ namespace HydroShiftRecorder
             shell.OpenEditor(session);
         }
 
-        static MenuItem Item(string header, string tip, Action a)
-        {
-            var m = new MenuItem { Header = header, ToolTip = tip };
-            m.Click += (s, e) => a();
-            return m;
-        }
-
         async void ImportVideo(WeItem it)
         {
             string copy = null;
@@ -217,7 +190,7 @@ namespace HydroShiftRecorder
             if (!ok) return;
             if (result == null)
             {
-                shell.ShowToast(video ? "This scene has no video inside. Try Extract still image." : "No image was found inside this scene.");
+                shell.ShowToast(video ? "This scene has no video layer. Try Record or Still image." : "No image was found inside this scene.");
                 return;
             }
             it.Meta = Meta(it);

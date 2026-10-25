@@ -21,6 +21,12 @@ namespace HydroShiftRecorder
         public string Kind { get { return (Type ?? "").ToLowerInvariant(); } }
         public bool IsVideo { get { return Kind == "video"; } }
         public bool IsScene { get { return Kind == "scene"; } }
+        public bool IsWeb { get { return Kind == "web"; } }
+        /// <summary>Scenes and web wallpapers are recorded through Wallpaper Engine's pop-out window.</summary>
+        public bool CanRecord { get { return IsScene || IsWeb; } }
+        /// <summary>Applications and unknown types: nothing the app can bring in.</summary>
+        public bool Unsupported { get { return !IsVideo && !CanRecord; } }
+        public string MainTip { get { return IsVideo ? "Edit this video" : CanRecord ? "Record this wallpaper" : null; } }
         public string Name { get { return string.IsNullOrWhiteSpace(Title) ? Path.GetFileName(Folder) : Title; } }
         public string KindLabel
         {
