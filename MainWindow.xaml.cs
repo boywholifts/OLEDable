@@ -191,13 +191,22 @@ namespace HydroShiftRecorder
                 if (s != null && (s.SourcePath == null || !File.Exists(s.SourcePath))) s = null;   // original gone: edit the video itself
                 if (s != null) { s.OutputName = Path.GetFileName(it.Path); s.ExistingPath = it.Path; }
             }
+            if (s == null && it.Id == null)
+            {
+                // exported images can't carry the app's tag: find their session by file name
+                s = Store.FindByOutput(Path.GetFileName(it.Path));
+                if (s != null && (s.SourcePath == null || !File.Exists(s.SourcePath))) s = null;
+                if (s != null) s.ExistingPath = it.Path;
+            }
             if (s == null)
             {
+                bool image = Tools.IsImage(it.Path);
                 s = new EditSession
                 {
-                    Id = SourceStore.NewId(), Title = it.Name, SourcePath = it.Path, Kind = "video",
+                    Id = SourceStore.NewId(), Title = it.Name, SourcePath = it.Path, Kind = image ? "image" : "video",
                     Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
-                    OutputName = UniqueOutputName(it.Name + " (OLED)"),
+                    OutputName = UniqueOutputName(it.Name + " (OLED)", image ? ".png" : ".mp4"),
+                    OutputMode = image ? OutputSpec.Original : null,   // wallpaper images keep their size by default
                 };
                 s.Oled.Black = -1;   // detect
             }
@@ -225,17 +234,19 @@ namespace HydroShiftRecorder
                 }
                 path = Path.Combine(Path.GetDirectoryName(pj), proj.File ?? "");
             }
-            if (!File.Exists(path) || !LibraryScanner.IsVideo(path) && Path.GetExtension(path).ToLowerInvariant() != ".gif")
+            bool image = Tools.IsImage(path);
+            if (!File.Exists(path) || !LibraryScanner.IsVideo(path) && !image && Path.GetExtension(path).ToLowerInvariant() != ".gif")
             {
-                ShowToast("That isn't a video the app can open.");
+                ShowToast("That isn't a video or image the app can open.");
                 return;
             }
             if (string.IsNullOrWhiteSpace(title)) title = Path.GetFileNameWithoutExtension(path);
             var s = new EditSession
             {
-                Id = SourceStore.NewId(), Title = title, SourcePath = path, Kind = "video",
+                Id = SourceStore.NewId(), Title = title, SourcePath = path, Kind = image ? "image" : "video",
                 Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
-                OutputName = UniqueOutputName(title),
+                OutputName = UniqueOutputName(title, image ? ".png" : ".mp4"),
+                OutputMode = image ? OutputSpec.Original : null,
             };
             s.Oled.Black = -1;
             OpenEditor(s);
@@ -245,21 +256,23 @@ namespace HydroShiftRecorder
         {
             var d = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Choose a video for the HydroShift",
-                Filter = "Videos|*.mp4;*.webm;*.mov;*.mkv;*.avi;*.wmv;*.m4v;*.gif|Wallpaper Engine project|project.json|All files|*.*",
+                Title = "Choose a video or image",
+                Filter = "Videos and images|*.mp4;*.webm;*.mov;*.mkv;*.avi;*.wmv;*.m4v;*.gif;*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.tif;*.tiff|" +
+                         "Videos|*.mp4;*.webm;*.mov;*.mkv;*.avi;*.wmv;*.m4v;*.gif|Images|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.tif;*.tiff|" +
+                         "Wallpaper Engine project|project.json|All files|*.*",
             };
             var we = FindWorkshopDir();
             if (we != null) d.InitialDirectory = we;
             if (d.ShowDialog(this) == true) Import(d.FileName);
         }
 
-        public string UniqueOutputName(string title)
+        public string UniqueOutputName(string title, string ext = ".mp4")
         {
             var n = SafeName(title);
             if (n.Length == 0) n = "HydroShift " + DateTime.Now.ToString("yyyy-MM-dd HH.mm");
-            var name = n + ".mp4";
+            var name = n + ext;
             for (int i = 2; File.Exists(Path.Combine(S.ConvertedPath, name)) || File.Exists(Path.Combine(S.OutDir, name)); i++)
-                name = n + " (" + i + ").mp4";
+                name = n + " (" + i + ")" + ext;
             return name;
         }
 
@@ -326,7 +339,7 @@ namespace HydroShiftRecorder
         /// <summary>Exports the session into the library folder, keeping its settings for later re-editing.</summary>
         public async Task<bool> Export(EditSession s)
         {
-            if (string.IsNullOrEmpty(s.OutputName)) s.OutputName = UniqueOutputName(s.Title);
+            if (string.IsNullOrEmpty(s.OutputName)) s.OutputName = UniqueOutputName(s.Title, s.IsImage ? ".png" : ".mp4");
             var outPath = OutputPathFor(s);
             var snap = s.Clone();
             Store.Save(snap);

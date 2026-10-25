@@ -56,7 +56,7 @@
         </Grid.RowDefinitions>
 
         <Border x:Name="PreviewFrame" CornerRadius="14" Background="Black" BorderBrush="{DynamicResource Line}" BorderThickness="1"
-                VerticalAlignment="Top" ClipToBounds="True">
+                VerticalAlignment="Top" HorizontalAlignment="Center" ClipToBounds="True">
           <Grid x:Name="PreviewHost" Background="Black" Cursor="SizeWE"
                 ToolTip="Drag to compare the original (left) with the HydroShift version (right)">
             <Image x:Name="OledImg" Stretch="Fill"/>
@@ -90,8 +90,8 @@
           </Grid>
         </Border>
 
-        <!-- filmstrip with trim handles -->
-        <Grid Grid.Row="1" Margin="0,16,0,0">
+        <!-- filmstrip with trim handles (hidden for still images) -->
+        <Grid x:Name="StripRow" Grid.Row="1" Margin="0,16,0,0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
           </Grid.ColumnDefinitions>
@@ -115,7 +115,7 @@
             </Grid>
           </Border>
         </Grid>
-        <DockPanel Grid.Row="2" Margin="0,10,0,0">
+        <DockPanel x:Name="TrimRow" Grid.Row="2" Margin="0,10,0,0">
           <TextBlock x:Name="TrimText" DockPanel.Dock="Right" FontSize="12" Foreground="{DynamicResource Sub}"/>
           <TextBlock Text="Click a frame to preview it  ·  drag the handles to trim  ·  drag the picture to compare"
                      FontSize="12" Foreground="{DynamicResource Sub}" TextTrimming="CharacterEllipsis"/>
@@ -131,6 +131,33 @@
             <TextBox x:Name="NameBox" Style="{StaticResource Field}"/>
             <TextBlock x:Name="SaveAsText" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,6,0,22" TextWrapping="Wrap"/>
 
+            <TextBlock Text="OUTPUT" Style="{StaticResource SectionTitle}"/>
+            <WrapPanel x:Name="OutChips">
+              <RadioButton x:Name="OutPanel" Content="HydroShift" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="2288 × 1048, cropped to fill the HydroShift. Kept under L-Connect's 30 MB upload limit."/>
+              <RadioButton x:Name="OutOrig" Content="Original size" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="Keeps the source's own size and shape: nothing is cropped or resized."/>
+              <RadioButton x:Name="OutUp" Content="Upscale" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="Keeps the shape, 2× or 4× larger. Best with AI enhance on."/>
+              <RadioButton x:Name="OutCustom" Content="Custom" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="Fills a size you choose (cropping to fit), e.g. 4K or a phone screen."/>
+            </WrapPanel>
+            <Border x:Name="UpRow" Visibility="Collapsed" HorizontalAlignment="Left" Background="{DynamicResource Bg}" CornerRadius="9" Padding="2" Margin="0,4,0,0">
+              <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="Up2" Content="2×" GroupName="upf" Style="{StaticResource Seg}"/>
+                <RadioButton x:Name="Up4" Content="4×" GroupName="upf" Style="{StaticResource Seg}"/>
+              </StackPanel>
+            </Border>
+            <StackPanel x:Name="CustomRow" Visibility="Collapsed" Margin="0,4,0,0">
+              <WrapPanel x:Name="PresetChips"/>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <TextBox x:Name="CustomWBox" Style="{StaticResource Field}" Width="90" ToolTip="Width in pixels"/>
+                <TextBlock Text="×" Margin="10,0" VerticalAlignment="Center" Foreground="{DynamicResource Sub}"/>
+                <TextBox x:Name="CustomHBox" Style="{StaticResource Field}" Width="90" ToolTip="Height in pixels"/>
+              </StackPanel>
+            </StackPanel>
+            <TextBlock x:Name="OutNote" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,8,0,22" TextWrapping="Wrap"/>
+
             <TextBlock Text="TRUE BLACK" Style="{StaticResource SectionTitle}"/>
             <DockPanel><TextBlock x:Name="BlackVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
               <TextBlock Text="Black level" Style="{StaticResource RowLabel}" ToolTip="Anything darker than this switches fully off. Set automatically for each video."/></DockPanel>
@@ -141,7 +168,7 @@
             <DockPanel><TextBlock x:Name="ColorVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
               <TextBlock Text="Color boost" Style="{StaticResource RowLabel}" ToolTip="Saturation. A little extra makes neon and lights pop against true black."/></DockPanel>
             <Slider x:Name="ColorSlider" Style="{StaticResource ThinSlider}" Minimum="0.8" Maximum="1.5" Margin="0,4,0,14"/>
-            <DockPanel Margin="0,0,0,24">
+            <DockPanel x:Name="CleanRow" Margin="0,0,0,24">
               <ToggleButton x:Name="CleanSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
               <StackPanel>
                 <TextBlock Text="Clean up noise" Style="{StaticResource RowLabel}"/>
@@ -211,8 +238,8 @@
               </StackPanel>
             </StackPanel>
 
-            <TextBlock Text="MOTION" Style="{StaticResource SectionTitle}"/>
-            <DockPanel Margin="0,0,0,14">
+            <TextBlock x:Name="MotionTitle" Text="MOTION" Style="{StaticResource SectionTitle}"/>
+            <DockPanel x:Name="LoopRow" Margin="0,0,0,14">
               <ToggleButton x:Name="LoopSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
               <StackPanel>
                 <TextBlock Text="Seamless loop" Style="{StaticResource RowLabel}"/>

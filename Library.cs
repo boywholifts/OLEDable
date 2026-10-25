@@ -29,6 +29,7 @@ namespace HydroShiftRecorder
         ImageSource thumb; string meta;
         public ImageSource Thumb { get { return thumb; } set { thumb = value; Raise("Thumb"); } }
         public string Meta { get { return meta; } set { meta = value; Raise("Meta"); } }
+        public bool IsImage { get { return Tools.IsImage(Path); } }
         /// <summary>True when the file is in the converted-videos folder.</summary>
         public bool InConverted { get; set; }
         /// <summary>The dashed "record or drop a video" tile at the end of the grid.</summary>
@@ -40,7 +41,7 @@ namespace HydroShiftRecorder
 
         public string KindLabel
         {
-            get { return Kind == "recording" ? "Recording" : Kind == "video" ? "Converted" : "Video"; }
+            get { return Kind == "recording" ? "Recording" : Kind == "video" ? "Converted" : IsImage ? (InConverted ? "Image · converted" : "Image") : "Video"; }
         }
     }
 
@@ -93,6 +94,29 @@ namespace HydroShiftRecorder
             catch { return null; }
         }
 
+        /// <summary>
+        /// The session that exported a file of this name, for exports that can't carry the app's tag
+        /// (PNG images). Null when there's none.
+        /// </summary>
+        public EditSession FindByOutput(string fileName)
+        {
+            try
+            {
+                if (!Directory.Exists(Dir)) return null;
+                foreach (var f in Directory.EnumerateFiles(Dir, "*.json"))
+                {
+                    try
+                    {
+                        var s = Json.Read<EditSession>(File.ReadAllText(f));
+                        if (s != null && string.Equals(s.OutputName, fileName, StringComparison.OrdinalIgnoreCase)) return s;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return null;
+        }
+
         /// <summary>Removes a session's settings and its kept recording (used when its video is deleted).</summary>
         public void Forget(string id)
         {
@@ -106,6 +130,9 @@ namespace HydroShiftRecorder
     public static class LibraryScanner
     {
         static readonly string[] Ext = { ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v", ".wmv" };
+
+        /// <summary>A video or still image the library shows.</summary>
+        public static bool IsMedia(string path) { return IsVideo(path) || Tools.IsImage(path); }
 
         public static bool IsVideo(string path)
         {
@@ -131,7 +158,7 @@ namespace HydroShiftRecorder
                     if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
                     foreach (var f in Directory.EnumerateFiles(dir))
                     {
-                        if (!IsVideo(f) || !seen.Add(f)) continue;
+                        if (!IsMedia(f) || !seen.Add(f)) continue;
                         var fi = new FileInfo(f);
                         list.Add(new LibraryItem
                         {
@@ -159,7 +186,11 @@ namespace HydroShiftRecorder
             }
 
             var bits = new List<string> { it.KindLabel };
-            if (info != null)
+            if (info != null && it.IsImage)
+            {
+                if (info.Width > 0) bits.Add(info.Width + " × " + info.Height);
+            }
+            else if (info != null)
             {
                 if (info.Fps > 0) bits.Add(string.Format(Inv, "{0:0} fps", info.Fps));
                 if (info.Duration > 0) bits.Add(Fmt(info.Duration));

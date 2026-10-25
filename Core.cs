@@ -493,5 +493,14 @@ namespace HydroShiftRecorder
 
         /// <summary>Strips characters Windows doesn't allow in file names.</summary>
         public static string SafeName(string n) { return Regex.Replace(n ?? "", "[\\\\/:*?\"<>|]", "").Trim(); }
+
+        static readonly string[] ImageExt = { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff" };
+
+        /// <summary>A still image the app can OLED-ify (exported as PNG).</summary>
+        public static bool IsImage(string path)
+        {
+            var e = Path.GetExtension(path ?? "").ToLowerInvariant();
+            return Array.IndexOf(ImageExt, e) >= 0 && !(path ?? "").EndsWith(".partial.png", StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

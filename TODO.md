@@ -67,7 +67,15 @@
   - Local `dist` builds never prompt by themselves.
   - Workflow: every push to main publishes a dev pre-release `vX.Y.Z-dev.N`; a `vX.Y.Z` tag publishes a stable release.
 
-## Release routine
+## 2.3 (in development)
+- Output sizes: HydroShift (2288 × 1048), Original size, Upscale 2×/4× (same shape), Custom (presets: 4K, 1440p, 1080p, ultrawide, Fold 8 Ultra inner/cover, phone; or typed).
+  - Fit/crop, the glow (scales with output size), AI enhance sizing and the encode follow the output. Only the HydroShift output keeps the 30 MB cap.
+- Still images (PNG, JPEG, WebP, BMP, TIFF): open, tune with the live preview, AI enhance, export as PNG. Images default to Original size.
+  - Library lists images; exported PNGs reopen their session by file name (PNG can't carry the app's tag).
+- The editor preview takes the output's shape; images hide the filmstrip, trim, motion and noise cleanup.
+- Installer: RIFE (about 430 MB) downloads on first use by default.
+
+
 1. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
 2. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
 3. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.

@@ -18,12 +18,14 @@ namespace HydroShiftRecorder
     /// </summary>
     public partial class EditorPage : UserControl, IPage
     {
-        const int W = 1144, H = 524, N = 8;     // preview frames: half the panel's 2288 × 1048
+        const int N = 8;
+        // preview frame size: half the HydroShift's 2288 × 1048, or the output's shape at about the same pixel count
+        int W = 1144, H = 524;
         const double DefShadows = 1.2, DefColor = 1.08, DefGlowSize = 20;
 
         readonly MainWindow shell;
-        readonly WriteableBitmap oledBmp = new WriteableBitmap(W, H, 96, 96, PixelFormats.Bgra32, null);
-        readonly byte[] buf = new byte[W * H * 4];
+        WriteableBitmap oledBmp;
+        byte[] buf;
         readonly OledScratch scratch = new OledScratch();
         readonly DispatcherTimer renderTimer;
         readonly DispatcherTimer autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
@@ -36,7 +38,7 @@ namespace HydroShiftRecorder
         bool[] enhFailed = new bool[N];
         bool enhancing;
         int enhancingIdx = -1, enhGen;       // enhGen changes when the model/cleanup/quality change: old frames are stale
-        byte[] blendBuf = new byte[W * H * 3];
+        byte[] blendBuf;
         double[] origOff = new double[N];
         int sel = -1, openGen;
         double autoBlack = -1, split = 0.5;
@@ -47,7 +49,7 @@ namespace HydroShiftRecorder
         {
             this.shell = shell;
             InitializeComponent();
-            OledImg.Source = oledBmp;
+            SetPreviewSize(1144, 524);
 
             for (int i = 0; i < N; i++)
             {
@@ -60,6 +62,7 @@ namespace HydroShiftRecorder
             renderTimer.Tick += (o, e) => StartRender();
             autosaveTimer.Tick += (o, e) => FlushAutosave();
             SetupEnhanceControls();
+            SetupOutputControls();
             SetupValueEditing();
 
             BackBtn.Click += (o, e) => shell.ShowLibrary();
@@ -88,7 +91,8 @@ namespace HydroShiftRecorder
                 sw.Click += (o, e) => Touched();
             EnhanceSw.Click += (o, e) => OnEnhanceToggled();
 
-            PreviewFrame.SizeChanged += (o, e) => { PreviewHost.Height = PreviewFrame.ActualWidth * 1048 / 2288; UpdateSplit(); };
+            Left.SizeChanged += (o, e) => LayoutPreview();
+            PreviewHost.SizeChanged += (o, e) => UpdateSplit();
             PreviewHost.MouseLeftButtonDown += (o, e) => { PreviewHost.CaptureMouse(); MoveSplit(e); };
             PreviewHost.MouseMove += (o, e) => { if (PreviewHost.IsMouseCaptured) MoveSplit(e); };
             PreviewHost.MouseLeftButtonUp += (o, e) => PreviewHost.ReleaseMouseCapture();
@@ -300,12 +304,13 @@ namespace HydroShiftRecorder
             if (s.Width <= 0) { EnhanceNote.Text = "Sharpens with AI before the rest (runs on your GPU)"; return; }
             var m = EsrModel.Find(shell.P.EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
             // overall growth: a fixed 4× model gets a shrunk input first (see FfArgs.EsrInputSize)
-            var inSz = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale);
-            double cropW = Math.Min(s.Width, s.Height * 2288.0 / 1048);
-            int f = Math.Max(1, (int)Math.Round(inSz[0] * m.ScaleFor(s.Width, s.Height) / cropW));
+            var o = s.Output;
+            var inSz = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale, o);
+            double cropW = o.Crop ? Math.Min(s.Width, s.Height * (double)o.W / o.H) : s.Width;
+            int f = Math.Max(1, (int)Math.Round(inSz[0] * m.ScaleFor(s.Width, s.Height, o) / cropW));
             string size = s.Width + " × " + s.Height;
             string what = s.EnhanceSuggested
-                ? "Source is " + size + ", smaller than the panel: AI redraws it " + f + "× larger instead of stretching it"
+                ? "Source is " + size + ", smaller than the output: AI redraws it " + f + "× larger instead of stretching it"
                 : "Source is already " + size + ": AI redraws it " + f + "× and scales back down, for crisper detail";
             if (!shell.P.HasEsrgan) what += ". Downloads Real-ESRGAN (about 50 MB) the first time.";
             EnhanceNote.Text = what;
@@ -332,10 +337,11 @@ namespace HydroShiftRecorder
             int gen = openGen, eg = enhGen;
             var src = s.SourcePath; double t = s.Duration * (idx + 0.5) / N; int sw = s.Width, sh = s.Height;
             string key = s.EnhanceStyle ?? EsrModel.Anime; bool clean = s.EnhanceCleanup, tta = s.EnhanceTta;
-            var f = await Task.Run(() => shell.P.EnhanceFrame(src, t, sw, sh, W, H, key, clean, tta));
+            int pw = W, ph = H; var outSpec = s.Output;
+            var f = await Task.Run(() => shell.P.EnhanceFrame(src, t, sw, sh, pw, ph, key, clean, tta, outSpec));
             enhancing = false; enhancingIdx = -1;
             if (gen != openGen) { EnhPill.Visibility = Visibility.Collapsed; return; }
-            if (eg == enhGen)
+            if (eg == enhGen && pw == W && ph == H)
             {
                 if (f == null) { enhFailed[idx] = true; if (idx == sel) OffText.Text = "AI enhance couldn't run on this frame"; }
                 else { enhanced[idx] = f; if (idx == sel) dirty = true; }
@@ -383,11 +389,13 @@ namespace HydroShiftRecorder
             SplitLine.Visibility = SplitKnob.Visibility = OffPill.Visibility = Visibility.Hidden;
             Array.Clear(buf, 0, buf.Length);
             oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
+            sel = -1;
 
             sync = true;
             NameBox.Text = s.Title ?? "";
             TitleText.Text = s.Title ?? "";
-            MetaText.Text = (s.Kind == "recording" ? "Recording" : "Video") + "  ·  reading…";
+            MetaText.Text = (s.IsImage ? "Image" : s.Kind == "recording" ? "Recording" : "Video") + "  ·  reading…";
+            ShowImageMode(s.IsImage);
             BlackSlider.Value = s.Oled.Black >= 0 ? s.Oled.Black : 10;
             ShadowSlider.Value = Clamp(s.Oled.Shadows, 1, 2);
             ColorSlider.Value = Clamp(s.Oled.Color, 0.8, 1.5);
@@ -414,10 +422,12 @@ namespace HydroShiftRecorder
 
             var info = await ProbeAsync(shell.Ffprobe, s.SourcePath);
             if (gen != openGen) return;
-            if (info == null) { LoadingText.Text = "Couldn't read this video."; return; }
+            if (info == null) { LoadingText.Text = s.IsImage ? "Couldn't read this image." : "Couldn't read this video."; return; }
             s.Duration = info.Duration; s.Fps = info.Fps; s.Width = info.Width; s.Height = info.Height;
-            MetaText.Text = string.Format(Inv, "{0}  ·  {1}  ·  {2:0} fps  ·  {3} × {4}",
-                s.Kind == "recording" ? "Recording" : "Video", Fmt(s.Duration), s.Fps, s.Width, s.Height);
+            MetaText.Text = s.IsImage
+                ? string.Format(Inv, "Image  ·  {0} × {1}", s.Width, s.Height)
+                : string.Format(Inv, "{0}  ·  {1}  ·  {2:0} fps  ·  {3} × {4}",
+                    s.Kind == "recording" ? "Recording" : "Video", Fmt(s.Duration), s.Fps, s.Width, s.Height);
             SmoothNote.Text = s.Fps > 0 && s.Fps < 58 ? string.Format(Inv, "Source is {0:0} fps, AI fills in the missing frames", s.Fps)
                             : s.Kind == "recording" ? "Checked on export; only used if the wallpaper drew fewer frames"
                             : "Already 60 fps, nothing to fill in";
@@ -431,25 +441,62 @@ namespace HydroShiftRecorder
             EnhanceSw.IsChecked = s.EnhanceOn;
             EnhanceOpts.Visibility = EnhanceSw.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             sync = false;
+            UpdateOutputUi();
             UpdateEnhanceNote();
             UpdateSaveAs();
             UpdateTrim();
+            LoadFrames();
+        }
 
-            // fetch all frames at once, straight at preview size
-            var tasks = new Task[N];
-            for (int i = 0; i < N; i++)
+        /// <summary>
+        /// Fetches the preview frames, straight at the preview size for the current output shape (8 across a video,
+        /// one for an image). Called on open and whenever the output's shape changes.
+        /// </summary>
+        async void LoadFrames()
+        {
+            if (s == null || s.Width <= 0) return;
+            int gen = ++openGen;
+            var size = s.Output.PreviewSize();
+            if (size[0] != W || size[1] != H) SetPreviewSize(size[0], size[1]);
+            frames = new byte[N][];
+            enhanced = new byte[N][];
+            enhFailed = new bool[N];
+            enhGen++;
+            origOff = new double[N];
+            int keep = sel;
+            sel = -1;
+            foreach (var t in thumbs) t.Background = Brushes.Black;
+            OrigImg.Source = null;
+            LoadingText.Visibility = Visibility.Visible;
+            LoadingText.Text = s.IsImage ? "Reading the image…" : "Reading frames…";
+            SplitLine.Visibility = SplitKnob.Visibility = OffPill.Visibility = Visibility.Hidden;
+
+            int w = W, h = H;
+            var src = s.SourcePath;
+            if (s.IsImage)
             {
-                int idx = i;
-                double t = s.Duration * (i + 0.5) / N;
-                tasks[i] = Task.Run(() => Oled.GrabFrame(shell.Ffmpeg, s.SourcePath, t, W, H))
-                    .ContinueWith(task => { if (gen == openGen) OnFrame(idx, task.IsFaulted ? null : task.Result); },
-                                  TaskScheduler.FromCurrentSynchronizationContext());
+                var one = await Task.Run(() => Oled.GrabFrame(shell.Ffmpeg, src, 0, w, h));
+                if (gen != openGen) return;
+                for (int i = 0; i < N; i++) if (one != null) OnFrame(i, one);
             }
-            await Task.WhenAll(tasks);
+            else
+            {
+                var tasks = new Task[N];
+                for (int i = 0; i < N; i++)
+                {
+                    int idx = i;
+                    double t = s.Duration * (i + 0.5) / N;
+                    tasks[i] = Task.Run(() => Oled.GrabFrame(shell.Ffmpeg, src, t, w, h))
+                        .ContinueWith(task => { if (gen == openGen) OnFrame(idx, task.IsFaulted ? null : task.Result); },
+                                      TaskScheduler.FromCurrentSynchronizationContext());
+                }
+                await Task.WhenAll(tasks);
+            }
             if (gen != openGen) return;
             var got = new List<byte[]>();
             foreach (var f in frames) if (f != null) got.Add(f);
-            if (got.Count == 0) { LoadingText.Text = "Couldn't read frames from this video."; return; }
+            if (got.Count == 0) { LoadingText.Text = s.IsImage ? "Couldn't read this image." : "Couldn't read frames from this video."; return; }
+            if (keep >= 0 && frames[keep] != null) Select(keep);
             SetAutoBlack(Oled.AutoBlack(got));
         }
 
@@ -500,7 +547,7 @@ namespace HydroShiftRecorder
             s.Title = string.IsNullOrWhiteSpace(NameBox.Text) ? s.Title : NameBox.Text.Trim();
             // not exported yet: a renamed video takes its file name from the new title
             if (s.OutputName == null || (!File.Exists(shell.OutputPathFor(s)) && s.Title != titleAtOpen))
-                s.OutputName = shell.UniqueOutputName(s.Title);
+                s.OutputName = shell.UniqueOutputName(s.Title, s.IsImage ? ".png" : ".mp4");
         }
 
         void UpdateSaveAs()
@@ -563,11 +610,16 @@ namespace HydroShiftRecorder
             var into = blendBuf;
             var was = origOff[sel];
             var p = Current();
-            Task.Run(() => Oled.Apply(aiFrame != null ? Blend(aiFrame, plainFrame, strength, into) : plainFrame, W, H, buf, p, scratch)).ContinueWith(t =>
+            int w = W, h = H;
+            var outSpec = s != null ? s.Output : OutputSpec.Panel2288;
+            double glowScale = Oled.GlowScale(outSpec.W, outSpec.H) * (w / (double)outSpec.W) * 2;
+            var target = buf;
+            Task.Run(() => Oled.Apply(aiFrame != null ? Blend(aiFrame, plainFrame, strength, into) : plainFrame, w, h, target, p, scratch, glowScale)).ContinueWith(t =>
             {
                 rendering = false;
                 if (t.IsFaulted) return;
-                oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
+                if (w != W || h != H) { dirty = true; return; }   // the preview size changed meanwhile
+                oledBmp.WritePixels(new Int32Rect(0, 0, w, h), target, w * 4, 0);
                 OffText.Text = string.Format(Inv, "{0:0}% of pixels off   ·   was {1:0}%", t.Result * 100, was * 100) + (useEnh ? string.Format(Inv, "   ·   AI {0:0}%", strength * 100) : "");
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }

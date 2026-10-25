@@ -56,6 +56,12 @@ namespace HydroShiftRecorder
         [DataMember] public bool EnhanceTta;
         /// <summary>A light unsharp mask after the upscale.</summary>
         [DataMember] public bool EnhanceSharpen;
+        /// <summary>Output size: "hydroshift" (default), "original", "upscale" or "custom"; see <see cref="OutputSpec"/>.</summary>
+        [DataMember] public string OutputMode;
+        /// <summary>2 or 4, for the "upscale" output.</summary>
+        [DataMember] public int UpscaleFactor;
+        /// <summary>Size for the "custom" output.</summary>
+        [DataMember] public int CustomW, CustomH;
 
         /// <summary>Where the exported video already is, when the session was opened from it; not saved.</summary>
         public string ExistingPath;
@@ -73,8 +79,14 @@ namespace HydroShiftRecorder
         /// <summary>Whether AI enhance is on, using the automatic choice when the user hasn't picked.</summary>
         public bool EnhanceOn { get { return Enhance ?? EnhanceSuggested; } }
 
-        /// <summary>Suggested for sources smaller than the panel (after cropping to its shape).</summary>
-        public bool EnhanceSuggested { get { return Width > 0 && Height > 0 && FfArgs.EnhanceScale(Width, Height) >= 1.15; } }
+        /// <summary>Suggested for sources smaller than the output (after cropping to its shape).</summary>
+        public bool EnhanceSuggested { get { return Width > 0 && Height > 0 && FfArgs.EnhanceScale(Width, Height, Output) >= 1.15; } }
+
+        /// <summary>The output size and shape for this session.</summary>
+        public OutputSpec Output { get { return OutputSpec.For(this); } }
+
+        /// <summary>A still image (PNG, JPEG…) rather than a video.</summary>
+        public bool IsImage { get { return Tools.IsImage(SourcePath); } }
 
         public EditSession Clone()
         {
@@ -87,11 +99,22 @@ namespace HydroShiftRecorder
     /// <summary>All ffmpeg / RIFE command lines in one place, so tags, quality and quoting stay consistent.</summary>
     public static class FfArgs
     {
-        public const int W = 2288, H = 1048;
-        /// <summary>Fit any video to the HydroShift: cover the panel, then crop the overflow.</summary>
-        public const string Fit = "scale=2288:1048:force_original_aspect_ratio=increase:flags=lanczos,crop=2288:1048,setsar=1";
-        /// <summary>Crop to the panel's shape at the source's own size (for AI enhance, which scales it up after).</summary>
-        public const string AspectCrop = "crop='min(iw,ih*2288/1048)':'min(ih,iw*1048/2288)',setsar=1";
+        /// <summary>
+        /// Fit a source to the output: cover it and crop the overflow (HydroShift, custom sizes), or just scale it
+        /// when the output keeps the source's shape (original size, upscale).
+        /// </summary>
+        public static string Fit(OutputSpec o)
+        {
+            return o.Crop
+                ? "scale=" + o.W + ":" + o.H + ":force_original_aspect_ratio=increase:flags=lanczos,crop=" + o.W + ":" + o.H + ",setsar=1"
+                : "scale=" + o.W + ":" + o.H + ":flags=lanczos,setsar=1";
+        }
+
+        /// <summary>Crop to the output's shape at the source's own size (for AI enhance, which scales it up after).</summary>
+        public static string AspectCrop(OutputSpec o)
+        {
+            return o.Crop ? "crop='min(iw,ih*" + o.W + "/" + o.H + ")':'min(ih,iw*" + o.H + "/" + o.W + ")',setsar=1" : "setsar=1";
+        }
         public const string ToYuv = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p";
         public const string Tags = "-colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv";
         const string Quiet = "-y -hide_banner -loglevel error -nostats -progress pipe:2 ";
@@ -102,8 +125,11 @@ namespace HydroShiftRecorder
         /// (the filters are the bottleneck, not the encoder) and 1.7-2.8x smaller at the same quality.
         /// The VBV cap only matters for long, very busy clips, and keeps the file under L-Connect's limit.
         /// </summary>
-        public static string Encode(double seconds)
+        public static string Encode(double seconds, OutputSpec o)
         {
+            if (!o.Panel)
+                // any other size isn't uploaded to L-Connect: no size cap, a little more quality
+                return "-c:v libx264 -preset slow -crf 16 -pix_fmt yuv420p " + Tags + " -movflags +faststart";
             double kbps = MaxUploadMB * 8 * 1024 * 0.92 / Math.Max(1, seconds);
             return string.Format(Inv, "-c:v libx264 -preset medium -crf 18 -maxrate {0:0}k -bufsize {1:0}k -pix_fmt yuv420p ", kbps, kbps * 2) +
                    Tags + " -movflags +faststart";
@@ -134,42 +160,42 @@ namespace HydroShiftRecorder
                    " -frames:v 1 -an -vf \"scale=640:293:force_original_aspect_ratio=increase:flags=lanczos+accurate_rnd+full_chroma_int,crop=640:293,format=rgb24\" " + Q(png);
         }
 
-        /// <summary>How much a source must grow to cover the panel after cropping to its shape (1 = already big enough).</summary>
-        public static double EnhanceScale(int w, int h)
+        /// <summary>How much a source must grow to cover the output after cropping to its shape (1 = already big enough).</summary>
+        public static double EnhanceScale(int w, int h, OutputSpec o)
         {
             if (w <= 0 || h <= 0) return 1;
-            double cw = Math.Min(w, h * (double)W / H), ch = Math.Min(h, w * (double)H / W);
-            return Math.Max(W / cw, H / ch);
+            double cw = o.Crop ? Math.Min(w, h * (double)o.W / o.H) : w, ch = o.Crop ? Math.Min(h, w * (double)o.H / o.W) : h;
+            return Math.Max(o.W / cw, o.H / ch);
         }
 
         /// <summary>
-        /// The size frames go into Real-ESRGAN at: the source cropped to the panel's shape, shrunk first when a
-        /// fixed-scale model (4×) would otherwise make them far bigger than needed. Aims for twice the panel,
+        /// The size frames go into Real-ESRGAN at: the source cropped to the output's shape, shrunk first when a
+        /// fixed-scale model (4×) would otherwise make them far bigger than needed. Aims for twice the output,
         /// which keeps the detail but avoids e.g. 9152 × 4192 frames for a full-size source (about 4× faster).
         /// </summary>
-        public static int[] EsrInputSize(int w, int h, int fixedScale)
+        public static int[] EsrInputSize(int w, int h, int fixedScale, OutputSpec o)
         {
-            double cw = Math.Min(w, h * (double)W / H), ch = Math.Min(h, w * (double)H / W);
-            if (fixedScale > 0 && cw * fixedScale > 2 * W)
+            double cw = o.Crop ? Math.Min(w, h * (double)o.W / o.H) : w, ch = o.Crop ? Math.Min(h, w * (double)o.H / o.W) : h;
+            if (fixedScale > 0 && cw * fixedScale > 2 * o.W)
             {
-                double k = 2.0 * W / (cw * fixedScale);
+                double k = 2.0 * o.W / (cw * fixedScale);
                 cw *= k; ch *= k;
             }
             return new[] { Math.Max(2, (int)Math.Round(cw / 2) * 2), Math.Max(2, (int)Math.Round(ch / 2) * 2) };
         }
 
         /// <summary>The crop (and shrink, see <see cref="EsrInputSize"/>) applied before Real-ESRGAN.</summary>
-        public static string EsrPrep(int w, int h, int fixedScale)
+        public static string EsrPrep(int w, int h, int fixedScale, OutputSpec o)
         {
-            double cw = Math.Min(w, h * (double)W / H);
-            var sz = EsrInputSize(w, h, fixedScale);
-            return sz[0] < cw - 1 ? AspectCrop + ",scale=" + sz[0] + ":" + sz[1] + ":flags=area" : AspectCrop;
+            double cw = o.Crop ? Math.Min(w, h * (double)o.W / o.H) : w;
+            var sz = EsrInputSize(w, h, fixedScale, o);
+            return sz[0] < cw - 1 ? AspectCrop(o) + ",scale=" + sz[0] + ":" + sz[1] + ":flags=area" : AspectCrop(o);
         }
 
-        /// <summary>Real-ESRGAN's factor (2, 3 or 4) for a source: the smallest that covers the panel, 2 at least.</summary>
-        public static int EsrganFactor(int w, int h)
+        /// <summary>Real-ESRGAN's factor (2, 3 or 4) for a source: the smallest that covers the output, 2 at least.</summary>
+        public static int EsrganFactor(int w, int h, OutputSpec o)
         {
-            double need = EnhanceScale(w, h);
+            double need = EnhanceScale(w, h, o);
             return need <= 2 ? 2 : need <= 3 ? 3 : 4;
         }
 
@@ -202,19 +228,30 @@ namespace HydroShiftRecorder
         /// <paramref name="plainDir"/> and a strength below 1, blends them with a plain upscale of the
         /// original frames; <paramref name="sharpen"/> adds a light unsharp mask.
         /// </summary>
-        public static string FitPng(string enhDir, string plainDir, double strength, bool sharpen, double fps, string outDir)
+        public static string FitPng(string enhDir, string plainDir, double strength, bool sharpen, double fps, string outDir, OutputSpec o)
         {
             string inE = "-framerate " + Num(fps) + " -i " + Q(Path.Combine(enhDir, "%08d.png"));
-            string tail = sharpen ? ",unsharp=5:5:0.6:5:5:0" : "";
             if (plainDir != null && strength < 0.995)
             {
-                double a = Clamp(strength, 0, 1);
                 string inP = " -framerate " + Num(fps) + " -i " + Q(Path.Combine(plainDir, "%08d.png"));
-                return Quiet + inE + inP + " -filter_complex \"[0:v]" + Fit + ",format=gbrp[e];[1:v]" + Fit + ",format=gbrp[o];" +
-                       "[e][o]blend=all_expr='A*" + Num(a) + "+B*" + Num(1 - a) + "'" + tail + "[v]\" -map \"[v]\" -compression_level 1 " +
+                return Quiet + inE + inP + " -filter_complex \"" + EnhancedGraph(o, strength, sharpen, true) + "[v]\" -map \"[v]\" -compression_level 1 " +
                        Q(Path.Combine(outDir, "%08d.png"));
             }
-            return Quiet + inE + " -vf \"" + Fit + tail + "\" -compression_level 1 " + Q(Path.Combine(outDir, "%08d.png"));
+            return Quiet + inE + " -filter_complex \"" + EnhancedGraph(o, 1, sharpen, false) + "[v]\" -map \"[v]\" -compression_level 1 " +
+                   Q(Path.Combine(outDir, "%08d.png"));
+        }
+
+        /// <summary>
+        /// Graph from AI-enhanced input [0:v] (and the plain source [1:v] when <paramref name="blend"/>) to one
+        /// output fitted to <paramref name="o"/>: strength blend and optional sharpening. Ends unlabelled (append "[v]" or more filters).
+        /// </summary>
+        public static string EnhancedGraph(OutputSpec o, double strength, bool sharpen, bool blend)
+        {
+            string tail = sharpen ? ",unsharp=5:5:0.6:5:5:0" : "";
+            if (!blend) return "[0:v]" + Fit(o) + tail;
+            double a = Clamp(strength, 0, 1);
+            return "[0:v]" + Fit(o) + ",format=gbrp[e];[1:v]" + Fit(o) + ",format=gbrp[o];" +
+                   "[e][o]blend=all_expr='A*" + Num(a) + "+B*" + Num(1 - a) + "'" + tail;
         }
 
         /// <summary>RIFE 4.6 with 8 load / 8 GPU / 8 save threads: 2.9x faster than 2:2:2 on an RTX 5090.</summary>
@@ -420,7 +457,7 @@ namespace HydroShiftRecorder
         /// (null on failure), with the session's model, cleanup and quality mode. Strength is blended by the
         /// editor. Takes a second or two: the model loads for each call.
         /// </summary>
-        public byte[] EnhanceFrame(string src, double seconds, int srcW, int srcH, int w, int h, string modelKey, bool cleanup, bool tta)
+        public byte[] EnhanceFrame(string src, double seconds, int srcW, int srcH, int w, int h, string modelKey, bool cleanup, bool tta, OutputSpec o)
         {
             var dir = Path.Combine(Path.GetTempPath(), "hsr_enh_" + Guid.NewGuid().ToString("N").Substring(0, 8));
             try
@@ -429,13 +466,13 @@ namespace HydroShiftRecorder
                 var a = Path.Combine(dir, "a.png");
                 var b = Path.Combine(dir, "b.png");
                 var j = new FfJob(Ffmpeg, "-y -hide_banner -loglevel error -ss " + Num(Math.Max(0, seconds)) + " -i " + Q(src) +
-                                          " -frames:v 1 -an -vf \"" + FfArgs.EsrPrep(srcW, srcH, EsrModel.Find(EsrganDir, modelKey).FixedScale) +
+                                          " -frames:v 1 -an -vf \"" + FfArgs.EsrPrep(srcW, srcH, EsrModel.Find(EsrganDir, modelKey).FixedScale, o) +
                                           (cleanup ? "," + FfArgs.Clean : "") + "\" " + Q(a));
                 if (!j.Wait(20000)) j.Kill();
                 j.Drain();
                 if (!File.Exists(a)) return null;
                 var m = EsrModel.Find(EsrganDir, modelKey);
-                var e = new FfJob(EsrganExe, FfArgs.Esrgan(a, b, m.Name, m.ScaleFor(srcW, srcH), Path.Combine(EsrganDir, "models"), tta));
+                var e = new FfJob(EsrganExe, FfArgs.Esrgan(a, b, m.Name, m.ScaleFor(srcW, srcH, o), Path.Combine(EsrganDir, "models"), tta));
                 if (!e.Wait(120000)) e.Kill();
                 e.Drain();
                 return File.Exists(b) ? Oled.GrabFrame(Ffmpeg, b, 0, w, h) : null;
@@ -488,7 +525,7 @@ namespace HydroShiftRecorder
             if (enhance)
             {
                 var m = EsrModel.Find(EsrganDir, s.EnhanceStyle ?? EsrModel.Anime);
-                var inSize = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale);
+                var inSize = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale, s.Output);
                 steps.Add(new Step(EsrKey(m, s), frames * inSize[0] * inSize[1] / 1e6));   // megapixels in
                 if (NeedsFit(s, from)) steps.Add(new Step("fit", frames));
             }
@@ -499,7 +536,7 @@ namespace HydroShiftRecorder
 
         string EsrKey(EsrModel m, EditSession s)
         {
-            return "esrmp:" + (m.Key.StartsWith("m:") ? "custom" : m.Key) + ":" + m.ScaleFor(s.Width, s.Height) + (s.EnhanceTta ? ":tta" : "");
+            return "esrmp:" + (m.Key.StartsWith("m:") ? "custom" : m.Key) + ":" + m.ScaleFor(s.Width, s.Height, s.Output) + (s.EnhanceTta ? ":tta" : "");
         }
 
         static bool NeedsFit(EditSession s, double from) { return from > 0 || s.EnhanceStrength < 0.995 || s.EnhanceSharpen; }
@@ -510,6 +547,14 @@ namespace HydroShiftRecorder
         /// </summary>
         public double EstimateSeconds(EditSession s)
         {
+            if (s.IsImage)
+            {
+                if (!s.EnhanceOn) return 2;
+                Normalize(s);
+                var m = EsrModel.Find(EsrganDir, s.EnhanceStyle);
+                var sz = FfArgs.EsrInputSize(s.Width, s.Height, m.FixedScale, s.Output);
+                return 3 + Speeds.Seconds(EsrKey(m, s), sz[0] * sz[1] / 1e6);
+            }
             double from = s.Smooth && s.Fps > 0 && s.Fps < 58 ? s.Fps : 0;
             return Plan(s, from).Sum(st => Speeds.Seconds(st.Key, st.Units));
         }
@@ -521,11 +566,13 @@ namespace HydroShiftRecorder
         /// </summary>
         public async Task ExportAsync(EditSession s, string outPath, IProgress<JobStatus> pr, CancellationToken ct)
         {
+            if (s.IsImage) { await ExportImageAsync(s, outPath, pr, ct); return; }
             double t0 = s.UsedStart, dur = s.UsedLength;
             if (dur < 1) throw new Exception("The selected part is shorter than a second.");
             string folder = Path.GetDirectoryName(outPath);
             Directory.CreateDirectory(folder);
             Normalize(s);
+            var o = s.Output;
 
             // 1. does it need smoothing, and from what frame rate?
             double from = 0;
@@ -558,14 +605,14 @@ namespace HydroShiftRecorder
                     work = Path.Combine(folder, ".hydroshift", "temp");   // same drive as the library
                     TryDeleteDir(work);
                     double rate = from > 0 ? from : Math.Min(60, s.Fps > 0 ? s.Fps : 60);
-                    int factor = model.ScaleFor(s.Width, s.Height);
+                    int factor = model.ScaleFor(s.Width, s.Height, o);
                     double perFrameMB = 6 + (enhance ? 6.0 * factor * factor / 4 + 3 : 0);
                     CheckSpace(folder, dur * (rate * perFrameMB + (from > 0 ? 60 * 6 : 0)) / 1024);
 
                     clock.Start();
                     string plain = Path.Combine(work, "in"), frames = plain;
                     Directory.CreateDirectory(plain);
-                    string shape = enhance ? FfArgs.EsrPrep(s.Width, s.Height, model.FixedScale) : FfArgs.Fit;
+                    string shape = enhance ? FfArgs.EsrPrep(s.Width, s.Height, model.FixedScale, o) : FfArgs.Fit(o);
                     await RunFf(FfArgs.PrepPng(s.SourcePath, t0, dur, rate, plain, shape, enhance && s.EnhanceCleanup), dur, "Preparing frames", pr, ct, later());
                     int count = Directory.GetFiles(plain, "*.png").Length;
                     if (count < 2) throw new Exception("Preparing frames failed: no frames were written.");
@@ -577,7 +624,7 @@ namespace HydroShiftRecorder
                         Directory.CreateDirectory(esr);
                         await RunFrames(EsrganExe, FfArgs.Esrgan(plain, esr, model.Name, factor, Path.Combine(EsrganDir, "models"), s.EnhanceTta), esr, count,
                                         "AI enhancing " + factor + "× (" + model.Label + ")", later(), pr, ct);
-                        var inSz = FfArgs.EsrInputSize(s.Width, s.Height, model.FixedScale);
+                        var inSz = FfArgs.EsrInputSize(s.Width, s.Height, model.FixedScale, o);
                         done(count * inSz[0] * inSz[1] / 1e6);
                         frames = esr;
                         if (NeedsFit(s, from))
@@ -585,7 +632,7 @@ namespace HydroShiftRecorder
                             // blend with a plain upscale (strength), sharpen, and bring to panel size for RIFE and the finish
                             var fit = Path.Combine(work, "fit");
                             Directory.CreateDirectory(fit);
-                            await RunFf(FfArgs.FitPng(esr, plain, s.EnhanceStrength, s.EnhanceSharpen, rate, fit), count / rate, "Blending and fitting frames", pr, ct, later());
+                            await RunFf(FfArgs.FitPng(esr, plain, s.EnhanceStrength, s.EnhanceSharpen, rate, fit, o), count / rate, "Blending and fitting frames", pr, ct, later());
                             done(count);
                             TryDeleteDir(esr);
                             frames = fit;
@@ -607,7 +654,7 @@ namespace HydroShiftRecorder
 
                     int made = Directory.GetFiles(frames, "*.png").Length;
                     input = "-framerate " + Num(rate) + " -i " + Q(Path.Combine(frames, "%08d.png"));
-                    pre = enhance && !NeedsFit(s, from) ? FfArgs.Fit + "," : "";
+                    pre = enhance && !NeedsFit(s, from) ? FfArgs.Fit(o) + "," : "";
                     dur = made / rate;
                 }
                 else
@@ -616,18 +663,18 @@ namespace HydroShiftRecorder
                     clock.Start();
                     bool over = s.Fps > 61;
                     input = "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(s.SourcePath);
-                    pre = FfArgs.Fit + "," + (over ? "fps=60," : "");
+                    pre = FfArgs.Fit(o) + "," + (over ? "fps=60," : "");
                 }
 
                 // 3. the look, the loop, the encode
-                if (s.TrueBlack) pre += Oled.Filter(s.Oled);
+                if (s.TrueBlack) pre += Oled.Filter(s.Oled, o.W, o.H);
                 double outSec;
                 var graph = FfArgs.FinishGraph(pre, dur, s.Loop, 1, out outSec);
                 var tmp = outPath + ".partial.mp4";
                 TryDelete(tmp);
                 var meta = "-metadata comment=" + Q("hsr|" + s.Id + "|" + s.Kind + (s.TrueBlack ? "|tb" : "")) + " -metadata title=" + Q(s.Title ?? "");
                 await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 " + input + " -filter_complex \"" + graph + "\" -map \"[v]\" -an " +
-                            FfArgs.Encode(outSec) + " " + meta + " " + Q(tmp),
+                            FfArgs.Encode(outSec, o) + " " + meta + " " + Q(tmp),
                             outSec, s.Loop ? "Finishing and looping" : "Finishing", pr, ct);
                 if (!File.Exists(tmp)) throw new Exception("Finishing failed: no file was written.");
                 if (stepNo < plan.Count) done(outSec * 60);
@@ -637,6 +684,66 @@ namespace HydroShiftRecorder
             finally
             {
                 TryDelete(outPath + ".partial.mp4");
+                if (work != null) TryDeleteDir(work);
+            }
+        }
+
+        /// <summary>
+        /// A still image: optional AI enhance (with strength and sharpening), fitted to the output, the OLED look,
+        /// saved as PNG. Noise cleanup is skipped: it works across video frames.
+        /// </summary>
+        async Task ExportImageAsync(EditSession s, string outPath, IProgress<JobStatus> pr, CancellationToken ct)
+        {
+            Normalize(s);
+            var o = s.Output;
+            string folder = Path.GetDirectoryName(outPath);
+            Directory.CreateDirectory(folder);
+            var look = s.Oled.Clone();
+            look.Cleanup = false;
+            string oled = s.TrueBlack ? Oled.Filter(look, o.W, o.H) : "";
+            var tmp = Path.Combine(folder, Path.GetFileNameWithoutExtension(outPath) + ".partial.png");
+            string work = null;
+            try
+            {
+                string input, graph;
+                if (s.EnhanceOn)
+                {
+                    var model = EsrModel.Find(EsrganDir, s.EnhanceStyle);
+                    await EnsureEsrganAsync(pr, ct, model.Key);
+                    work = Path.Combine(Path.GetTempPath(), "hsr_img_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    Directory.CreateDirectory(work);
+                    var plain = Path.Combine(work, "plain.png");
+                    var esr = Path.Combine(work, "enhanced.png");
+                    pr.Report(new JobStatus("Preparing the image…", -1));
+                    await RunFf("-y -hide_banner -loglevel error -i " + Q(s.SourcePath) + " -frames:v 1 -vf \"" +
+                                FfArgs.EsrPrep(s.Width, s.Height, model.FixedScale, o) + (s.EnhanceCleanup ? "," + FfArgs.Clean : "") + "\" " + Q(plain),
+                                0, "Preparing the image", pr, ct);
+                    int factor = model.ScaleFor(s.Width, s.Height, o);
+                    pr.Report(new JobStatus("AI enhancing " + factor + "× (" + model.Label + ")…", -1));
+                    var job = new FfJob(EsrganExe, FfArgs.Esrgan(plain, esr, model.Name, factor, Path.Combine(EsrganDir, "models"), s.EnhanceTta));
+                    await job.WaitAsync(ct);
+                    ct.ThrowIfCancellationRequested();
+                    if (!File.Exists(esr)) throw new Exception("AI enhance failed: " + job.LastLine);
+                    bool blend = s.EnhanceStrength < 0.995;
+                    input = "-i " + Q(esr) + (blend ? " -i " + Q(plain) : "");
+                    graph = FfArgs.EnhancedGraph(o, s.EnhanceStrength, s.EnhanceSharpen, blend) + ",";
+                }
+                else
+                {
+                    input = "-i " + Q(s.SourcePath);
+                    graph = "[0:v]" + FfArgs.Fit(o) + ",";
+                }
+                pr.Report(new JobStatus("Applying true black…", -1));
+                TryDelete(tmp);
+                await RunFf("-y -hide_banner -loglevel error " + input + " -filter_complex \"" + graph + oled + "format=rgb24[v]\" -map \"[v]\" -frames:v 1 -update 1 " + Q(tmp),
+                            0, "Saving the image", pr, ct);
+                if (!File.Exists(tmp)) throw new Exception("Saving the image failed: no file was written.");
+                TryDelete(outPath);
+                File.Move(tmp, outPath);
+            }
+            finally
+            {
+                TryDelete(tmp);
                 if (work != null) TryDeleteDir(work);
             }
         }

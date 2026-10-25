@@ -170,7 +170,7 @@ namespace HydroShiftRecorder
                 FileSystemEventHandler h = (s, e) =>
                 {
                     if (e.FullPath.IndexOf("\\.hydroshift", StringComparison.OrdinalIgnoreCase) >= 0) return;
-                    if (!LibraryScanner.IsVideo(e.FullPath) && Path.HasExtension(e.FullPath)) return;
+                    if (!LibraryScanner.IsMedia(e.FullPath) && Path.HasExtension(e.FullPath)) return;
                     Dispatcher.BeginInvoke(new Action(() => { debounce.Stop(); debounce.Start(); }));
                 };
                 watcher.Created += h; watcher.Deleted += h; watcher.Changed += h;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -101,11 +101,18 @@ namespace HydroShiftRecorder
             };
         }
 
-        /// <summary>Glow blur radius for an image at half the panel's resolution (where the glow is computed).</summary>
-        static int HalfRadius(OledParams p)
+        /// <summary>
+        /// Glow blur radius for an image at half the output's resolution (where the glow is computed). Glow size
+        /// is set in pixels at the HydroShift's size; bigger outputs scale it up so the look stays the same.
+        /// <paramref name="scale"/> = output's long side / 2288 (times the preview's own scale in the preview).
+        /// </summary>
+        static int HalfRadius(OledParams p, double scale = 1)
         {
-            return Math.Max(1, (int)Math.Round(Tools.Clamp(p.GlowSize, 6, 48) * 0.5));
+            return Math.Max(1, (int)Math.Round(Tools.Clamp(p.GlowSize, 6, 48) * 0.5 * scale));
         }
+
+        /// <summary>How much bigger than the HydroShift an output of w × h is, for scaling the glow.</summary>
+        public static double GlowScale(int w, int h) { return Math.Max(w, h) / (double)FullW; }
 
         public static byte[] Lut(OledParams p)
         {
@@ -131,7 +138,10 @@ namespace HydroShiftRecorder
         /// which is valid inside -filter_complex. Expressions are single-quoted so it can sit inside a
         /// double-quoted argument.
         /// </summary>
-        public static string Filter(OledParams p)
+        public static string Filter(OledParams p) { return Filter(p, FullW, FullH); }
+
+        /// <summary>The look for frames already fitted to an output of <paramref name="w"/> × <paramref name="h"/>.</summary>
+        public static string Filter(OledParams p, int w, int h)
         {
             var I = Tools.Inv;
             double b = Tools.Clamp(p.Black, 0, MaxBlack) / 255.0, g = BrightGain(p), h = HighGain(p);
@@ -155,8 +165,8 @@ namespace HydroShiftRecorder
             var floor = "if(lt(val," + HaloFloor + "),0,val)";
             // the glow is soft, so it's computed at half size (same as the preview) and scaled back up: 2.3x faster
             return f + "split[ol0][ol1];" +
-                   "[ol1]scale=" + FullW / 2 + ":" + FullH / 2 + ":flags=area,lutrgb=r='" + ge + "':g='" + ge + "':b='" + ge + "'," +
-                   "boxblur=" + HalfRadius(p) + ":3,scale=" + FullW + ":" + FullH + ":flags=bilinear[olg];" +
+                   "[ol1]scale=" + Math.Max(2, w / 2) + ":" + Math.Max(2, h / 2) + ":flags=area,lutrgb=r='" + ge + "':g='" + ge + "':b='" + ge + "'," +
+                   "boxblur=" + Math.Min(HalfRadius(p, GlowScale(w, h)), Math.Max(1, Math.Min(w, h) / 4 - 1)) + ":3,scale=" + w + ":" + h + ":flags=bilinear[olg];" +
                    "[ol0][olg]blend=all_mode=screen," +
                    "lutrgb=r='" + floor + "':g='" + floor + "':b='" + floor + "',";
         }
@@ -168,7 +178,13 @@ namespace HydroShiftRecorder
         /// WriteableBitmap. Thread-safe as long as each caller uses its own <paramref name="s"/>; safe to run
         /// off the UI thread. Returns the fraction of pixels fully off.
         /// </summary>
-        public static double Apply(byte[] rgb, int w, int h, byte[] bgra, OledParams p, OledScratch s)
+        public static double Apply(byte[] rgb, int w, int h, byte[] bgra, OledParams p, OledScratch s) { return Apply(rgb, w, h, bgra, p, s, 1); }
+
+        /// <summary>
+        /// As above, for a preview of an output whose glow is <paramref name="glowScale"/> times the HydroShift's
+        /// (see <see cref="GlowScale"/>), drawn at half the HydroShift preview's scale per unit.
+        /// </summary>
+        public static double Apply(byte[] rgb, int w, int h, byte[] bgra, OledParams p, OledScratch s, double glowScale)
         {
             int n = w * h;
             s.Ensure(n, Math.Max(w, h));
@@ -192,7 +208,7 @@ namespace HydroShiftRecorder
             if (p.HasGlow)
             {
                 var gl = GlowLut(p);
-                int rad = HalfRadius(p);
+                int rad = Math.Min(HalfRadius(p, glowScale), Math.Max(1, Math.Min(w, h) / 2 - 1));
                 var planes = new[] { R, G, B };
                 Parallel.For(0, 3, c =>
                 {

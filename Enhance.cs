@@ -22,7 +22,7 @@ namespace HydroShiftRecorder
 
         public const string Anime = "anime", Real = "real";
 
-        public int ScaleFor(int w, int h) { return FixedScale > 0 ? FixedScale : FfArgs.EsrganFactor(w, h); }
+        public int ScaleFor(int w, int h, OutputSpec o) { return FixedScale > 0 ? FixedScale : FfArgs.EsrganFactor(w, h, o); }
 
         /// <summary>Is the model's file there (the anime model is checked at the 2× file)?</summary>
         public bool Installed(string esrganDir)
