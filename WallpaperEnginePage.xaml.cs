@@ -145,25 +145,20 @@ namespace HydroShiftRecorder
             menu.IsOpen = true;
         }
 
-        /// <summary>"Record animation" with a size to pick (length and frame rate come from the Record page).</summary>
+        /// <summary>"Record animation": opens a small window to pick the size, length and frame rate.</summary>
         MenuItem RecordMenu(WeItem it)
         {
-            var S = shell.S;
-            var rec = new MenuItem
+            return Item("Record animation…", "Wallpaper Engine plays it in a window at the size you pick, and the app records that window", () =>
             {
-                Header = "Record animation (" + (S.Seconds < 60 ? S.Seconds + " s" : Tools.Fmt(S.Seconds)) + ", " + S.Fps + " fps)",
-                ToolTip = "Wallpaper Engine plays it in a pop-out window at the size you pick, and the app records that window. " +
-                          "Length and frame rate are set on the Record page.",
-            };
-            foreach (var size in SceneRecorder.Sizes)
-            {
-                var sz = size;
-                rec.Items.Add(Item(sz.Item1, null, () => RecordScene(it, sz.Item2, sz.Item3)));
-            }
-            return rec;
+                var c = RecordSceneDialog.Show(shell, it.Name, shell.S.Seconds, shell.S.Fps);
+                if (c == null) return;
+                shell.S.Seconds = c.Seconds; shell.S.Fps = c.Fps;   // shared with the Record page
+                shell.SaveSettings();
+                RecordScene(it, c.W, c.H, c.Seconds, c.Fps);
+            });
         }
 
-        async void RecordScene(WeItem it, int w, int h)
+        async void RecordScene(WeItem it, int w, int h, int secs, int fps)
         {
             var S = shell.S;
             var id = SourceStore.NewId();
@@ -171,7 +166,7 @@ namespace HydroShiftRecorder
             var stop = new StopSignal();
             bool ok = await shell.RunJob("Recording " + it.Name, async (pr, ct) =>
             {
-                var enc = await SceneRecorder.RecordAsync(shell.P, S, it, w, h, dest, stop, pr, ct);
+                var enc = await SceneRecorder.RecordAsync(shell.P, S, it, w, h, secs, fps, dest, stop, pr, ct);
                 if (enc != S.Encoder) { S.Encoder = enc; shell.SaveSettings(); }
             });
             if (!ok) { Tools.TryDelete(dest); return; }

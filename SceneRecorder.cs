@@ -41,10 +41,10 @@ namespace HydroShiftRecorder
         }
 
         /// <summary>
-        /// Plays <paramref name="it"/> in a pop-out and records it to <paramref name="dest"/> (w × h, the length and
-        /// frame rate from the Record page). Returns the encoder that worked.
+        /// Plays <paramref name="it"/> in a pop-out and records it to <paramref name="dest"/> at w × h for
+        /// <paramref name="secs"/> seconds at <paramref name="fps"/>. Returns the encoder that worked.
         /// </summary>
-        public static async Task<string> RecordAsync(Pipeline p, Settings S, WeItem it, int w, int h, string dest,
+        public static async Task<string> RecordAsync(Pipeline p, Settings S, WeItem it, int w, int h, int secs, int fps, string dest,
                                                      StopSignal stop, IProgress<JobStatus> pr, CancellationToken ct)
         {
             var we = Workshop.FindWallpaperEngine();
@@ -74,7 +74,6 @@ namespace HydroShiftRecorder
                     await Task.Delay(1000, ct);
                 }
 
-                int secs = S.Seconds, fps = S.Fps;
                 string title = "^" + System.Text.RegularExpressions.Regex.Escape(WindowName) + "$";
                 try
                 {
