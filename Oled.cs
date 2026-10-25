@@ -140,8 +140,8 @@ namespace HydroShiftRecorder
         /// </summary>
         public static string Filter(OledParams p) { return Filter(p, FullW, FullH); }
 
-        /// <summary>The look for frames already fitted to an output of <paramref name="w"/> × <paramref name="h"/>.</summary>
-        public static string Filter(OledParams p, int w, int h)
+        /// <summary>The look for frames already fitted to an output of <paramref name="outW"/> × <paramref name="outH"/>.</summary>
+        public static string Filter(OledParams p, int outW, int outH)
         {
             var I = Tools.Inv;
             double b = Tools.Clamp(p.Black, 0, MaxBlack) / 255.0, g = BrightGain(p), h = HighGain(p);
@@ -165,8 +165,8 @@ namespace HydroShiftRecorder
             var floor = "if(lt(val," + HaloFloor + "),0,val)";
             // the glow is soft, so it's computed at half size (same as the preview) and scaled back up: 2.3x faster
             return f + "split[ol0][ol1];" +
-                   "[ol1]scale=" + Math.Max(2, w / 2) + ":" + Math.Max(2, h / 2) + ":flags=area,lutrgb=r='" + ge + "':g='" + ge + "':b='" + ge + "'," +
-                   "boxblur=" + Math.Min(HalfRadius(p, GlowScale(w, h)), Math.Max(1, Math.Min(w, h) / 4 - 1)) + ":3,scale=" + w + ":" + h + ":flags=bilinear[olg];" +
+                   "[ol1]scale=" + Math.Max(2, outW / 2) + ":" + Math.Max(2, outH / 2) + ":flags=area,lutrgb=r='" + ge + "':g='" + ge + "':b='" + ge + "'," +
+                   "boxblur=" + Math.Min(HalfRadius(p, GlowScale(outW, outH)), Math.Max(1, Math.Min(outW, outH) / 4 - 1)) + ":3,scale=" + outW + ":" + outH + ":flags=bilinear[olg];" +
                    "[ol0][olg]blend=all_mode=screen," +
                    "lutrgb=r='" + floor + "':g='" + floor + "':b='" + floor + "',";
         }
