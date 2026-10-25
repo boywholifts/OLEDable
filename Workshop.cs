@@ -48,32 +48,51 @@ namespace HydroShiftRecorder
         /// <summary>The library subfolder that holds copies of Wallpaper Engine wallpapers.</summary>
         public static string ImportDir(Settings s) { return Path.Combine(s.OutDir, "Wallpaper Engine"); }
 
-        /// <summary>Folders that contain wallpapers (each wallpaper is a subfolder with a project.json).</summary>
-        public static List<KeyValuePair<string, string>> Roots()
+        /// <summary>Every Steam library folder on this PC.</summary>
+        static List<string> SteamLibraries()
         {
-            var roots = new List<KeyValuePair<string, string>>();
+            var libs = new List<string>();
             try
             {
                 using (var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam"))
                 {
                     var steam = k == null ? null : k.GetValue("SteamPath") as string;
-                    if (steam == null) return roots;
-                    var libs = new List<string> { steam };
+                    if (steam == null) return libs;
+                    libs.Add(steam);
                     var vdf = Path.Combine(steam, "steamapps", "libraryfolders.vdf");
                     if (System.IO.File.Exists(vdf))
                         foreach (Match m in Regex.Matches(System.IO.File.ReadAllText(vdf), "\"path\"\\s+\"([^\"]+)\""))
                             libs.Add(m.Groups[1].Value.Replace("\\\\", "\\"));
-                    foreach (var l in libs.Select(x => x.Replace('/', '\\')).Distinct(StringComparer.OrdinalIgnoreCase))
-                    {
-                        var ws = Path.Combine(l, "steamapps", "workshop", "content", "431960");
-                        if (Directory.Exists(ws)) roots.Add(new KeyValuePair<string, string>(ws, "Workshop"));
-                        var mine = Path.Combine(l, "steamapps", "common", "wallpaper_engine", "projects", "myprojects");
-                        if (Directory.Exists(mine)) roots.Add(new KeyValuePair<string, string>(mine, "My projects"));
-                    }
                 }
             }
             catch { }
+            return libs.Select(x => x.Replace('/', '\\')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        /// <summary>Folders that contain wallpapers (each wallpaper is a subfolder with a project.json).</summary>
+        public static List<KeyValuePair<string, string>> Roots()
+        {
+            var roots = new List<KeyValuePair<string, string>>();
+            foreach (var l in SteamLibraries())
+            {
+                var ws = Path.Combine(l, "steamapps", "workshop", "content", "431960");
+                if (Directory.Exists(ws)) roots.Add(new KeyValuePair<string, string>(ws, "Workshop"));
+                var mine = Path.Combine(l, "steamapps", "common", "wallpaper_engine", "projects", "myprojects");
+                if (Directory.Exists(mine)) roots.Add(new KeyValuePair<string, string>(mine, "My projects"));
+            }
             return roots;
+        }
+
+        /// <summary>Wallpaper Engine's own exe (64-bit preferred), or null.</summary>
+        public static string FindWallpaperEngine()
+        {
+            foreach (var l in SteamLibraries())
+                foreach (var exe in new[] { "wallpaper64.exe", "wallpaper32.exe" })
+                {
+                    var p = Path.Combine(l, "steamapps", "common", "wallpaper_engine", exe);
+                    if (System.IO.File.Exists(p)) return p;
+                }
+            return null;
         }
 
         /// <summary>Every wallpaper in <see cref="Roots"/>, newest first. Quick: reads only each project.json.</summary>

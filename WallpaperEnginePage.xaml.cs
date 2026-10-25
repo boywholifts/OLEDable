@@ -81,7 +81,7 @@ namespace HydroShiftRecorder
         {
             var bits = new List<string> { it.Source };
             if (Workshop.AlreadyCopied(shell.S, it)) bits.Add("in your library");
-            if (!(it.IsVideo || it.IsScene)) bits.Add("can't be imported");
+            if (!(it.IsVideo || it.IsScene || it.Kind == "web")) bits.Add("can't be imported");
             return string.Join("  ·  ", bits);
         }
 
@@ -126,9 +126,11 @@ namespace HydroShiftRecorder
             {
                 menu.Items.Add(Item("Extract still image", "The scene's background picture, without its animation (instant)", () => ExtractScene(it, false)));
                 menu.Items.Add(Item("Extract video", "For scenes that are really a video layer (instant)", () => ExtractScene(it, true)));
-                var rec = Item("Record animation", "Coming next: plays the scene in a window and records it", () => { });
-                rec.IsEnabled = false;
-                menu.Items.Add(rec);
+                menu.Items.Add(RecordMenu(it));
+            }
+            else if (it.Kind == "web")
+            {
+                menu.Items.Add(RecordMenu(it));
             }
             else
             {
@@ -141,6 +143,51 @@ namespace HydroShiftRecorder
             menu.PlacementTarget = el;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
             menu.IsOpen = true;
+        }
+
+        /// <summary>"Record animation" with a size to pick (length and frame rate come from the Record page).</summary>
+        MenuItem RecordMenu(WeItem it)
+        {
+            var S = shell.S;
+            var rec = new MenuItem
+            {
+                Header = "Record animation (" + (S.Seconds < 60 ? S.Seconds + " s" : Tools.Fmt(S.Seconds)) + ", " + S.Fps + " fps)",
+                ToolTip = "Wallpaper Engine plays it in a pop-out window at the size you pick, and the app records that window. " +
+                          "Length and frame rate are set on the Record page.",
+            };
+            foreach (var size in SceneRecorder.Sizes)
+            {
+                var sz = size;
+                rec.Items.Add(Item(sz.Item1, null, () => RecordScene(it, sz.Item2, sz.Item3)));
+            }
+            return rec;
+        }
+
+        async void RecordScene(WeItem it, int w, int h)
+        {
+            var S = shell.S;
+            var id = SourceStore.NewId();
+            var dest = shell.Store.RecordingPath(id);
+            var stop = new StopSignal();
+            bool ok = await shell.RunJob("Recording " + it.Name, async (pr, ct) =>
+            {
+                var enc = await SceneRecorder.RecordAsync(shell.P, S, it, w, h, dest, stop, pr, ct);
+                if (enc != S.Encoder) { S.Encoder = enc; shell.SaveSettings(); }
+            });
+            if (!ok) { Tools.TryDelete(dest); return; }
+            var session = new EditSession
+            {
+                Id = id, Title = it.Name, SourcePath = dest, Kind = "recording",
+                Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
+                OutputName = shell.UniqueOutputName(it.Name),
+                // recorded at the size it's meant for: the HydroShift, or a custom size of exactly that
+                OutputMode = w == OutputSpec.PanelW && h == OutputSpec.PanelH ? null : OutputSpec.Custom,
+                CustomW = w, CustomH = h,
+            };
+            session.Oled.Black = -1;   // detect
+            shell.Store.Save(session);
+            it.Meta = Meta(it);
+            shell.OpenEditor(session);
         }
 
         static MenuItem Item(string header, string tip, Action a)

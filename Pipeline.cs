@@ -144,10 +144,35 @@ namespace HydroShiftRecorder
 
         public static string Record(int adapter, int output, int fps, int seconds, bool nvenc, string dest)
         {
-            var enc = nvenc ? "-c:v h264_nvenc -preset p4 -rc vbr -cq 16 -b:v 0" : "-c:v libx264 -preset ultrafast -crf 14";
             return Quiet + "-init_hw_device d3d11va=hs:" + adapter + " -filter_hw_device hs " +
                    "-filter_complex \"ddagrab=output_idx=" + output + ":framerate=" + fps + ":draw_mouse=0,hwdownload,format=bgra," + ToYuv + "\" " +
-                   "-t " + seconds + " " + enc + " " + Tags + " " + Q(dest);
+                   "-t " + seconds + " " + RecordEncoder(nvenc) + " " + Tags + " " + Q(dest);
+        }
+
+        static string RecordEncoder(bool nvenc)
+        {
+            return nvenc ? "-c:v h264_nvenc -preset p4 -rc vbr -cq 16 -b:v 0" : "-c:v libx264 -preset ultrafast -crf 14";
+        }
+
+        /// <summary>
+        /// Records one window by its title with Windows' own window capture (ffmpeg 8's gfxcapture), at exactly
+        /// w × h. Used for Wallpaper Engine scenes playing in a pop-out window: nothing on screen has to change.
+        /// </summary>
+        public static string RecordWindow(string titleRegex, int w, int h, int fps, int seconds, bool nvenc, string dest)
+        {
+            return Quiet + "-init_hw_device d3d11va=hs -filter_hw_device hs " +
+                   "-filter_complex \"gfxcapture=window_title='" + titleRegex + "':capture_cursor=0:max_framerate=" + fps +
+                   ":width=" + w + ":height=" + h + ":resize_mode=scale,hwdownload,format=bgra,fps=" + fps + "," + ToYuv + "\" " +
+                   "-t " + seconds + " " + RecordEncoder(nvenc) + " " + Tags + " " + Q(dest);
+        }
+
+        /// <summary>Fallback for older ffmpeg: records a w × h area at (x, y) of a display (Desktop Duplication).</summary>
+        public static string RecordArea(int adapter, int output, int x, int y, int w, int h, int fps, int seconds, bool nvenc, string dest)
+        {
+            return Quiet + "-init_hw_device d3d11va=hs:" + adapter + " -filter_hw_device hs " +
+                   "-filter_complex \"ddagrab=output_idx=" + output + ":framerate=" + fps + ":draw_mouse=0:offset_x=" + x + ":offset_y=" + y +
+                   ":video_size=" + w + "x" + h + ",hwdownload,format=bgra," + ToYuv + "\" " +
+                   "-t " + seconds + " " + RecordEncoder(nvenc) + " " + Tags + " " + Q(dest);
         }
 
         /// <summary>
@@ -352,14 +377,25 @@ namespace HydroShiftRecorder
         /// Records the HydroShift to <paramref name="dest"/>. <paramref name="stop"/> ends early and keeps the clip;
         /// cancelling discards it. Returns the encoder that worked ("nvenc" or "x264").
         /// </summary>
-        public async Task<string> RecordAsync(int adapter, int output, int fps, int seconds, string encoder, string dest,
-                                              StopSignal stop, IProgress<JobStatus> pr, CancellationToken ct)
+        public Task<string> RecordAsync(int adapter, int output, int fps, int seconds, string encoder, string dest,
+                                        StopSignal stop, IProgress<JobStatus> pr, CancellationToken ct)
+        {
+            return CaptureAsync(nvenc => FfArgs.Record(adapter, output, fps, seconds, nvenc, dest), seconds, encoder, dest, stop, pr, ct);
+        }
+
+        /// <summary>
+        /// Runs a capture made by <paramref name="argsFor"/> (given "use NVENC?"), falling back to the CPU encoder
+        /// when NVENC fails. <paramref name="stop"/> ends early and keeps the clip; cancelling discards it.
+        /// Returns the encoder that worked ("nvenc" or "x264").
+        /// </summary>
+        public async Task<string> CaptureAsync(Func<bool, string> argsFor, int seconds, string encoder, string dest,
+                                               StopSignal stop, IProgress<JobStatus> pr, CancellationToken ct)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(dest));
             foreach (var enc in encoder == "nvenc" ? new[] { "nvenc", "x264" } : new[] { "x264" })
             {
                 TryDelete(dest);
-                var job = new FfJob(Ffmpeg, FfArgs.Record(adapter, output, fps, seconds, enc == "nvenc", dest));
+                var job = new FfJob(Ffmpeg, argsFor(enc == "nvenc"));
                 var wait = job.WaitAsync(ct);
                 bool quitSent = false;
                 while (!wait.IsCompleted)
