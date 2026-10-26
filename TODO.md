@@ -89,6 +89,7 @@
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
+- Library tiles: remove the "· True black" tag (LibraryPage.xaml, the AccentText line under the name). Converted items are already marked "Converted", so it adds nothing.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
 - Code signing: on hold. Options are Azure Trusted Signing (~$10/mo) or SignPath Foundation (free for open source); meanwhile, report false positives to Malwarebytes.
