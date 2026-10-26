@@ -107,6 +107,41 @@
           </StackPanel>
         </Border>
 
+        <!-- last export finished: click to show the file in Explorer -->
+        <Button x:Name="DoneCard" DockPanel.Dock="Bottom" Margin="0,0,0,10" Visibility="Collapsed" Cursor="Hand" Focusable="False"
+                ToolTip="Show the file in its folder">
+          <Button.Template><ControlTemplate TargetType="Button">
+            <Border x:Name="db" CornerRadius="12" Padding="14,12" Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="db" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate></Button.Template>
+          <StackPanel>
+            <DockPanel>
+              <Button x:Name="DoneDismiss" DockPanel.Dock="Right" Width="20" Height="20" Margin="6,-2,-4,0" Cursor="Hand" Focusable="False"
+                      ToolTip="Dismiss" Foreground="{DynamicResource Sub}" VerticalAlignment="Top">
+                <Button.Template><ControlTemplate TargetType="Button">
+                  <Border x:Name="cb" CornerRadius="6" Background="Transparent">
+                    <Path Data="M0,0 L8,8 M8,0 L0,8" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="cb" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate></Button.Template>
+              </Button>
+              <Border Width="18" Height="18" CornerRadius="9" Background="{DynamicResource AccentDark}" Margin="0,0,8,0" VerticalAlignment="Center">
+                <Path Data="M0,4 L3,7 L8,0" Stroke="White" StrokeThickness="1.6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <TextBlock x:Name="DoneTitle" Text="Export finished" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+            <TextBlock x:Name="DoneName" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="DoneText" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,2,0,6" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="Show in folder" FontSize="12" FontWeight="Medium" Foreground="{DynamicResource AccentText}"/>
+          </StackPanel>
+        </Button>
+
         <!-- running job, above the display card -->
         <Border x:Name="JobCard" DockPanel.Dock="Bottom" CornerRadius="12" Padding="14,12" Margin="0,0,0,10" Visibility="Collapsed"
                 Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Line}" BorderThickness="1">

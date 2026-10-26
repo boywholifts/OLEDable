@@ -80,6 +80,13 @@ namespace HydroShiftRecorder
             JobCancel.Click += (s, e) => { if (jobCts != null) jobCts.Cancel(); };
             UpdateNow.Click += (s, e) => InstallUpdate();
             UpdateNotes.Click += (s, e) => { if (update != null) OpenInShell(update.Page); };
+            DoneCard.Click += (s, e) =>
+            {
+                if (donePath == null) return;
+                if (File.Exists(donePath)) OpenInShell(donePath, true);
+                else ShowToast("That file has been moved or deleted.");
+            };
+            DoneDismiss.Click += (s, e) => { e.Handled = true; DoneCard.Visibility = Visibility.Collapsed; };
             UpdateDismiss.Click += (s, e) =>
             {
                 if (update != null) { S.SkippedVersion = update.Version.ToString(); SaveSettings(); }
@@ -310,6 +317,7 @@ namespace HydroShiftRecorder
             if (Busy) { ShowToast("Something is already running. Wait for it to finish or cancel it."); return false; }
             Busy = true; BusyChanged?.Invoke();
             jobCts = new CancellationTokenSource();
+            DoneCard.Visibility = Visibility.Collapsed;   // a new job replaces the last "finished" note
             JobTitle.Text = title;
             JobText.Text = "Starting…";
             JobProg.Value = 0;
@@ -345,6 +353,18 @@ namespace HydroShiftRecorder
             }
         }
 
+        string donePath;
+
+        /// <summary>The sidebar note that an export finished; it stays until dismissed or the next job starts.</summary>
+        void ShowDone(string path)
+        {
+            donePath = path;
+            DoneName.Text = Path.GetFileName(path);
+            DoneName.ToolTip = path;
+            DoneText.Text = "In " + Path.GetFileName(Path.GetDirectoryName(path)) + "  ·  " + DateTime.Now.ToString("h:mm tt");
+            DoneCard.Visibility = Visibility.Visible;
+        }
+
         public void CancelJob() { if (jobCts != null) jobCts.Cancel(); }
 
         /// <summary>Exports the session into the library folder, keeping its settings for later re-editing.</summary>
@@ -367,7 +387,7 @@ namespace HydroShiftRecorder
                     Store.Forget(snap.Id);
                 }
                 s.ExistingPath = outPath;
-                ShowToast("Saved " + s.OutputName + " to " + Path.GetFileName(Path.GetDirectoryName(outPath)));
+                ShowDone(outPath);
                 if (library != null) library.Refresh();
             }
             return ok;
