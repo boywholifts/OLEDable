@@ -40,6 +40,11 @@ namespace HydroShiftRecorder
                 ApplyFilter();
             };
             RefreshBtn.Click += (s, e) => Refresh();
+            EditBtn.Click += (s, e) => { if (selected != null) ImportVideo(selected); };
+            RecordBtn.Click += (s, e) => { if (selected != null) AskAndRecord(selected); };
+            StillBtn.Click += (s, e) => { if (selected != null) ExtractScene(selected, false); };
+            UseVideoBtn.Click += (s, e) => { if (selected != null) ExtractScene(selected, true); };
+            FolderBtn.Click += (s, e) => { if (selected != null) MainWindow.OpenInShell(selected.Folder); };
             Scroller.SizeChanged += (s, e) => Layout();
         }
 
@@ -54,6 +59,7 @@ namespace HydroShiftRecorder
             var items = await Task.Run(() => Workshop.Scan());
             if (gen != generation) return;
             all = items;
+            SelectItem(null);
             foreach (var it in all) it.Meta = Meta(it);
             ApplyFilter();
             if (all.Count == 0)
@@ -93,6 +99,7 @@ namespace HydroShiftRecorder
             var q = SearchBox.Text.Trim();
             if (q.Length > 0) items = items.Where(i => i.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
             var list = items.ToList();
+            if (selected != null && !list.Contains(selected)) SelectItem(null);   // filtered out
             view.Clear();
             foreach (var i in list) view.Add(i);
             CountText.Text = list.Count == all.Count ? all.Count + " wallpapers" : list.Count + " of " + all.Count;
@@ -111,22 +118,47 @@ namespace HydroShiftRecorder
 
         // ---------------------------------------------------------------- actions
 
-        static WeItem ItemOf(object sender) { return (sender as FrameworkElement)?.Tag as WeItem; }
+        WeItem selected;
 
-        /// <summary>Clicking the picture: edit a video, record a scene or web wallpaper.</summary>
-        void Main_Click(object sender, RoutedEventArgs e)
+        /// <summary>Selects a wallpaper: accent ring on its tile, its actions at the top right.</summary>
+        void SelectItem(WeItem it)
         {
-            var it = ItemOf(sender);
-            if (it == null) return;
-            if (it.IsVideo) ImportVideo(it);
-            else if (it.CanRecord) AskAndRecord(it);
+            if (selected != null) selected.IsSelected = false;
+            selected = it;
+            if (it != null) it.IsSelected = true;
+            UpdateActions();
         }
 
-        void Edit_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) ImportVideo(it); }
-        void Record_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) AskAndRecord(it); }
-        void Still_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) ExtractScene(it, false); }
-        void VideoLayer_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) ExtractScene(it, true); }
-        void Folder_Click(object sender, RoutedEventArgs e) { var it = ItemOf(sender); if (it != null) MainWindow.OpenInShell(it.Folder); }
+        void UpdateActions()
+        {
+            var it = selected;
+            SelHint.Visibility = it == null ? Visibility.Visible : Visibility.Collapsed;
+            SelActions.Visibility = it == null ? Visibility.Collapsed : Visibility.Visible;
+            if (it == null) return;
+            EditBtn.Visibility = it.IsVideo ? Visibility.Visible : Visibility.Collapsed;
+            RecordBtn.Visibility = it.CanRecord ? Visibility.Visible : Visibility.Collapsed;
+            StillBtn.Visibility = it.IsScene ? Visibility.Visible : Visibility.Collapsed;
+            UseVideoBtn.Visibility = it.HasVideo ? Visibility.Visible : Visibility.Collapsed;
+            SelNote.Visibility = it.Unsupported ? Visibility.Visible : Visibility.Collapsed;
+            SelNote.Text = it.KindLabel + " wallpapers can't be imported";
+        }
+
+        void Tile_Click(object sender, RoutedEventArgs e)
+        {
+            var it = (sender as FrameworkElement)?.Tag as WeItem;
+            if (it != null) SelectItem(it);
+        }
+
+        /// <summary>Double-click: the main action (edit a video, record a scene or web wallpaper).</summary>
+        void Tile_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var it = (sender as FrameworkElement)?.Tag as WeItem;
+            if (it == null) return;
+            SelectItem(it);
+            if (it.IsVideo) ImportVideo(it);
+            else if (it.CanRecord) AskAndRecord(it);
+            e.Handled = true;
+        }
 
         /// <summary>Opens the small window to pick the size, length and frame rate, then records.</summary>
         void AskAndRecord(WeItem it)

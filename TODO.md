@@ -80,7 +80,7 @@
   - Done: "Record animation…" opens a window (size, length, frame rate); play the scene in a Wallpaper Engine pop-out window (`wallpaper64.exe -control openWallpaper -file … -playInWindow … -width -height -borderless`) and capture that window.
 
 - Record moved out of the sidebar: "Record screen" on the Library page records any monitor.
-- Wallpaper Engine tiles have dedicated buttons (Edit; Record, Still image, Use its video). "Use its video" only shows when the scene package contains a video (read from its file list, no unpacking).
+- Wallpaper Engine: click a tile to select it (accent ring); its actions (Edit; Record, Still image, Use its video; Show in folder) appear at the top right. Double-click does the main one. "Use its video" only shows when the scene package contains a video (read from its file list, no unpacking).
 - Editor scrubbing: click or drag along the filmstrip to pick any frame (← → one frame, Shift+← → one second). The newest position is fetched as soon as the previous frame is in; AI enhance runs when you let go. The strip shows 8–24 frames depending on its width. Seen frames are cached (32 plain, 16 AI).
 - Editor opens untouched videos as they are (all sliders at "no change", the original across the whole preview). "Auto adjust" (was "Reset to auto") detects the black level, sets fixed starting values (shadow depth 20%, color boost +8%, the rest off) and slides the comparison to the middle. "Reset" puts everything back to no change. Exports no longer remember the look.
 - Sidebar "Export finished" card (file name, folder, time); click shows the file in Explorer; stays until × or the next job.
