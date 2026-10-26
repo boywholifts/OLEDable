@@ -33,7 +33,9 @@
         <Button x:Name="ExportBtn" DockPanel.Dock="Right" Content="Export" Style="{StaticResource PrimaryPill}" Padding="24,0" Margin="10,0,0,0"
                 ToolTip="Render the finished video into your library"/>
         <Button x:Name="ResetBtn" DockPanel.Dock="Right" Content="Auto adjust" Style="{StaticResource Pill}"
-                ToolTip="Detects the black level and applies your usual look, then shows a half-and-half comparison"/>
+                ToolTip="Detects this video's black level and sets the starting values, then shows a half-and-half comparison"/>
+        <Button x:Name="ClearBtn" DockPanel.Dock="Right" Content="Reset" Style="{StaticResource GhostBtn}" Margin="0,0,6,0"
+                ToolTip="Every adjustment back to no change, and the original across the whole preview"/>
         <StackPanel VerticalAlignment="Center">
           <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
           <TextBlock x:Name="MetaText" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>

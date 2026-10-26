@@ -374,7 +374,7 @@ namespace HydroShiftRecorder
             var outPath = OutputPathFor(s);
             var snap = s.Clone();
             Store.Save(snap);
-            S.RememberOled(snap.Oled); S.Loop = snap.Loop; S.Smooth = snap.Smooth;
+            S.Loop = snap.Loop;   // (the look isn't remembered: every video starts untouched, and Auto adjust is per video) S.Smooth = snap.Smooth;
             S.RememberEnhance(snap);
             SaveSettings();
             bool ok = await RunJob("Exporting " + (s.Title ?? s.OutputName), (pr, ct) => P.ExportAsync(snap, outPath, pr, ct));

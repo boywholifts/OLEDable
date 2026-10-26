@@ -64,6 +64,7 @@ namespace HydroShiftRecorder
                 UpdateSaveAs();
             };
             ResetBtn.Click += (o, e) => { ResetToAuto(); AnimateSplit(0.5); };
+            ClearBtn.Click += (o, e) => { ResetToNone(); AnimateSplit(1); };
             splitAnim.Tick += (o, e) =>
             {
                 double k = Math.Min(1, (DateTime.Now - splitStart).TotalMilliseconds / 450);
@@ -395,28 +396,33 @@ namespace HydroShiftRecorder
         }
 
         /// <summary>
-        /// Auto adjust: the detected black level (it keeps following the detection until you move it) and your
-        /// usual look (remembered from your last export), or the built-in defaults.
+        /// Reset: every adjustment back to "no change", like a video that has just been opened.
+        /// </summary>
+        void ResetToNone()
+        {
+            userMovedBlack = true;   // stays at 0, doesn't follow the detection
+            sync = true;
+            BlackSlider.Value = 0; ShadowSlider.Value = 1; ColorSlider.Value = 1;
+            BrightSlider.Value = 0; HighSlider.Value = 0; GlowSlider.Value = 0; GlowSizeSlider.Value = DefGlowSize;
+            sync = false;
+            UpdateLabels();
+            dirty = true;
+            Touched();
+            fresh = true;   // saved as untouched: opens untouched next time too
+        }
+
+        /// <summary>
+        /// Auto adjust: the black level detected for this video (it keeps following the detection until you move
+        /// it), plus the same starting values for everything else, since every video is different.
         /// </summary>
         void ResetToAuto()
         {
             fresh = false;
             userMovedBlack = false;
-            var d = shell.S.DefaultOled();
-            bool usual = d.Shadows > 1.001 || Math.Abs(d.Color - 1) > 0.001 || d.Bright > 0 || d.Highlights > 0 || d.Glow > 0;
             sync = true;
             if (autoBlack >= 0) BlackSlider.Value = autoBlack;
-            if (usual)
-            {
-                ShadowSlider.Value = Clamp(d.Shadows, 1, 2); ColorSlider.Value = Clamp(d.Color, 0.8, 1.5);
-                BrightSlider.Value = Clamp(d.Bright, 0, 1); HighSlider.Value = Clamp(d.Highlights, 0, 1);
-                GlowSlider.Value = Clamp(d.Glow, 0, 1); GlowSizeSlider.Value = Clamp(d.GlowSize, 6, 48);
-            }
-            else
-            {
-                ShadowSlider.Value = DefShadows; ColorSlider.Value = DefColor;
-                BrightSlider.Value = 0; HighSlider.Value = 0; GlowSlider.Value = 0; GlowSizeSlider.Value = DefGlowSize;
-            }
+            ShadowSlider.Value = DefShadows; ColorSlider.Value = DefColor;
+            BrightSlider.Value = 0; HighSlider.Value = 0; GlowSlider.Value = 0; GlowSizeSlider.Value = DefGlowSize;
             CleanSw.IsChecked = true;
             sync = false;
             UpdateLabels();
