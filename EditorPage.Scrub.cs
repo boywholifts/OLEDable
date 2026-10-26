@@ -187,6 +187,8 @@ namespace HydroShiftRecorder
             const int th = 116;   // twice the strip's height, for sharpness
             int tw = Math.Max(2, Math.Min(480, (int)Math.Round(th * (double)W / H / 2) * 2));
             var src = s.SourcePath; var ff = shell.Ffmpeg; double dur = s.Duration;
+            // big or long videos: thumbnails from keyframes only, so 8K files don't decode every frame in between
+            bool keyOnly = (long)s.Width * s.Height > 3840L * 2160 || dur > 60;
             var got = new byte[n][];
             using (var gate = new SemaphoreSlim(4))
             {
@@ -198,7 +200,7 @@ namespace HydroShiftRecorder
                     tasks[i] = Task.Run(async () =>
                     {
                         await gate.WaitAsync();
-                        try { return gen == thumbGen ? Oled.GrabFrame(ff, src, t, tw, th) : null; }
+                        try { return gen == thumbGen ? (keyOnly ? Oled.GrabFrame(ff, src, t, tw, th, true) : null) ?? Oled.GrabFrame(ff, src, t, tw, th) : null; }
                         finally { gate.Release(); }
                     }).ContinueWith(task =>
                     {

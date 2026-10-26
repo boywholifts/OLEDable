@@ -335,10 +335,21 @@ namespace HydroShiftRecorder
         /// Grabs one frame at <paramref name="seconds"/>, fitted to the HydroShift's shape directly at w × h
         /// (no full-size step first), as RGB24. Several can run at once.
         /// </summary>
-        public static byte[] GrabFrame(string ffmpeg, string file, double seconds, int w, int h)
+        /// <summary>
+        /// One frame as RGB24 at w × h (cropped to fill). Decodes on the GPU when it can (big 4K/8K files are much
+        /// faster), falling back to the CPU. <paramref name="keyframeOnly"/> takes the keyframe at or before the time instead of
+        /// the exact frame: far less decoding, fine for filmstrip thumbnails.
+        /// </summary>
+        public static byte[] GrabFrame(string ffmpeg, string file, double seconds, int w, int h, bool keyframeOnly = false)
+        {
+            return GrabFrame(ffmpeg, file, seconds, w, h, keyframeOnly, true) ?? GrabFrame(ffmpeg, file, seconds, w, h, keyframeOnly, false);
+        }
+
+        static byte[] GrabFrame(string ffmpeg, string file, double seconds, int w, int h, bool keyframeOnly, bool gpu)
         {
             var vf = "scale=" + w + ":" + h + ":force_original_aspect_ratio=increase:flags=area,crop=" + w + ":" + h + ",setsar=1,format=rgb24";
-            var args = "-v error -ss " + Tools.Num(Math.Max(0, seconds)) + " -i " + Tools.Q(file) +
+            var args = "-v error " + (gpu ? "-hwaccel auto " : "") + (keyframeOnly ? "-skip_frame nokey -noaccurate_seek " : "") +
+                       "-ss " + Tools.Num(Math.Max(0, seconds)) + " -i " + Tools.Q(file) +
                        " -frames:v 1 -an -vf \"" + vf + "\" -f rawvideo -";
             var si = new ProcessStartInfo(ffmpeg, args)
             {

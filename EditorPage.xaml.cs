@@ -297,8 +297,7 @@ namespace HydroShiftRecorder
             int gen = ++openGen;
             s = session;
             titleAtOpen = s.Title;
-            openGen++;
-            ResetFrames();
+            ResetFrames();   // (the openGen bump above already makes any older loading stop)
             wantKey = -1;   // a new video starts near its beginning
             shell.S.FillEnhance(s);
             unsaved = false;
