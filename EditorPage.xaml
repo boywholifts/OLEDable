@@ -96,7 +96,7 @@
             <ColumnDefinition Width="*"/>
           </Grid.ColumnDefinitions>
           <Border CornerRadius="8" Background="Black" ClipToBounds="True" Height="58">
-            <Grid x:Name="Strip">
+            <Grid x:Name="Strip" Background="Transparent">
               <UniformGrid x:Name="Thumbs" Rows="1" Columns="8" IsHitTestVisible="False"/>
               <!-- the shading and the playhead ignore the mouse: the strip itself scrubs; only the handles take clicks -->
               <Canvas x:Name="TrimLayer" ClipToBounds="True">
