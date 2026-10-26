@@ -94,6 +94,7 @@
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
+- Editor: a "Reset" button next to Auto adjust that puts every adjustment back to "no change" (black 0, shadow depth 0%, color boost 0%, brightness/highlights/glow off), like a freshly opened video, and slides the comparison back to all original.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
 - Code signing: on hold. Options are Azure Trusted Signing (~$10/mo) or SignPath Foundation (free for open source); meanwhile, report false positives to Malwarebytes.
