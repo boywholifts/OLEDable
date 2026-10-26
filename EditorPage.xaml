@@ -32,7 +32,8 @@
         <Border DockPanel.Dock="Left" Width="1" Height="26" Background="{DynamicResource Line2}" Margin="8,0,16,0"/>
         <Button x:Name="ExportBtn" DockPanel.Dock="Right" Content="Export" Style="{StaticResource PrimaryPill}" Padding="24,0" Margin="10,0,0,0"
                 ToolTip="Render the finished video into your library"/>
-        <Button x:Name="ResetBtn" DockPanel.Dock="Right" Content="Reset to auto" Style="{StaticResource GhostBtn}"/>
+        <Button x:Name="ResetBtn" DockPanel.Dock="Right" Content="Auto adjust" Style="{StaticResource Pill}"
+                ToolTip="Detects the black level and applies your usual look, then shows a half-and-half comparison"/>
         <StackPanel VerticalAlignment="Center">
           <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
           <TextBlock x:Name="MetaText" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>

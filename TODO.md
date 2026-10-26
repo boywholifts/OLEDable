@@ -82,6 +82,7 @@
 - Record moved out of the sidebar: "Record screen" on the Library page records any monitor.
 - Wallpaper Engine tiles have dedicated buttons (Edit; Record, Still image, Use its video). "Use its video" only shows when the scene package contains a video (read from its file list, no unpacking).
 - Editor scrubbing: click or drag along the filmstrip to pick any frame (← → one frame, Shift+← → one second). The newest position is fetched as soon as the previous frame is in; AI enhance runs when you let go. The strip shows 8–24 frames depending on its width. Seen frames are cached (32 plain, 16 AI).
+- Editor opens untouched videos as they are (all sliders at "no change", the original across the whole preview). "Auto adjust" (was "Reset to auto") detects the black level, applies your usual look (from your last export, or the defaults) and slides the comparison to the middle.
 - Sidebar "Export finished" card (file name, folder, time); click shows the file in Explorer; stays until × or the next job.
 - Library tiles: the "True black" tag is gone (Converted / Recording already say it).
 - Renamed to **OLEDable**: exe `OLEDable.exe`, settings `OLEDable.json` (copied from `HydroShift-Recorder.json` on first launch), installer `installer\OLEDable.iss` (same AppId, so it updates old installs in place and removes the old exe and shortcuts), default library `Videos\OLEDable` for new installs. Updater points at `boywholifts/oledable` (rename the GitHub repo). Internal names (namespace, `.hydroshift` folder, `hsr|` tag) are unchanged.

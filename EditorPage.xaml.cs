@@ -36,6 +36,10 @@ namespace HydroShiftRecorder
         int openGen;
         double autoBlack = -1, split = 0.5;
         bool sync, userMovedBlack, dirty, rendering, unsaved;
+        /// <summary>A video that hasn't been tuned yet: it opens untouched (all original) until Auto adjust or a slider is used.</summary>
+        bool fresh;
+        readonly DispatcherTimer splitAnim = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(15) };
+        double splitFrom, splitTo; DateTime splitStart;
         Border dragging;
 
         public EditorPage(MainWindow shell)
@@ -59,7 +63,15 @@ namespace HydroShiftRecorder
                 if (await shell.Export(s)) { unsaved = false; titleAtOpen = s.Title; }
                 UpdateSaveAs();
             };
-            ResetBtn.Click += (o, e) => ResetToAuto();
+            ResetBtn.Click += (o, e) => { ResetToAuto(); AnimateSplit(0.5); };
+            splitAnim.Tick += (o, e) =>
+            {
+                double k = Math.Min(1, (DateTime.Now - splitStart).TotalMilliseconds / 450);
+                k = 1 - Math.Pow(1 - k, 3);   // ease out
+                split = splitFrom + (splitTo - splitFrom) * k;
+                UpdateSplit();
+                if (k >= 1) splitAnim.Stop();
+            };
             shell.BusyChanged += () => ExportBtn.IsEnabled = !shell.Busy;
 
             BlackSlider.ValueChanged += (o, e) => { if (!sync) userMovedBlack = true; Changed(); };
@@ -146,7 +158,7 @@ namespace HydroShiftRecorder
             autosaveTimer.Stop();
             if (s == null || !unsaved || !AutoSaved) return;
             var snap = Snapshot();
-            if (!userMovedBlack) snap.Oled.Black = -1;   // keep detecting it
+            if (fresh) snap.Oled.Black = -1;   // still untouched: opens untouched next time too
             shell.Store.Save(snap);
         }
 
@@ -303,7 +315,12 @@ namespace HydroShiftRecorder
             unsaved = false;
             autosaveTimer.Stop();
             autoBlack = -1;
-            userMovedBlack = s.Oled.Black >= 0;
+            // never tuned (no black level stored yet): show it as it is, original across the whole preview
+            fresh = s.Oled.Black < 0;
+            userMovedBlack = true;   // the black level only follows the detected value after Auto adjust
+            splitAnim.Stop();
+            split = fresh ? 1 : 0.5;
+            UpdateSplit();
             OrigImg.Source = null;
             LoadingText.Visibility = Visibility.Visible;
             LoadingText.Text = "Reading frames…";
@@ -316,12 +333,13 @@ namespace HydroShiftRecorder
             TitleText.Text = s.Title ?? "";
             MetaText.Text = (s.IsImage ? "Image" : s.Kind == "recording" ? "Recording" : "Video") + "  ·  reading…";
             ShowImageMode(s.IsImage);
-            BlackSlider.Value = s.Oled.Black >= 0 ? s.Oled.Black : 10;
-            ShadowSlider.Value = Clamp(s.Oled.Shadows, 1, 2);
-            ColorSlider.Value = Clamp(s.Oled.Color, 0.8, 1.5);
-            BrightSlider.Value = Clamp(s.Oled.Bright, 0, 1);
-            HighSlider.Value = Clamp(s.Oled.Highlights, 0, 1);
-            GlowSlider.Value = Clamp(s.Oled.Glow, 0, 1);
+            // untouched: every adjustment at "no change"
+            BlackSlider.Value = fresh ? 0 : s.Oled.Black;
+            ShadowSlider.Value = fresh ? 1 : Clamp(s.Oled.Shadows, 1, 2);
+            ColorSlider.Value = fresh ? 1 : Clamp(s.Oled.Color, 0.8, 1.5);
+            BrightSlider.Value = fresh ? 0 : Clamp(s.Oled.Bright, 0, 1);
+            HighSlider.Value = fresh ? 0 : Clamp(s.Oled.Highlights, 0, 1);
+            GlowSlider.Value = fresh ? 0 : Clamp(s.Oled.Glow, 0, 1);
             GlowSizeSlider.Value = Clamp(s.Oled.GlowSize, 6, 48);
             CleanSw.IsChecked = s.Oled.Cleanup;
             LoopSw.IsChecked = s.Loop;
@@ -376,13 +394,29 @@ namespace HydroShiftRecorder
             dirty = true;
         }
 
+        /// <summary>
+        /// Auto adjust: the detected black level (it keeps following the detection until you move it) and your
+        /// usual look (remembered from your last export), or the built-in defaults.
+        /// </summary>
         void ResetToAuto()
         {
+            fresh = false;
             userMovedBlack = false;
+            var d = shell.S.DefaultOled();
+            bool usual = d.Shadows > 1.001 || Math.Abs(d.Color - 1) > 0.001 || d.Bright > 0 || d.Highlights > 0 || d.Glow > 0;
             sync = true;
             if (autoBlack >= 0) BlackSlider.Value = autoBlack;
-            ShadowSlider.Value = DefShadows; ColorSlider.Value = DefColor;
-            BrightSlider.Value = 0; HighSlider.Value = 0; GlowSlider.Value = 0; GlowSizeSlider.Value = DefGlowSize;
+            if (usual)
+            {
+                ShadowSlider.Value = Clamp(d.Shadows, 1, 2); ColorSlider.Value = Clamp(d.Color, 0.8, 1.5);
+                BrightSlider.Value = Clamp(d.Bright, 0, 1); HighSlider.Value = Clamp(d.Highlights, 0, 1);
+                GlowSlider.Value = Clamp(d.Glow, 0, 1); GlowSizeSlider.Value = Clamp(d.GlowSize, 6, 48);
+            }
+            else
+            {
+                ShadowSlider.Value = DefShadows; ColorSlider.Value = DefColor;
+                BrightSlider.Value = 0; HighSlider.Value = 0; GlowSlider.Value = 0; GlowSizeSlider.Value = DefGlowSize;
+            }
             CleanSw.IsChecked = true;
             sync = false;
             UpdateLabels();
@@ -467,6 +501,7 @@ namespace HydroShiftRecorder
         void Changed()
         {
             if (sync) return;
+            fresh = false;   // tuned by hand
             UpdateLabels();
             dirty = true;
             Touched();
@@ -489,8 +524,15 @@ namespace HydroShiftRecorder
 
         static string Pct(double v) { return string.Format(Inv, "{0:0}%", v * 100); }
 
+        void AnimateSplit(double to)
+        {
+            splitFrom = split; splitTo = to; splitStart = DateTime.Now;
+            splitAnim.Start();
+        }
+
         void MoveSplit(MouseEventArgs e)
         {
+            splitAnim.Stop();
             split = Clamp(e.GetPosition(PreviewHost).X / Math.Max(1, PreviewHost.ActualWidth), 0, 1);
             UpdateSplit();
         }
