@@ -42,7 +42,7 @@
       <StackPanel>
         <TextBlock Text="Wallpaper Engine" FontSize="26" FontWeight="Bold"/>
         <TextBlock x:Name="SubText" Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap"
-                   Text="Your downloaded wallpapers. Edit a video, or bring a scene in by recording it with its animation or taking its still image or video layer. Wallpaper Engine's own files are never changed."/>
+                   Text="Your downloaded wallpapers. Edit a video, or bring a scene in by recording it with its animation, taking its still image, or using the video inside it when it has one. Wallpaper Engine's own files are never changed."/>
       </StackPanel>
     </DockPanel>
 
@@ -96,9 +96,9 @@
                 <Button Content="Still image" Style="{StaticResource Act}" Tag="{Binding}" Click="Still_Click"
                         Visibility="{Binding IsScene, Converter={StaticResource Vis}}"
                         ToolTip="The scene's background picture, without its animation (instant)"/>
-                <Button Content="Video layer" Style="{StaticResource Act}" Tag="{Binding}" Click="VideoLayer_Click"
-                        Visibility="{Binding IsScene, Converter={StaticResource Vis}}"
-                        ToolTip="For scenes that are really a video inside (instant). Not every scene has one."/>
+                <Button Content="Use its video" Style="{StaticResource Act}" Tag="{Binding}" Click="VideoLayer_Click"
+                        Visibility="{Binding HasVideo, Converter={StaticResource Vis}}"
+                        ToolTip="This scene plays a video. Take that video as it is and open it in the editor (instant, full quality)."/>
                 <TextBlock Text="Can't be imported" Foreground="{DynamicResource Sub}" FontSize="12" Margin="0,6,0,6"
                            Visibility="{Binding Unsupported, Converter={StaticResource Vis}}"/>
               </WrapPanel>

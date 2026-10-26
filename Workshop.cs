@@ -33,7 +33,9 @@ namespace HydroShiftRecorder
             get { return IsVideo ? "Video" : IsScene ? "Scene" : Kind == "web" ? "Web" : Kind == "application" ? "Application" : "Other"; }
         }
 
-        ImageSource thumb; string meta;
+        ImageSource thumb; string meta; bool hasVideo;
+        /// <summary>A scene that plays a video inside it (checked from the package's file list, without unpacking).</summary>
+        public bool HasVideo { get { return hasVideo; } set { hasVideo = value; Raise("HasVideo"); } }
         public ImageSource Thumb { get { return thumb; } set { thumb = value; Raise("Thumb"); } }
         public string Meta { get { return meta; } set { meta = value; Raise("Meta"); } }
 
@@ -119,7 +121,9 @@ namespace HydroShiftRecorder
                         var prev = p.Preview != null ? Path.Combine(d, p.Preview) : null;
                         if (prev == null || !System.IO.File.Exists(prev))
                             prev = new[] { "preview.jpg", "preview.png", "preview.gif" }.Select(f => Path.Combine(d, f)).FirstOrDefault(System.IO.File.Exists);
-                        list.Add(new WeItem { Folder = d, Title = p.Title, Type = p.Type, File = p.File, PreviewPath = prev, Source = root.Value, Meta = "" });
+                        var item = new WeItem { Folder = d, Title = p.Title, Type = p.Type, File = p.File, PreviewPath = prev, Source = root.Value, Meta = "" };
+                        if (item.IsScene) item.HasVideo = SceneHasVideo(d);
+                        list.Add(item);
                     }
                     catch { }
                 }
@@ -241,6 +245,99 @@ namespace HydroShiftRecorder
                     if (IsImage(f) || VideoExt.Contains(Path.GetExtension(f).ToLowerInvariant()))
                         try { System.IO.File.Copy(f, Path.Combine(outDir, Path.GetFileName(f)), true); } catch { }
             return outDir;
+        }
+
+        // ---------------------------------------------------------------- does a scene contain a video?
+
+        /// <summary>Smaller videos are effects (sparks, a blinking sign), not the wallpaper itself.</summary>
+        const long MinVideoBytes = 1024 * 1024;
+
+        /// <summary>
+        /// True if the scene has a video worth using: an .mp4/.webm… file, or a texture that is really an MP4
+        /// (Wallpaper Engine's video textures). Reads only the package's file list and a few bytes per texture.
+        /// </summary>
+        public static bool SceneHasVideo(string folder)
+        {
+            try
+            {
+                var pkg = Directory.GetFiles(folder, "*.pkg").FirstOrDefault();
+                if (pkg != null) return PkgHasVideo(pkg);
+                // an already-unpacked scene
+                foreach (var f in Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories))
+                {
+                    var ext = Path.GetExtension(f).ToLowerInvariant();
+                    long len = new FileInfo(f).Length;
+                    if (len < MinVideoBytes) continue;
+                    if (VideoExt.Contains(ext)) return true;
+                    if (ext == ".tex") using (var fs = System.IO.File.OpenRead(f)) if (TexIsVideo(new BinaryReader(fs))) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        static string ReadSized(BinaryReader r)
+        {
+            int n = r.ReadInt32();
+            if (n < 0 || n > 4096) throw new InvalidDataException();
+            return System.Text.Encoding.UTF8.GetString(r.ReadBytes(n));
+        }
+
+        /// <summary>Wallpaper Engine's .pkg: "PKGV…", a file count, then (name, offset, length) for each file, then the data.</summary>
+        static bool PkgHasVideo(string pkg)
+        {
+            using (var fs = System.IO.File.OpenRead(pkg))
+            using (var r = new BinaryReader(fs))
+            {
+                if (!ReadSized(r).StartsWith("PKGV")) return false;
+                int count = r.ReadInt32();
+                if (count < 0 || count > 100000) return false;
+                var texs = new List<KeyValuePair<long, long>>();
+                for (int i = 0; i < count; i++)
+                {
+                    var name = ReadSized(r);
+                    long off = r.ReadInt32(), len = r.ReadInt32();
+                    if (len < MinVideoBytes) continue;
+                    var ext = Path.GetExtension(name).ToLowerInvariant();
+                    if (VideoExt.Contains(ext)) return true;
+                    if (ext == ".tex") texs.Add(new KeyValuePair<long, long>(off, len));
+                }
+                long dataStart = fs.Position;
+                foreach (var t in texs)
+                {
+                    fs.Position = dataStart + t.Key;
+                    if (TexIsVideo(r)) return true;
+                }
+            }
+            return false;
+        }
+
+        static string ReadMagic(BinaryReader r)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < 16; i++) { byte b = r.ReadByte(); if (b == 0) break; sb.Append((char)b); }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// A .tex texture: "TEXV0005", "TEXI0001", 7 header ints, then the image container. Version 4 containers
+        /// ("TEXB0004") say whether the texture is an MP4 video.
+        /// </summary>
+        static bool TexIsVideo(BinaryReader r)
+        {
+            try
+            {
+                if (!ReadMagic(r).StartsWith("TEXV")) return false;
+                if (!ReadMagic(r).StartsWith("TEXI")) return false;
+                for (int i = 0; i < 7; i++) r.ReadInt32();
+                var container = ReadMagic(r);
+                if (container != "TEXB0004") return false;
+                r.ReadInt32();                 // image count
+                int format = r.ReadInt32();    // FreeImage format: -1 unknown, 35 MP4
+                bool mp4 = r.ReadInt32() == 1;
+                return format == 35 || (format == -1 && mp4);   // what RePKG exports as .mp4
+            }
+            catch { return false; }
         }
 
         /// <summary>The scene's main image: the largest picture in it (usually the background), copied into the library.</summary>

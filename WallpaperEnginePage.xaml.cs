@@ -181,7 +181,7 @@ namespace HydroShiftRecorder
         async void ExtractScene(WeItem it, bool video)
         {
             string result = null;
-            bool ok = await shell.RunJob((video ? "Extracting video: " : "Extracting still: ") + it.Name, async (pr, ct) =>
+            bool ok = await shell.RunJob((video ? "Taking the video from: " : "Extracting still: ") + it.Name, async (pr, ct) =>
             {
                 var dir = await Workshop.UnpackSceneAsync(shell.DataDir, it, pr, ct);
                 try { result = video ? Workshop.PickVideo(shell.S, it, dir) : Workshop.PickStill(shell.S, it, dir); }
@@ -190,7 +190,7 @@ namespace HydroShiftRecorder
             if (!ok) return;
             if (result == null)
             {
-                shell.ShowToast(video ? "This scene has no video layer. Try Record or Still image." : "No image was found inside this scene.");
+                shell.ShowToast(video ? "No video was found inside this scene. Try Record or Still image." : "No image was found inside this scene.");
                 return;
             }
             it.Meta = Meta(it);

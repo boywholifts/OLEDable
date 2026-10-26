@@ -13,7 +13,7 @@ It started as **HydroShift Recorder**, a tool for the Lian Li HydroShift II OLED
 - **Videos and still images:** MP4, MKV, WebM… and PNG, JPEG, WebP, BMP, TIFF. Images are saved as PNG.
 - **Wallpaper Engine:** see every wallpaper you've downloaded from the Workshop.
   - Video wallpapers are copied into your library in one click.
-  - Scenes can be unpacked (with [RePKG](https://github.com/notscuffed/repkg)) for their background image or a video inside them, or recorded as a video: Wallpaper Engine plays the scene in a window at the size you pick, and the app records that window.
+  - Scenes can be unpacked (with [RePKG](https://github.com/notscuffed/repkg)) for their background image or, when a scene plays a video, that video; or recorded as a video: Wallpaper Engine plays the scene in a window at the size you pick, and the app records that window.
   - Wallpaper Engine's own files are never changed.
 - **Record a screen:** record any of your monitors with a live preview.
 - **AI enhance:** Real-ESRGAN redraws small or soft wallpapers at a higher resolution for a sharper picture. You can choose the style and the strength, and add community models.
