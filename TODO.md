@@ -80,6 +80,8 @@
   - Done: "Record animation…" opens a window (size, length, frame rate); play the scene in a Wallpaper Engine pop-out window (`wallpaper64.exe -control openWallpaper -file … -playInWindow … -width -height -borderless`) and capture that window.
 
 - Record moved out of the sidebar: "Record screen" on the Library page records any monitor.
+- Wallpaper Engine tiles have dedicated buttons (Edit; Record, Still image, Use its video). "Use its video" only shows when the scene package contains a video (read from its file list, no unpacking).
+- Library tiles: the "True black" tag is gone (Converted / Recording already say it).
 - Renamed to **OLEDable**: exe `OLEDable.exe`, settings `OLEDable.json` (copied from `HydroShift-Recorder.json` on first launch), installer `installer\OLEDable.iss` (same AppId, so it updates old installs in place and removes the old exe and shortcuts), default library `Videos\OLEDable` for new installs. Updater points at `boywholifts/oledable` (rename the GitHub repo). Internal names (namespace, `.hydroshift` folder, `hsr|` tag) are unchanged.
 
 ## Release routine
@@ -89,7 +91,6 @@
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
-- Library tiles: remove the "· True black" tag (LibraryPage.xaml, the AccentText line under the name). Converted items are already marked "Converted", so it adds nothing.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
 - Code signing: on hold. Options are Azure Trusted Signing (~$10/mo) or SignPath Foundation (free for open source); meanwhile, report false positives to Malwarebytes.
