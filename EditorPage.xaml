@@ -97,12 +97,18 @@
           </Grid.ColumnDefinitions>
           <Border CornerRadius="8" Background="Black" ClipToBounds="True" Height="58">
             <Grid x:Name="Strip">
-              <UniformGrid x:Name="Thumbs" Rows="1" Columns="8"/>
-              <!-- no background, and the shading ignores the mouse: clicks reach the frames; only the handles take them -->
+              <UniformGrid x:Name="Thumbs" Rows="1" Columns="8" IsHitTestVisible="False"/>
+              <!-- the shading and the playhead ignore the mouse: the strip itself scrubs; only the handles take clicks -->
               <Canvas x:Name="TrimLayer" ClipToBounds="True">
                 <Rectangle x:Name="DimL" Fill="#B3000000" Height="58" IsHitTestVisible="False"/>
                 <Rectangle x:Name="DimR" Fill="#B3000000" Height="58" IsHitTestVisible="False"/>
-                <Rectangle x:Name="SelMark" Width="2" Height="58" Fill="White" IsHitTestVisible="False"/>
+                <!-- playhead: the frame in the preview -->
+                <Grid x:Name="SelMark" Width="12" Height="58" IsHitTestVisible="False">
+                  <Grid.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.8"/></Grid.Effect>
+                  <Rectangle Width="2" Fill="White" HorizontalAlignment="Center"/>
+                  <Border Width="12" Height="6" CornerRadius="0,0,6,6" Background="White" VerticalAlignment="Top"/>
+                  <Border Width="12" Height="6" CornerRadius="6,6,0,0" Background="White" VerticalAlignment="Bottom"/>
+                </Grid>
                 <Border x:Name="HandleL" Width="10" Height="58" Background="{DynamicResource Accent}" CornerRadius="8,0,0,8" Cursor="SizeWE"
                         ToolTip="Drag to choose where the clip starts">
                   <Rectangle Width="2" Height="18" Fill="#99FFFFFF" RadiusX="1" RadiusY="1"/>
@@ -117,7 +123,7 @@
         </Grid>
         <DockPanel x:Name="TrimRow" Grid.Row="2" Margin="0,10,0,0">
           <TextBlock x:Name="TrimText" DockPanel.Dock="Right" FontSize="12" Foreground="{DynamicResource Sub}"/>
-          <TextBlock Text="Click a frame to preview it  ·  drag the handles to trim  ·  drag the picture to compare"
+          <TextBlock Text="Click or drag along the filmstrip to pick a frame (← → step one)  ·  drag the handles to trim  ·  drag the picture to compare"
                      FontSize="12" Foreground="{DynamicResource Sub}" TextTrimming="CharacterEllipsis"/>
         </DockPanel>
       </Grid>

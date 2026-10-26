@@ -18,7 +18,6 @@ namespace HydroShiftRecorder
     /// </summary>
     public partial class EditorPage : UserControl, IPage
     {
-        const int N = 8;
         // preview frame size: half the HydroShift's 2288 × 1048, or the output's shape at about the same pixel count
         int W = 1144, H = 524;
         const double DefShadows = 1.2, DefColor = 1.08, DefGlowSize = 20;
@@ -29,18 +28,12 @@ namespace HydroShiftRecorder
         readonly OledScratch scratch = new OledScratch();
         readonly DispatcherTimer renderTimer;
         readonly DispatcherTimer autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
-        readonly Border[] thumbs = new Border[N];
 
         EditSession s;
         string titleAtOpen;
-        byte[][] frames = new byte[N][];
-        byte[][] enhanced = new byte[N][];   // AI-enhanced preview frames (before strength), made on demand
-        bool[] enhFailed = new bool[N];
-        bool enhancing;
-        int enhancingIdx = -1, enhGen;       // enhGen changes when the model/cleanup/quality change: old frames are stale
+        int enhGen;                          // changes when the model/cleanup/quality change: old AI frames are stale
         byte[] blendBuf;
-        double[] origOff = new double[N];
-        int sel = -1, openGen;
+        int openGen;
         double autoBlack = -1, split = 0.5;
         bool sync, userMovedBlack, dirty, rendering, unsaved;
         Border dragging;
@@ -50,13 +43,6 @@ namespace HydroShiftRecorder
             this.shell = shell;
             InitializeComponent();
             SetPreviewSize(1144, 524);
-
-            for (int i = 0; i < N; i++)
-            {
-                var b = new Border { BorderThickness = new Thickness(0), Background = Brushes.Black, Cursor = Cursors.Hand };
-                thumbs[i] = b;
-                Thumbs.Children.Add(b);
-            }
 
             renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
             renderTimer.Tick += (o, e) => StartRender();
@@ -98,25 +84,6 @@ namespace HydroShiftRecorder
             PreviewHost.MouseLeftButtonUp += (o, e) => PreviewHost.ReleaseMouseCapture();
 
             Strip.SizeChanged += (o, e) => UpdateTrim();
-            // a click anywhere on the filmstrip previews the frame under it. Handled as a "preview" (tunnelling)
-            // event on the strip itself, so no layer drawn on top (trim shading, marker) can swallow it; a press on
-            // a trim handle, or a drag, doesn't count as a click
-            Point? stripDown = null;
-            Strip.PreviewMouseLeftButtonDown += (o, e) =>
-            {
-                bool onHandle = e.OriginalSource is DependencyObject hit && (IsInside(hit, HandleL) || IsInside(hit, HandleR));
-                stripDown = onHandle ? (Point?)null : e.GetPosition(Strip);
-            };
-            Strip.PreviewMouseLeftButtonUp += (o, e) =>
-            {
-                if (stripDown == null || dragging != null) { stripDown = null; return; }
-                var at = e.GetPosition(Strip);
-                bool moved = Math.Abs(at.X - stripDown.Value.X) > 6;
-                stripDown = null;
-                if (moved || Strip.ActualWidth <= 0) return;
-                int frameNo = (int)Clamp(Math.Floor(at.X / Strip.ActualWidth * N), 0, N - 1);
-                Select(frameNo);
-            };
             foreach (var h in new[] { HandleL, HandleR })
             {
                 var handle = h;
@@ -125,11 +92,7 @@ namespace HydroShiftRecorder
                 handle.MouseLeftButtonUp += (o, e) => { if (dragging != null) Touched(); dragging = null; handle.ReleaseMouseCapture(); };
             }
 
-            KeyDown += (o, e) =>
-            {
-                if (e.Key == Key.Left && sel > 0) Select(sel - 1);
-                else if (e.Key == Key.Right && sel < N - 1) Select(sel + 1);
-            };
+            SetupScrub();
         }
 
         public void OnShown() { renderTimer.Start(); ExportBtn.IsEnabled = !shell.Busy; }
@@ -267,12 +230,7 @@ namespace HydroShiftRecorder
         /// <summary>An enhance option changed; <paramref name="rerun"/> = the AI preview frames must be made again.</summary>
         void EnhanceOptionsChanged(bool rerun)
         {
-            if (rerun)
-            {
-                enhanced = new byte[N][];
-                enhFailed = new bool[N];
-                enhGen++;
-            }
+            if (rerun) ClearEnhanced();
             Touched();
             UpdateEnhanceNote();
             dirty = true;
@@ -316,39 +274,6 @@ namespace HydroShiftRecorder
             EnhanceNote.Text = what;
         }
 
-        /// <summary>
-        /// Makes the AI-enhanced preview frames in the background: the selected one first (with a progress badge
-        /// on the preview), then the rest of the filmstrip, so clicking around is instant.
-        /// </summary>
-        async void EnsureEnhanced()
-        {
-            EnhPill.Visibility = enhancing && enhancingIdx == sel ? Visibility.Visible : Visibility.Collapsed;
-            if (s == null || enhancing || EnhanceSw.IsChecked != true || !shell.P.HasModel(s.EnhanceStyle ?? EsrModel.Anime)) return;
-            int idx = -1;
-            if (sel >= 0 && frames[sel] != null && enhanced[sel] == null && !enhFailed[sel]) idx = sel;
-            else if (!shell.Busy)   // don't compete with an export for the GPU
-                for (int k = 1; k < N && idx < 0; k++)
-                    foreach (int c in new[] { sel + k, sel - k })   // nearest frames first
-                        if (c >= 0 && c < N && frames[c] != null && enhanced[c] == null && !enhFailed[c]) { idx = c; break; }
-            if (idx < 0) return;
-
-            enhancing = true; enhancingIdx = idx;
-            EnhPill.Visibility = idx == sel ? Visibility.Visible : Visibility.Collapsed;
-            int gen = openGen, eg = enhGen;
-            var src = s.SourcePath; double t = s.Duration * (idx + 0.5) / N; int sw = s.Width, sh = s.Height;
-            string key = s.EnhanceStyle ?? EsrModel.Anime; bool clean = s.EnhanceCleanup, tta = s.EnhanceTta;
-            int pw = W, ph = H; var outSpec = s.Output;
-            var f = await Task.Run(() => shell.P.EnhanceFrame(src, t, sw, sh, pw, ph, key, clean, tta, outSpec));
-            enhancing = false; enhancingIdx = -1;
-            if (gen != openGen) { EnhPill.Visibility = Visibility.Collapsed; return; }
-            if (eg == enhGen && pw == W && ph == H)
-            {
-                if (f == null) { enhFailed[idx] = true; if (idx == sel) OffText.Text = "AI enhance couldn't run on this frame"; }
-                else { enhanced[idx] = f; if (idx == sel) dirty = true; }
-            }
-            EnsureEnhanced();   // next frame, or the new selection / new options
-        }
-
         /// <summary>Whether <paramref name="d"/> is <paramref name="parent"/> or inside it.</summary>
         static bool IsInside(DependencyObject d, DependencyObject parent)
         {
@@ -372,24 +297,20 @@ namespace HydroShiftRecorder
             int gen = ++openGen;
             s = session;
             titleAtOpen = s.Title;
-            frames = new byte[N][];
-            enhanced = new byte[N][];
-            enhFailed = new bool[N];
-            enhGen++;
+            openGen++;
+            ResetFrames();
+            wantKey = -1;   // a new video starts near its beginning
             shell.S.FillEnhance(s);
             unsaved = false;
             autosaveTimer.Stop();
-            origOff = new double[N];
-            sel = -1; autoBlack = -1;
+            autoBlack = -1;
             userMovedBlack = s.Oled.Black >= 0;
-            foreach (var t in thumbs) t.Background = Brushes.Black;
             OrigImg.Source = null;
             LoadingText.Visibility = Visibility.Visible;
             LoadingText.Text = "Reading frames…";
             SplitLine.Visibility = SplitKnob.Visibility = OffPill.Visibility = Visibility.Hidden;
             Array.Clear(buf, 0, buf.Length);
             oledBmp.WritePixels(new Int32Rect(0, 0, W, H), buf, W * 4, 0);
-            sel = -1;
 
             sync = true;
             NameBox.Text = s.Title ?? "";
@@ -446,73 +367,6 @@ namespace HydroShiftRecorder
             UpdateSaveAs();
             UpdateTrim();
             LoadFrames();
-        }
-
-        /// <summary>
-        /// Fetches the preview frames, straight at the preview size for the current output shape (8 across a video,
-        /// one for an image). Called on open and whenever the output's shape changes.
-        /// </summary>
-        async void LoadFrames()
-        {
-            if (s == null || s.Width <= 0) return;
-            int gen = ++openGen;
-            var size = s.Output.PreviewSize();
-            if (size[0] != W || size[1] != H) SetPreviewSize(size[0], size[1]);
-            frames = new byte[N][];
-            enhanced = new byte[N][];
-            enhFailed = new bool[N];
-            enhGen++;
-            origOff = new double[N];
-            int keep = sel;
-            sel = -1;
-            foreach (var t in thumbs) t.Background = Brushes.Black;
-            OrigImg.Source = null;
-            LoadingText.Visibility = Visibility.Visible;
-            LoadingText.Text = s.IsImage ? "Reading the image…" : "Reading frames…";
-            SplitLine.Visibility = SplitKnob.Visibility = OffPill.Visibility = Visibility.Hidden;
-
-            int w = W, h = H;
-            var src = s.SourcePath;
-            if (s.IsImage)
-            {
-                var one = await Task.Run(() => Oled.GrabFrame(shell.Ffmpeg, src, 0, w, h));
-                if (gen != openGen) return;
-                for (int i = 0; i < N; i++) if (one != null) OnFrame(i, one);
-            }
-            else
-            {
-                var tasks = new Task[N];
-                for (int i = 0; i < N; i++)
-                {
-                    int idx = i;
-                    double t = s.Duration * (i + 0.5) / N;
-                    tasks[i] = Task.Run(() => Oled.GrabFrame(shell.Ffmpeg, src, t, w, h))
-                        .ContinueWith(task => { if (gen == openGen) OnFrame(idx, task.IsFaulted ? null : task.Result); },
-                                      TaskScheduler.FromCurrentSynchronizationContext());
-                }
-                await Task.WhenAll(tasks);
-            }
-            if (gen != openGen) return;
-            var got = new List<byte[]>();
-            foreach (var f in frames) if (f != null) got.Add(f);
-            if (got.Count == 0) { LoadingText.Text = s.IsImage ? "Couldn't read this image." : "Couldn't read frames from this video."; return; }
-            if (keep >= 0 && frames[keep] != null) Select(keep);
-            SetAutoBlack(Oled.AutoBlack(got));
-        }
-
-        void OnFrame(int i, byte[] f)
-        {
-            if (f == null) return;
-            frames[i] = f;
-            origOff[i] = Oled.OffFraction(f);
-            var src = BitmapSource.Create(W, H, 96, 96, PixelFormats.Rgb24, null, f, W * 3);
-            src.Freeze();
-            thumbs[i].Background = new ImageBrush(src) { Stretch = Stretch.UniformToFill };
-            if (sel < 0)
-            {
-                SetAutoBlack(Oled.AutoBlack(new List<byte[]> { f }));
-                Select(i);
-            }
         }
 
         void SetAutoBlack(double v)
@@ -583,32 +437,19 @@ namespace HydroShiftRecorder
 
         // ---------------------------------------------------------------- preview
 
-        void Select(int i)
-        {
-            if (frames[i] == null) return;
-            sel = i;
-            var src = BitmapSource.Create(W, H, 96, 96, PixelFormats.Rgb24, null, frames[i], W * 3);
-            src.Freeze();
-            OrigImg.Source = src;
-            LoadingText.Visibility = Visibility.Collapsed;
-            SplitLine.Visibility = SplitKnob.Visibility = OffPill.Visibility = Visibility.Visible;
-            UpdateTrim();
-            dirty = true;
-            EnsureEnhanced();
-        }
-
         void StartRender()
         {
-            if (!dirty || rendering || sel < 0 || frames[sel] == null) return;
-            bool useEnh = EnhanceSw.IsChecked == true && enhanced[sel] != null;
-            if (EnhanceSw.IsChecked == true && !useEnh && enhancing && enhancingIdx == sel) return;   // wait for it rather than flash the plain frame
+            if (!dirty || rendering || cur == null) return;
+            byte[] aiFrame = null;
+            bool useEnh = EnhanceSw.IsChecked == true && enhCache.TryGetValue(curKey, out aiFrame);
+            // wait for the AI frame rather than flash the plain one (not while scrubbing: then the plain one keeps up)
+            if (EnhanceSw.IsChecked == true && !useEnh && !scrubbing && enhancing && enhancingKey == curKey) return;
             dirty = false;
             rendering = true;
-            var plainFrame = frames[sel];
-            var aiFrame = useEnh ? enhanced[sel] : null;
+            var plainFrame = cur.Px;
             double strength = s != null ? s.EnhanceStrength : 1;
             var into = blendBuf;
-            var was = origOff[sel];
+            var was = cur.Off;
             var p = Current();
             int w = W, h = H;
             var outSpec = s != null ? s.Output : OutputSpec.Panel2288;
@@ -692,11 +533,7 @@ namespace HydroShiftRecorder
             Canvas.SetLeft(HandleR, Math.Max(x0 + 10, x1 - 10));
             Canvas.SetLeft(DimL, 0); DimL.Width = Math.Max(0, x0);
             Canvas.SetLeft(DimR, x1); DimR.Width = Math.Max(0, w - x1);
-            SelMark.Visibility = sel >= 0 ? Visibility.Visible : Visibility.Hidden;
-            if (sel >= 0) Canvas.SetLeft(SelMark, (sel + 0.5) / N * w - 1);
-            TrimText.Text = s.Duration > 0
-                ? string.Format(Inv, "{0} – {1}   ·   using {2} of {3}", Fmt(s.UsedStart), Fmt(s.UsedEnd), Fmt(s.UsedLength), Fmt(s.Duration))
-                : "";
+            UpdatePlayhead();
         }
     }
 }
