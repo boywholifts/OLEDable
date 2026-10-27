@@ -103,6 +103,8 @@
 - Scene videos: found by looking for an MP4 ("ftyp") right after the texture header, which covers the older texture layout (flag 32, TEXB0003) RePKG doesn't export; "Use its video" copies the bytes straight out of the package.
 - Wording: "HydroShift" only where it means the device (the HydroShift output size and its tooltip/note, the 2288 × 1048 recording size, the HydroShift screen label, the L-Connect hint on Record screen). Folder pickers, default recording name, true-black theme text, record dialog, AI enhance tooltip, sidebar tools card are now device-neutral. Internal names (namespace, `.hydroshift` folder, `hsr|` tag, old install paths) are kept on purpose.
 
+- New videos default to Original size (sessions saved before keep theirs: no OutputMode still means HydroShift). Screen recordings of the HydroShift and Wallpaper Engine recordings at 2288 × 1048 still default to HydroShift.
+
 ## Still open
 - Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
 - Make a recording with the HydroShift in second screen mode (end-to-end).

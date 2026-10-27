@@ -224,7 +224,7 @@ namespace HydroShiftRecorder
                     Id = SourceStore.NewId(), Title = it.Name, SourcePath = it.Path, Kind = image ? "image" : "video",
                     Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
                     OutputName = UniqueOutputName(it.Name + " (OLED)", image ? ".png" : ".mp4"),
-                    OutputMode = image ? OutputSpec.Original : null,   // wallpaper images keep their size by default
+                    OutputMode = OutputSpec.Original,   // new videos and images keep their size; HydroShift is one click away
                 };
                 s.Oled.Black = -1;   // detect
             }
@@ -264,7 +264,7 @@ namespace HydroShiftRecorder
                 Id = SourceStore.NewId(), Title = title, SourcePath = path, Kind = image ? "image" : "video",
                 Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
                 OutputName = UniqueOutputName(title, image ? ".png" : ".mp4"),
-                OutputMode = image ? OutputSpec.Original : null,
+                OutputMode = OutputSpec.Original,
             };
             s.Oled.Black = -1;
             OpenEditor(s);
