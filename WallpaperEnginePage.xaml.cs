@@ -24,6 +24,8 @@ namespace HydroShiftRecorder
 
         readonly MainWindow shell;
         List<WeItem> all = new List<WeItem>();
+        /// <summary>The tiles on the page: filled a few dozen at a time, so the page appears at once.</summary>
+        readonly System.Collections.ObjectModel.ObservableCollection<WeItem> view = new System.Collections.ObjectModel.ObservableCollection<WeItem>();
         bool loaded;
         int generation;
 
@@ -31,6 +33,7 @@ namespace HydroShiftRecorder
         {
             this.shell = shell;
             InitializeComponent();
+            Tiles.ItemsSource = view;
             foreach (var r in new[] { FAll, FVideo, FScene, FOther }) r.Checked += (s, e) => ApplyFilter();
             SearchBox.TextChanged += (s, e) =>
             {
@@ -65,16 +68,34 @@ namespace HydroShiftRecorder
             var pulse = new System.Windows.Media.Animation.DoubleAnimation(1, 0.35, TimeSpan.FromSeconds(0.5)) { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever };
             RefreshIcon.BeginAnimation(OpacityProperty, pulse);
             List<WeItem> items;
-            try { items = await Task.Run(() => Workshop.Scan()); }
+            try
+            {
+                // the file checks for "in your library" happen here too, off the UI thread
+                items = await Task.Run(() =>
+                {
+                    var found = Workshop.Scan();
+                    foreach (var it in found) it.Meta = Meta(it);
+                    return found;
+                });
+            }
             finally { RefreshIcon.BeginAnimation(OpacityProperty, null); }
             if (gen != generation) return;
             all = items;
             SelectItem(null);
-            // every tile is made once; the filters and search only show or hide them (rebuilding hundreds of
-            // tiles each time is what made switching back to All slow)
-            Tiles.ItemsSource = all;
-            foreach (var it in all) it.Meta = Meta(it);
             ApplyFilter();
+            // every tile is made once; the filters and search only show or hide them (rebuilding hundreds of
+            // tiles each time is what made switching back to All slow). They're added a few dozen at a time,
+            // letting the page draw in between, so opening it doesn't freeze the window.
+            view.Clear();
+            for (int i = 0; i < all.Count; i++)
+            {
+                view.Add(all[i]);
+                if (i % 24 == 23)
+                {
+                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                    if (gen != generation) return;
+                }
+            }
             if (all.Count == 0)
             {
                 EmptyText.Text = Workshop.Roots().Count == 0
