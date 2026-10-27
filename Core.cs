@@ -42,6 +42,7 @@ namespace OLEDable
             p.OutputDataReceived += OnLine;
             p.Exited += (s, e) => exited.TrySetResult(true);
             p.Start();
+            ChildProcesses.Track(p);
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
         }
@@ -63,8 +64,6 @@ namespace OLEDable
             }
         }
 
-        public bool Done { get { if (finished) return true; try { return p.HasExited; } catch { return true; } } }
-        public int Code { get { return finished ? exitCode : p.ExitCode; } }
         public double Seconds { get { return Interlocked.Read(ref outUs) / 1e6; } }
         public string Output { get { lock (output) return output.ToString(); } }
 
@@ -212,12 +211,6 @@ namespace OLEDable
             };
         }
 
-        public void RememberOled(OledParams p)
-        {
-            OledShadows = p.Shadows; OledColor = p.Color; OledCleanup = p.Cleanup;
-            OledBright = p.Bright; OledHighlights = p.Highlights; OledGlow = p.Glow; OledGlowSize = p.GlowSize;
-        }
-
         /// <summary>The folder exports go to.</summary>
         public string ConvertedPath
         {
@@ -264,7 +257,7 @@ namespace OLEDable
             return new Settings();
         }
 
-        public void Save(string path) { try { File.WriteAllText(path, Json.Write(this)); } catch { } }
+        public void Save(string path) { try { Tools.WriteAtomic(path, Json.Write(this)); } catch { } }
     }
 
     public static class Json
@@ -309,6 +302,32 @@ namespace OLEDable
     public static class Tools
     {
         public static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+
+        /// <summary>
+        /// Writes a file so that it's never left half-written: a crash or power cut during the save leaves the
+        /// previous version, not a broken file (which would mean lost settings or edits).
+        /// </summary>
+        public static void WriteAtomic(string path, string text)
+        {
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, text);
+            if (File.Exists(path)) File.Replace(tmp, path, null);
+            else File.Move(tmp, path);
+        }
+
+        /// <summary>Appends an unexpected error to logs\errors.txt in the app's data folder (kept small).</summary>
+        public static void LogError(string where, Exception ex)
+        {
+            try
+            {
+                var dir = Path.Combine(DataDir(), "logs");
+                Directory.CreateDirectory(dir);
+                var f = Path.Combine(dir, "errors.txt");
+                if (File.Exists(f) && new FileInfo(f).Length > 512 * 1024) File.Delete(f);
+                File.AppendAllText(f, DateTime.Now.ToString("s", Inv) + "  " + where + Environment.NewLine + ex + Environment.NewLine + Environment.NewLine);
+            }
+            catch { }
+        }
 
         /// <summary>Finds an exe on PATH (including PATH changes made after this app started) or in WinGet's links folder.</summary>
         public static string Find(string name)

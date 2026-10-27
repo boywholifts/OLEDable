@@ -36,7 +36,6 @@ namespace OLEDable
         public bool DisplayFound { get { return S.Adapter >= 0; } }
         public event Action DisplayChanged;
 
-        readonly string snapshotDir;
         LibraryPage library;
         EditorPage editor;
         RecordPage record;
@@ -45,9 +44,8 @@ namespace OLEDable
         CancellationTokenSource jobCts;
         readonly DispatcherTimer toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
 
-        public MainWindow(string snapshotDir)
+        public MainWindow()
         {
-            this.snapshotDir = snapshotDir;
             DataDir = Tools.DataDir();
             SettingsPath = Path.Combine(DataDir, "OLEDable.json");
             // renamed from HydroShift Recorder: carry the old settings over the first time
@@ -102,6 +100,12 @@ namespace OLEDable
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnWindowsThemeChanged;
             Closing += (s, e) =>
             {
+                // closing in the middle of an export, recording or download stops it: ask first
+                if (Busy && !Dialog.Ask(this, "Something is still running", JobTitle.Text + " isn't finished. Stop it and close OLEDable?", "Stop and close", "Keep running"))
+                {
+                    e.Cancel = true;
+                    return;
+                }
                 if (jobCts != null) jobCts.Cancel();
                 if (record != null) record.OnHidden();
                 if (editor != null) editor.FlushAutosave();
@@ -109,11 +113,11 @@ namespace OLEDable
                 Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnWindowsThemeChanged;
             };
 
-            Loaded += async (s, e) =>
+            Loaded += (s, e) =>
             {
                 NavLibrary.IsChecked = true;
                 // updates: in the background, at most every 3 hours; local builds (dist folder) never prompt on their own
-                if (snapshotDir == null && S.AutoUpdateCheck && !Updater.IsLocalBuild && (DateTime.Now - S.LastUpdateCheck).TotalHours >= 3)
+                if (S.AutoUpdateCheck && !Updater.IsLocalBuild && (DateTime.Now - S.LastUpdateCheck).TotalHours >= 3)
                     _ = CheckForUpdate(false);
                 if (Ffmpeg == null)
                 {
@@ -121,7 +125,6 @@ namespace OLEDable
                     DisplayCard.Visibility = Visibility.Visible;
                     return;
                 }
-                if (snapshotDir != null) { await RunSnapshots(snapshotDir); return; }
             };
         }
 
@@ -391,8 +394,6 @@ namespace OLEDable
             DoneCard.Visibility = Visibility.Visible;
         }
 
-        public void CancelJob() { if (jobCts != null) jobCts.Cancel(); }
-
         /// <summary>Exports the session into the library folder, keeping its settings for later re-editing.</summary>
         public async Task<bool> Export(EditSession s)
         {
@@ -593,56 +594,6 @@ namespace OLEDable
                 else Process.Start(path);
             }
             catch { }
-        }
-
-        // ---------------------------------------------------------------- QA snapshots
-
-        async Task RunSnapshots(string dir)
-        {
-            Directory.CreateDirectory(dir);
-            Width = 1280; Height = 800;
-            WindowState = WindowState.Normal;
-            await Task.Delay(800);
-            var items = LibraryScanner.List(S.OutDir, S.ConvertedPath);
-            bool first = true;
-            foreach (var theme in new[] { "dark", "light", "black" })
-            {
-                Theme.Apply(theme, S.Accent);
-                ShowLibrary();
-                await Task.Delay(first ? 6000 : 1200);
-                SaveSnapshot(Path.Combine(dir, "library-" + theme + ".png"));
-                if (items.Count > 0 && Library.FirstItem != null)
-                {
-                    OpenItem(Library.FirstItem);
-                    await Task.Delay(first ? 7000 : 2500);
-                    SaveSnapshot(Path.Combine(dir, "editor-" + theme + ".png"));
-                }
-                ShowRecord();
-                await Task.Delay(1500);
-                SaveSnapshot(Path.Combine(dir, "record-" + theme + ".png"));
-                NavSettings.IsChecked = true;
-                await Task.Delay(800);
-                SaveSnapshot(Path.Combine(dir, "settings-" + theme + ".png"));
-                first = false;
-            }
-            File.WriteAllText(Path.Combine(dir, "done.txt"), DateTime.Now.ToString("s"));
-            Close();
-        }
-
-        void SaveSnapshot(string path)
-        {
-            UpdateLayout();
-            var rtb = new RenderTargetBitmap((int)Math.Ceiling(Root.ActualWidth), (int)Math.Ceiling(Root.ActualHeight), 96, 96, PixelFormats.Pbgra32);
-            var dv = new DrawingVisual();
-            using (var dc = dv.RenderOpen())
-            {
-                dc.DrawRectangle(Background, null, new Rect(0, 0, Root.ActualWidth, Root.ActualHeight));
-                dc.DrawRectangle(new VisualBrush(Root), null, new Rect(0, 0, Root.ActualWidth, Root.ActualHeight));
-            }
-            rtb.Render(dv);
-            var enc = new PngBitmapEncoder();
-            enc.Frames.Add(BitmapFrame.Create(rtb));
-            using (var f = File.Create(path)) enc.Save(f);
         }
     }
 }

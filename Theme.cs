@@ -78,12 +78,6 @@ namespace OLEDable
             return b;
         }
 
-        public static Color ColorOf(string key)
-        {
-            var b = Application.Current.Resources[key] as SolidColorBrush;
-            return b != null ? b.Color : Colors.Black;
-        }
-
         public static bool WindowsUsesLight()
         {
             try

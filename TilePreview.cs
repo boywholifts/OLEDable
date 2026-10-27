@@ -95,7 +95,8 @@ namespace OLEDable
         public ObjectAnimationUsingKeyFrames Animation;
 
         const int MaxFrames = 400;
-        const long MaxBytes = 400L * 1024 * 1024;
+        const long MaxBytes = 160L * 1024 * 1024;
+        const int MaxWidth = 640;   // a tile is a few hundred pixels wide: frames are kept at about that size, not full size
 
         public static GifAnimation Load(string path)
         {
@@ -116,7 +117,9 @@ namespace OLEDable
                 catch { }
                 if (w <= 0 || h <= 0) { w = dec.Frames[0].PixelWidth; h = dec.Frames[0].PixelHeight; }
                 int stride = w * 4;
-                if ((long)stride * h * Math.Min(dec.Frames.Count, MaxFrames) > MaxBytes) return null;
+                double scale = Math.Min(1.0, (double)MaxWidth / w);
+                int ow = Math.Max(1, (int)Math.Round(w * scale)), oh = Math.Max(1, (int)Math.Round(h * scale));
+                if ((long)ow * 4 * oh * Math.Min(dec.Frames.Count, MaxFrames) > MaxBytes) return null;
 
                 var canvas = new byte[stride * h];
                 var frames = new List<BitmapSource>();
@@ -154,7 +157,16 @@ namespace OLEDable
                             canvas[di] = px[si]; canvas[di + 1] = px[si + 1]; canvas[di + 2] = px[si + 2]; canvas[di + 3] = 255;
                         }
                     }
-                    var frame = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, canvas, stride);
+                    BitmapSource frame = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, canvas, stride);
+                    if (scale < 1)
+                    {
+                        // shrink once here, so the full-size frame isn't kept
+                        var small = new TransformedBitmap(frame, new ScaleTransform((double)ow / w, (double)oh / h));
+                        int ss = small.PixelWidth * 4;
+                        var sp = new byte[ss * small.PixelHeight];
+                        small.CopyPixels(sp, ss, 0);
+                        frame = BitmapSource.Create(small.PixelWidth, small.PixelHeight, 96, 96, PixelFormats.Bgra32, null, sp, ss);
+                    }
                     frame.Freeze();
                     frames.Add(frame);
                     anim.KeyFrames.Add(new DiscreteObjectKeyFrame(frame, KeyTime.FromTimeSpan(t)));

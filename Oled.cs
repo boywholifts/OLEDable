@@ -358,6 +358,7 @@ namespace OLEDable
             };
             using (var p = Process.Start(si))
             {
+                ChildProcesses.Track(p);
                 p.ErrorDataReceived += (s, e) => { };
                 p.BeginErrorReadLine();
                 var ms = new MemoryStream(w * h * 3);

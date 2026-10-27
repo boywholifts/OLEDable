@@ -205,7 +205,6 @@ namespace OLEDable
         }
 
         bool layoutQueued;
-        double heldAvail;   // the width the tiles were laid out for when a window drag started
 
         /// <summary>
         /// Tile size for the width. The scrollbar's width is always set aside, so it appearing or disappearing
@@ -215,8 +214,7 @@ namespace OLEDable
         {
             double avail = Scroller.ActualWidth - ScrollBarW - 4;   // and the room for the highlight ring
             if (avail <= 0) return;
-            if (shell.LiveResizing && TileW > 0) { GalleryScale.Hold(Tiles, ref heldAvail, avail); return; }
-            GalleryScale.Release(Tiles, ref heldAvail);
+            if (shell.LiveResizing && TileW > 0) return;   // tiles keep their size during a window drag and re-flow; sized to fit when it ends
             int cols = Math.Max(1, (int)(avail / (MinTile + Gap)));
             double w = Math.Floor(avail / cols - Gap);
             if (Math.Abs(w - TileW) < 0.5) return;   // nothing to re-lay out
@@ -241,6 +239,8 @@ namespace OLEDable
                     if (e.FullPath.IndexOf("\\" + SourceStore.FolderName, StringComparison.OrdinalIgnoreCase) >= 0) return;
                     if (e.FullPath.IndexOf("\\" + SourceStore.OldFolderName, StringComparison.OrdinalIgnoreCase) >= 0) return;
                     if (!LibraryScanner.IsMedia(e.FullPath) && Path.HasExtension(e.FullPath)) return;
+                    // an export in progress writes "name.partial.mp4" constantly; the rename at the end is what counts
+                    if (e.ChangeType != WatcherChangeTypes.Renamed && e.FullPath.IndexOf(".partial.", StringComparison.OrdinalIgnoreCase) >= 0) return;
                     Dispatcher.BeginInvoke(new Action(() => { debounce.Stop(); debounce.Start(); }));
                 };
                 watcher.Created += h; watcher.Deleted += h; watcher.Changed += h;
@@ -271,7 +271,7 @@ namespace OLEDable
         {
             var el = sender as FrameworkElement;
             var it = el?.Tag as LibraryItem;
-            if (it == null || it.IsAddTile) return;
+            if (it == null) return;
             var menu = new ContextMenu();
             menu.Items.Add(Item("Edit", () => shell.OpenItem(it)));
             menu.Items.Add(Item("Play", () => MainWindow.OpenInShell(it.Path)));

@@ -14,7 +14,7 @@
     <Version>2.4.0</Version>
     <Product>OLEDable</Product>
     <AssemblyTitle>OLEDable</AssemblyTitle>
-    <Description>Records and converts seamless loops for the Lian Li HydroShift II OLED Curved display</Description>
+    <Description>Turns wallpapers, videos and stills, into true-black OLED versions</Description>
     <Copyright>Open source</Copyright>
     <DebugType>none</DebugType>
   </PropertyGroup>
@@ -33,12 +33,6 @@
 
   <ItemGroup>
     <Resource Include="assets\icon.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- replaced by the editor page -->
-    <Page Remove="TunerWindow.xaml" />
-    <Compile Remove="TunerWindow.xaml.cs" />
   </ItemGroup>
 
 </Project>

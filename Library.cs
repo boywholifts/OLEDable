@@ -32,8 +32,6 @@ namespace OLEDable
         public bool IsImage { get { return Tools.IsImage(Path); } }
         /// <summary>True when the file is in the converted-videos folder.</summary>
         public bool InConverted { get; set; }
-        /// <summary>The dashed "record or drop a video" tile at the end of the grid.</summary>
-        public bool IsAddTile { get; set; }
         object player;
         /// <summary>The live preview while this tile is selected (see TilePreview); null otherwise.</summary>
         public object Player { get { return player; } set { player = value; Raise("Player"); } }
@@ -42,7 +40,6 @@ namespace OLEDable
         bool shown = true;
         /// <summary>Passes the Library's filter.</summary>
         public bool IsShown { get { return shown; } set { if (shown == value) return; shown = value; Raise("IsShown"); } }
-        public bool IsNormal { get { return !IsAddTile; } }
 
         public event PropertyChangedEventHandler PropertyChanged;
         void Raise(string n) { var h = PropertyChanged; if (h != null) h(this, new PropertyChangedEventArgs(n)); }
@@ -149,7 +146,7 @@ namespace OLEDable
 
         public void Save(EditSession s)
         {
-            try { EnsureDir(); File.WriteAllText(System.IO.Path.Combine(Dir, s.Id + ".json"), Json.Write(s)); } catch { }
+            try { EnsureDir(); Tools.WriteAtomic(System.IO.Path.Combine(Dir, s.Id + ".json"), Json.Write(s)); } catch { }
         }
 
         public EditSession Load(string id)

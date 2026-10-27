@@ -62,7 +62,7 @@ The app has no telemetry, no accounts and no analytics. It only goes online to c
 - Real-ESRGAN: [github.com/xinntao/Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN/releases)
 - RePKG (the first time you unpack a scene): [github.com/notscuffed/repkg](https://github.com/notscuffed/repkg/releases)
 
-Settings and edits stay on your PC: next to the app, and in a hidden `.hydroshift` folder inside your library.
+Settings and edits stay on your PC: next to the app, and in a hidden `.oledable` folder inside your library.
 
 ## Code signing policy
 

@@ -26,7 +26,6 @@ namespace OLEDable
         public bool CanRecord { get { return IsScene || IsWeb; } }
         /// <summary>Applications and unknown types: nothing the app can bring in.</summary>
         public bool Unsupported { get { return !IsVideo && !CanRecord; } }
-        public string MainTip { get { return IsVideo ? "Edit this video" : CanRecord ? "Record this wallpaper" : null; } }
         public string Name { get { return string.IsNullOrWhiteSpace(Title) ? Path.GetFileName(Folder) : Title; } }
         public string KindLabel
         {
@@ -129,7 +128,6 @@ namespace OLEDable
                         if (prev == null || !System.IO.File.Exists(prev))
                             prev = new[] { "preview.jpg", "preview.png", "preview.gif" }.Select(f => Path.Combine(d, f)).FirstOrDefault(System.IO.File.Exists);
                         var item = new WeItem { Folder = d, Title = p.Title, Type = p.Type, File = p.File, PreviewPath = prev, Source = root.Value, Meta = "" };
-                        if (item.IsScene) item.HasVideo = SceneHasVideo(d);
                         list.Add(item);
                     }
                     catch { }
@@ -156,14 +154,6 @@ namespace OLEDable
                 return b;
             }
             catch { return null; }
-        }
-
-        /// <summary>Where a copy of this wallpaper goes in the library: "&lt;library&gt;\Wallpaper Engine\&lt;title&gt;.ext".</summary>
-        public static string CopyPath(Settings s, WeItem it, string ext)
-        {
-            var n = SafeName(it.Name);
-            if (n.Length == 0) n = Path.GetFileName(it.Folder);
-            return Path.Combine(ImportDir(s), n + ext.ToLowerInvariant());
         }
 
         /// <summary>Whether something from this wallpaper is already in the library.</summary>
@@ -412,15 +402,6 @@ namespace OLEDable
                 catch { }
             }
             return best == null ? null : CopyInto(s, it, best, " (still)");
-        }
-
-        /// <summary>A video inside the scene (some scenes are just a video layer), copied into the library; null if none.</summary>
-        public static string PickVideo(Settings s, WeItem it, string unpacked)
-        {
-            var v = Directory.EnumerateFiles(unpacked, "*.*", SearchOption.AllDirectories)
-                             .Where(f => VideoExt.Contains(Path.GetExtension(f).ToLowerInvariant()))
-                             .OrderByDescending(f => new FileInfo(f).Length).FirstOrDefault();
-            return v == null ? null : CopyInto(s, it, v, "");
         }
     }
 }

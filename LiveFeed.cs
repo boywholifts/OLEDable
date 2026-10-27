@@ -45,7 +45,7 @@ namespace OLEDable
 
         public void Start()
         {
-            reader = new Thread(Run) { IsBackground = true, Name = "HydroShift live view" };
+            reader = new Thread(Run) { IsBackground = true, Name = "OLEDable live view" };
             reader.Start();
         }
 
@@ -88,6 +88,7 @@ namespace OLEDable
             try
             {
                 var p = Process.Start(si);
+                ChildProcesses.Track(p);
                 lock (this) proc = p;
                 if (stopped) { Kill(p); return 0; }
                 p.ErrorDataReceived += (s, e) => { };

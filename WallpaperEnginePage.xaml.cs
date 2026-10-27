@@ -126,6 +126,7 @@ namespace OLEDable
                     ? "Wallpaper Engine's Steam folders weren't found on this PC."
                     : "Subscribe to wallpapers in Wallpaper Engine (Steam Workshop) and they'll show up here.";
             }
+            FindSceneVideos(gen);
             using (var gate = new SemaphoreSlim(6))
             {
                 await Task.WhenAll(all.Select(async it =>
@@ -138,6 +139,22 @@ namespace OLEDable
                     }
                     finally { gate.Release(); }
                 }));
+            }
+        }
+
+        /// <summary>
+        /// Which scenes play a video. It means reading inside each scene's package, so it happens after the tiles
+        /// are showing, in the background, instead of holding up the page.
+        /// </summary>
+        async void FindSceneVideos(int gen)
+        {
+            foreach (var it in all.Where(i => i.IsScene).ToList())
+            {
+                bool has = await Task.Run(() => { try { return Workshop.SceneHasVideo(it.Folder); } catch { return false; } });
+                if (gen != generation) return;
+                if (!has) continue;
+                it.HasVideo = true;
+                if (it == selected) { UpdateActions(); StartPreview(); }
             }
         }
 
@@ -167,7 +184,6 @@ namespace OLEDable
         }
 
         bool layoutQueued;
-        double heldAvail;   // the width the tiles were laid out for when a window drag started
 
         /// <summary>
         /// Tile size for the width. The scrollbar's width is always set aside, so it appearing or disappearing
@@ -177,8 +193,7 @@ namespace OLEDable
         {
             double avail = Scroller.ActualWidth - ScrollBarW - 4;   // and the room for the highlight ring
             if (avail <= 0) return;
-            if (shell.LiveResizing && TileW > 0) { GalleryScale.Hold(Tiles, ref heldAvail, avail); return; }
-            GalleryScale.Release(Tiles, ref heldAvail);
+            if (shell.LiveResizing && TileW > 0) return;   // tiles keep their size during a window drag and re-flow; sized to fit when it ends
             int cols = Math.Max(1, (int)(avail / (MinTile + Gap)));
             double w = Math.Floor(avail / cols - Gap);
             if (Math.Abs(w - TileW) < 0.5) return;   // nothing to re-lay out

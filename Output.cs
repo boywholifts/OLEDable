@@ -40,7 +40,6 @@ namespace OLEDable
 
         static int Even(int v) { return Math.Max(2, v / 2 * 2); }
 
-        public double Aspect { get { return (double)H / W; } }
         public string SizeText { get { return W + " × " + H; } }
 
         /// <summary>Size presets offered for a custom output.</summary>
