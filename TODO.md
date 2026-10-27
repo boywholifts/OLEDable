@@ -94,6 +94,7 @@
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
+- Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
 - Wallpaper Engine header: move the selected wallpaper's actions (Edit / Record / Still image / Use its video) to the left of the icons, and put the folder and Refresh icons side by side at the far right.
 - Left sidebar: make it wider with a larger font (nav items, the Editing item and the sidebar cards), accepting about one fewer column in the galleries.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
