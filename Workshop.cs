@@ -35,6 +35,9 @@ namespace HydroShiftRecorder
 
         ImageSource thumb; string meta; bool hasVideo, selected;
         public bool IsSelected { get { return selected; } set { selected = value; Raise("IsSelected"); } }
+        object player;
+        /// <summary>The live preview while this tile is selected (see TilePreview); null otherwise.</summary>
+        public object Player { get { return player; } set { player = value; Raise("Player"); } }
         bool shown = true;
         /// <summary>Passes the Wallpaper Engine page's filter and search.</summary>
         public bool IsShown { get { return shown; } set { if (shown == value) return; shown = value; Raise("IsShown"); } }

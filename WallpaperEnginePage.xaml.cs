@@ -56,8 +56,21 @@ namespace HydroShiftRecorder
             };
         }
 
-        public void OnShown() { if (!loaded) Refresh(); }
-        public void OnHidden() { }
+        public void OnShown() { if (!loaded) Refresh(); else StartPreview(); }
+        public void OnHidden() { preview.Stop(); }
+
+        readonly TilePreview preview = new TilePreview();
+
+        /// <summary>The selected wallpaper plays in its tile: a video wallpaper itself, or the animated Workshop preview.</summary>
+        void StartPreview()
+        {
+            var it = selected;
+            if (it == null) { preview.Stop(); return; }
+            Action<object> put = o => it.Player = o;
+            var video = it.IsVideo && !string.IsNullOrEmpty(it.File) ? System.IO.Path.Combine(it.Folder, it.File) : null;
+            if (video != null && System.IO.File.Exists(video)) preview.PlayVideo(put, video);
+            else preview.PlayGif(put, it.PreviewPath);
+        }
 
         async void Refresh()
         {
@@ -171,10 +184,12 @@ namespace HydroShiftRecorder
         /// <summary>Selects a wallpaper: accent ring on its tile, its actions at the top right.</summary>
         void SelectItem(WeItem it)
         {
+            if (it != null && it == selected) return;   // already playing
             if (selected != null) selected.IsSelected = false;
             selected = it;
             if (it != null) it.IsSelected = true;
             UpdateActions();
+            StartPreview();
         }
 
         void UpdateActions()

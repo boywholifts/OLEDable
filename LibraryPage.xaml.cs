@@ -48,6 +48,13 @@ namespace HydroShiftRecorder
                 Refresh();
             };
             ImportBtn.Click += (s, e) => shell.PickAndImport();
+            EditBtn.Click += (s, e) => { if (selected != null) shell.OpenItem(selected); };
+            SelFolderBtn.Click += (s, e) => { if (selected != null) MainWindow.OpenInShell(selected.Path, true); };
+            RefreshBtn.Click += (s, e) => Refresh();
+            // the import strip lights up while a file is dragged over it (the window takes the drop)
+            ImportStrip.DragEnter += (s, e) => ImportStrip.SetResourceReference(Border.BorderBrushProperty, "Accent");
+            ImportStrip.DragLeave += (s, e) => ImportStrip.SetResourceReference(Border.BorderBrushProperty, "Dashed");
+            ImportStrip.Drop += (s, e) => ImportStrip.SetResourceReference(Border.BorderBrushProperty, "Dashed");
             EmptyImport.Click += (s, e) => shell.PickAndImport();
             EmptyRecord.Click += (s, e) => shell.ShowWallpaperEngine();
             RecScreenBtn.Click += (s, e) => shell.ShowRecord();
@@ -67,9 +74,34 @@ namespace HydroShiftRecorder
         {
             Watch();
             Refresh();
+            StartPreview();
         }
 
-        public void OnHidden() { }
+        public void OnHidden() { preview.Stop(); }
+
+        // ---------------------------------------------------------------- selection and live preview
+
+        readonly TilePreview preview = new TilePreview();
+        LibraryItem selected;
+
+        /// <summary>Selects a video: accent ring, it plays in its tile, Edit and its folder appear at the top right.</summary>
+        void SelectItem(LibraryItem it)
+        {
+            if (it != null && it == selected) return;   // already playing
+            if (selected != null) selected.IsSelected = false;
+            selected = it;
+            if (it != null) it.IsSelected = true;
+            SelHint.Visibility = it == null ? Visibility.Visible : Visibility.Collapsed;
+            EditBtn.Visibility = SelFolderBtn.Visibility = it == null ? Visibility.Collapsed : Visibility.Visible;
+            StartPreview();
+        }
+
+        void StartPreview()
+        {
+            var it = selected;
+            if (it == null || it.IsImage) { preview.Stop(); return; }   // pictures are already shown as they are
+            preview.PlayVideo(o => it.Player = o, it.Path);
+        }
 
         // ---------------------------------------------------------------- loading
 
@@ -148,17 +180,24 @@ namespace HydroShiftRecorder
             if (FRec.IsChecked == true) items = items.Where(i => i.Kind == "recording");
             else if (FConv.IsChecked == true) items = items.Where(i => i.Id != null || i.InConverted);
             else if (FTodo.IsChecked == true) items = items.Where(i => i.Id == null && !i.InConverted);
-            // tiles are made once per scan of the folder; the filters only show or hide them (rebuilding every
-            // tile on each switch gets slow as the library grows)
-            if (!ReferenceEquals(built, all))
+            // tiles are made once per scan of the folder (and only when something changed); the filters only show
+            // or hide them (rebuilding every tile on each switch gets slow as the library grows)
+            if (built == null || !built.SequenceEqual(all))
             {
                 built = all;
                 view.Clear();
                 foreach (var i in all) view.Add(i);
-                if (all.Count > 0) view.Add(new LibraryItem { IsAddTile = true, Name = "" });
             }
             var shown = new HashSet<LibraryItem>(items);
             foreach (var i in all) i.IsShown = shown.Contains(i);
+            // keep the selection through a re-scan (same file), drop it when it's gone or filtered out
+            if (selected != null)
+            {
+                var same = all.FirstOrDefault(i => string.Equals(i.Path, selected.Path, StringComparison.OrdinalIgnoreCase));
+                if (same == null || !shown.Contains(same)) SelectItem(null);
+                else if (same != selected) { selected.IsSelected = false; preview.Stop(); selected = null; SelectItem(same); }
+            }
+            ImportStrip.Visibility = all.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             Empty.Visibility = all.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             Scroller.Visibility = all.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             CountText.Text = all.Count == 1 ? "1 video" : all.Count + " videos";
@@ -214,9 +253,16 @@ namespace HydroShiftRecorder
         void Tile_Click(object sender, RoutedEventArgs e)
         {
             var it = (sender as FrameworkElement)?.Tag as LibraryItem;
+            if (it != null) SelectItem(it);
+        }
+
+        void Tile_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var it = (sender as FrameworkElement)?.Tag as LibraryItem;
             if (it == null) return;
-            if (it.IsAddTile) shell.PickAndImport();
-            else shell.OpenItem(it);
+            SelectItem(it);
+            shell.OpenItem(it);
+            e.Handled = true;
         }
 
         void Tile_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -245,6 +291,7 @@ namespace HydroShiftRecorder
         {
             if (!Dialog.Ask(shell, "Delete video", "Move “" + it.Name + "” to the Recycle Bin?" +
                             (it.Id != null ? "\n\nIts kept original and settings are removed too." : ""), "Delete")) return;
+            if (it == selected) SelectItem(null);   // stops the preview, which has the file open
             try
             {
                 Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(it.Path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,

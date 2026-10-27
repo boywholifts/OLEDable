@@ -29,7 +29,7 @@
       <StackPanel Margin="0,0,24,0">
         <TextBlock Text="Wallpaper Engine" FontSize="26" FontWeight="Bold"/>
         <TextBlock x:Name="SubText" Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap"
-                   Text="Your downloaded wallpapers. Select one to see what you can do with it (double-click does the main one). Wallpaper Engine's own files are never changed."/>
+                   Text="Your downloaded wallpapers. Select one to preview it and see what you can do with it. Wallpaper Engine's own files are never changed."/>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
         <TextBlock x:Name="SelHint" Text="Select a wallpaper" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
@@ -105,6 +105,8 @@
                     <Border CornerRadius="12" RenderOptions.BitmapScalingMode="HighQuality">
                       <Border.Background><ImageBrush ImageSource="{Binding Thumb}" Stretch="UniformToFill"/></Border.Background>
                     </Border>
+                    <!-- live preview of the selected wallpaper, on top of its thumbnail -->
+                    <ContentControl Content="{Binding Player}" Focusable="False" IsHitTestVisible="False"/>
                     <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" CornerRadius="6" Padding="8,3" Background="#B8000000">
                       <TextBlock Text="{Binding KindLabel}" Foreground="#FFF2F2F5" FontSize="11" FontWeight="SemiBold"/>
                     </Border>

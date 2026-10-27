@@ -34,8 +34,13 @@ namespace HydroShiftRecorder
         public bool InConverted { get; set; }
         /// <summary>The dashed "record or drop a video" tile at the end of the grid.</summary>
         public bool IsAddTile { get; set; }
+        object player;
+        /// <summary>The live preview while this tile is selected (see TilePreview); null otherwise.</summary>
+        public object Player { get { return player; } set { player = value; Raise("Player"); } }
+        bool selected;
+        public bool IsSelected { get { return selected; } set { selected = value; Raise("IsSelected"); } }
         bool shown = true;
-        /// <summary>Passes the Library's filter (the add tile is always shown).</summary>
+        /// <summary>Passes the Library's filter.</summary>
         public bool IsShown { get { return shown; } set { if (shown == value) return; shown = value; Raise("IsShown"); } }
         public bool IsNormal { get { return !IsAddTile; } }
 

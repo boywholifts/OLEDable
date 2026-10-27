@@ -19,6 +19,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
@@ -39,18 +40,30 @@
           </StackPanel>
         </Button>
       </StackPanel>
+      <!-- the selected video's actions, then its folder and Refresh (like the Wallpaper Engine page) -->
       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-        <Button x:Name="RecScreenBtn" Style="{StaticResource GhostBtn}" Margin="0,0,6,0" ToolTip="Record what's on one of your screens">
-          <StackPanel Orientation="Horizontal">
-            <Ellipse Width="10" Height="10" Fill="#FFFF4D5E" VerticalAlignment="Center"/>
-            <TextBlock Text="Record screen" Margin="8,0,0,0" VerticalAlignment="Center"/>
-          </StackPanel>
+        <TextBlock x:Name="SelHint" Text="Select a video" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
+        <Button x:Name="EditBtn" Content="Edit" Style="{StaticResource PrimaryPill}" Margin="0,0,10,0" Visibility="Collapsed"
+                ToolTip="Open it in the editor"/>
+        <Button x:Name="SelFolderBtn" Style="{StaticResource GhostBtn}" Width="40" Padding="0" Margin="6,0,6,0" Visibility="Collapsed"
+                ToolTip="Show in folder">
+            <Viewbox Width="18" Height="18">
+              <Canvas Width="16" Height="16">
+                <Path Data="M1.5,4.5 A1.5,1.5 0 0 1 3,3 L6,3 L7.5,4.5 L13,4.5 A1.5,1.5 0 0 1 14.5,6 L14.5,12 A1.5,1.5 0 0 1 13,13.5 L3,13.5 A1.5,1.5 0 0 1 1.5,12 Z"
+                      Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                <Path Data="M1.5,7 L14.5,7" Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              </Canvas>
+            </Viewbox>
         </Button>
-        <Button x:Name="ImportBtn" Style="{StaticResource PrimaryPill}" ToolTip="Open a video or image (you can also drop one on the window)">
-          <StackPanel Orientation="Horizontal">
-            <Path Style="{StaticResource Icon}" Width="16" Height="16" Data="M12,4 V15 M7,10 L12,15 L17,10 M5,20 H19"/>
-            <TextBlock Text="Import" Margin="8,0,0,0" VerticalAlignment="Center"/>
-          </StackPanel>
+        <Button x:Name="RefreshBtn" Style="{StaticResource GhostBtn}" Width="40" Padding="0" ToolTip="Refresh: read the library folder again">
+          <Viewbox Width="18" Height="18">
+            <Canvas x:Name="RefreshIcon" Width="16" Height="16">
+              <Path Data="M2,9 L2,7 A3,3 0 0 1 5,4 L13,4" Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <Path Data="M10.5,1.5 L13,4 L10.5,6.5" Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <Path Data="M14,7 L14,9 A3,3 0 0 1 11,12 L3,12" Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <Path Data="M5.5,9.5 L3,12 L5.5,14.5" Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+            </Canvas>
+          </Viewbox>
         </Button>
       </StackPanel>
     </Grid>
@@ -64,9 +77,32 @@
       <TextBlock x:Name="CountText" DockPanel.Dock="Right" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center"/>
     </DockPanel>
 
+    <!-- import: click, or drop a file anywhere on the window (it lights up while something is dragged over it) -->
+    <Border x:Name="ImportStrip" Grid.Row="2" Margin="0,18,0,0" CornerRadius="12" BorderThickness="1.5" BorderBrush="{DynamicResource Dashed}"
+            Background="Transparent" Padding="14,10" AllowDrop="True">
+      <DockPanel>
+        <Button x:Name="RecScreenBtn" DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" Height="34" ToolTip="Record what's on one of your screens">
+          <StackPanel Orientation="Horizontal">
+            <Ellipse Width="10" Height="10" Fill="#FFFF4D5E" VerticalAlignment="Center"/>
+            <TextBlock Text="Record screen" Margin="8,0,0,0" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="ImportBtn" Style="{StaticResource GhostBtn}" Height="34" HorizontalAlignment="Left" Padding="4,0,12,0"
+                ToolTip="Open a video or image">
+          <StackPanel Orientation="Horizontal">
+            <Border Width="26" Height="26" CornerRadius="13" Background="{DynamicResource Raised}">
+              <Path Data="M12,5 V19 M5,12 H19" Stroke="{DynamicResource Text}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                    Width="11" Height="11" Stretch="Uniform"/>
+            </Border>
+            <TextBlock Text="Import, or drop a video or image here" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource Sub}" FontSize="13"/>
+          </StackPanel>
+        </Button>
+      </DockPanel>
+    </Border>
+
     <!-- grid of videos -->
     <!-- 4 px of room on the left and top so the highlight ring around the first tiles isn't cut off -->
-    <ScrollViewer x:Name="Scroller" Grid.Row="2" Margin="-4,18,-22,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+    <ScrollViewer x:Name="Scroller" Grid.Row="3" Margin="-4,18,-22,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
       <ItemsControl x:Name="Tiles" Margin="4,4,0,24">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -79,37 +115,31 @@
         </ItemsControl.ItemContainerStyle>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
+            <!-- click selects (it plays, and its actions appear at the top right); double-click opens it -->
             <Button x:Name="TileButton" Style="{StaticResource TileBtn}" Width="{Binding TileW, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,0,22,26" Tag="{Binding}"
-                    Click="Tile_Click" MouseRightButtonUp="Tile_RightClick">
-              <Grid>
-                <!-- the "add" tile -->
-                <Border Visibility="{Binding IsAddTile, Converter={StaticResource Vis}}" Height="{Binding TileH, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                        CornerRadius="12" BorderThickness="1.5" BorderBrush="{DynamicResource Dashed}" Background="Transparent">
-                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource Raised}">
-                      <Path Data="M12,5 V19 M5,12 H19" Stroke="{DynamicResource Text}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                            Width="16" Height="16" Stretch="Uniform"/>
-                    </Border>
-                    <TextBlock Text="Import, or drop a video or image here" Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,10,0,0"/>
-                  </StackPanel>
-                </Border>
-                <!-- a video -->
-                <StackPanel Visibility="{Binding IsNormal, Converter={StaticResource Vis}}">
-                  <Grid Height="{Binding TileH, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                    <Border x:Name="Ring" CornerRadius="14" Margin="-3" BorderThickness="2" BorderBrush="Transparent"/>
-                    <Border CornerRadius="12" Background="Black"/>
-                    <Border CornerRadius="12" RenderOptions.BitmapScalingMode="HighQuality">
-                      <Border.Background><ImageBrush ImageSource="{Binding Thumb}" Stretch="UniformToFill"/></Border.Background>
-                    </Border>
-                  </Grid>
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,10,0,0" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Sub}" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-              </Grid>
+                    Click="Tile_Click" MouseDoubleClick="Tile_DoubleClick" MouseRightButtonUp="Tile_RightClick">
+              <StackPanel>
+                <Grid Height="{Binding TileH, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                  <Border x:Name="Ring" CornerRadius="14" Margin="-3" BorderThickness="2" BorderBrush="Transparent"/>
+                  <Border CornerRadius="12" Background="Black"/>
+                  <Border CornerRadius="12" RenderOptions.BitmapScalingMode="HighQuality">
+                    <Border.Background><ImageBrush ImageSource="{Binding Thumb}" Stretch="UniformToFill"/></Border.Background>
+                  </Border>
+                  <!-- live preview of the selected video, on top of its thumbnail -->
+                  <ContentControl Content="{Binding Player}" Focusable="False" IsHitTestVisible="False"/>
+                </Grid>
+                <TextBlock x:Name="NameText" Text="{Binding Name}" FontWeight="SemiBold" Margin="0,10,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Sub}" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
             </Button>
             <DataTemplate.Triggers>
               <DataTrigger Binding="{Binding IsMouseOver, ElementName=TileButton}" Value="True">
+                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource Line2}"/>
+              </DataTrigger>
+              <DataTrigger Binding="{Binding IsSelected}" Value="True">
                 <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                <Setter TargetName="Ring" Property="BorderThickness" Value="3"/>
+                <Setter TargetName="NameText" Property="Foreground" Value="{DynamicResource AccentText}"/>
               </DataTrigger>
             </DataTemplate.Triggers>
           </DataTemplate>
@@ -118,7 +148,7 @@
     </ScrollViewer>
 
     <!-- empty folder -->
-    <StackPanel x:Name="Empty" Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed" Margin="0,0,0,80">
+    <StackPanel x:Name="Empty" Grid.Row="3" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed" Margin="0,0,0,80">
       <TextBlock Text="Nothing here yet" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
       <TextBlock Text="Pick a wallpaper from Wallpaper Engine, or import a video or image." Foreground="{DynamicResource Sub}"
                  HorizontalAlignment="Center" Margin="0,8,0,18"/>
