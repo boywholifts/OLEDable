@@ -67,7 +67,7 @@
   - Local `dist` builds never prompt by themselves.
   - Workflow: every push to main publishes a dev pre-release `vX.Y.Z-dev.N`; a `vX.Y.Z` tag publishes a stable release.
 
-## 2.3 (in development)
+## 2.3 (released 2026-10-27)
 - Output sizes: HydroShift (2288 × 1048), Original size, Upscale 2×/4× (same shape), Custom (presets: 4K, 1440p, 1080p, ultrawide, Fold 8 Ultra inner/cover, phone; or typed).
   - Fit/crop, the glow (scales with output size), AI enhance sizing and the encode follow the output. Only the HydroShift output keeps the 30 MB cap.
 - Still images (PNG, JPEG, WebP, BMP, TIFF): open, tune with the live preview, AI enhance, export as PNG. Images default to Original size.
@@ -94,7 +94,8 @@
 2. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
 3. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
 4. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.
-- v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
+- v2.2.0 released 2026-10-23 (first stable).
+- v2.3.0 released 2026-10-27 (OLEDable); csproj now 2.4.0.
 
 ## Still open
 - Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
