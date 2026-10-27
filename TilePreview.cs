@@ -7,7 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// The live preview in a selected gallery tile: the video itself (muted, looping), or an animated GIF preview

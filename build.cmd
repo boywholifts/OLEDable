@@ -10,7 +10,7 @@ rem close a running dev build so the new exe can be copied over it
 powershell -NoProfile -Command "Get-Process OLEDable,HydroShiftRecorder -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '%~dp0dist\*' } | Stop-Process -Force"
 timeout /t 1 >nul
 echo Building OLEDable...
-dotnet build HydroShiftRecorder.csproj -c Release -o dist -nologo -v minimal >> %LOG% 2>&1
+dotnet build OLEDable.csproj -c Release -o dist -nologo -v minimal >> %LOG% 2>&1
 if errorlevel 1 (echo BUILD FAILED >> %LOG%) else (echo BUILD OK >> %LOG%)
 echo === done === >> %LOG%
 timeout /t 3 >nul

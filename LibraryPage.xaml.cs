@@ -9,7 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>The library: every video in the chosen folder as a thumbnail grid. Click one to edit it.</summary>
     public partial class LibraryPage : UserControl, IPage
@@ -237,7 +237,8 @@ namespace HydroShiftRecorder
                 watcher = new FileSystemWatcher(shell.S.OutDir) { IncludeSubdirectories = true, EnableRaisingEvents = true };
                 FileSystemEventHandler h = (s, e) =>
                 {
-                    if (e.FullPath.IndexOf("\\.hydroshift", StringComparison.OrdinalIgnoreCase) >= 0) return;
+                    if (e.FullPath.IndexOf("\\" + SourceStore.FolderName, StringComparison.OrdinalIgnoreCase) >= 0) return;
+                    if (e.FullPath.IndexOf("\\" + SourceStore.OldFolderName, StringComparison.OrdinalIgnoreCase) >= 0) return;
                     if (!LibraryScanner.IsMedia(e.FullPath) && Path.HasExtension(e.FullPath)) return;
                     Dispatcher.BeginInvoke(new Action(() => { debounce.Stop(); debounce.Start(); }));
                 };

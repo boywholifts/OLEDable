@@ -5,7 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// "Record animation" for a Wallpaper Engine scene: pick the size, length and frame rate, then Record.

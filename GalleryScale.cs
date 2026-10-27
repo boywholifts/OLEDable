@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// Smooth gallery resizing. While the window edge is being dragged, the tiles keep their size (resizing

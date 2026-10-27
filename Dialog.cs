@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// The app's own message box: follows the theme (light, dark, true black) and accent instead of the

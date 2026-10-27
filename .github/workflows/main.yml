@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: Publish as a stable release (uses the Version in HydroShiftRecorder.csproj)
+        description: Publish as a stable release (uses the Version in OLEDable.csproj)
         type: boolean
         default: false
 
@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           # the base version comes from the project file; a tag like v2.3.0 sets it instead
-          $ver = (Select-Xml -Path HydroShiftRecorder.csproj -XPath '//Version').Node.InnerText
+          $ver = (Select-Xml -Path OLEDable.csproj -XPath '//Version').Node.InnerText
           $stable = $false
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)$') { $ver = $Matches[1]; $stable = $true }
           elseif ('${{ inputs.release }}' -eq 'true') { $stable = $true }
@@ -45,7 +45,7 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          dotnet build HydroShiftRecorder.csproj -c Release -p:Version=$env:APP_VERSION -o dist
+          dotnet build OLEDable.csproj -c Release -p:Version=$env:APP_VERSION -o dist
           if (-not (Test-Path dist\OLEDable.exe)) { throw 'Build failed: exe was not created' }
 
       - name: Build installer

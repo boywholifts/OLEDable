@@ -8,9 +8,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// Edits one video: live before/after preview of the HydroShift look, trimming on a filmstrip, and the

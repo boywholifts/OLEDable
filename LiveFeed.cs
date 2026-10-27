@@ -7,7 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// A live, smooth view of the HydroShift for the Record page: one long-running ffmpeg captures the display

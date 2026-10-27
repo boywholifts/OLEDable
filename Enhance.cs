@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>A Real-ESRGAN model the app can use: the two built-in styles, or a community model in the models folder.</summary>
     public class EsrModel

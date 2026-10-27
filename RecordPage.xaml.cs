@@ -5,9 +5,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>Records one of the screens (the HydroShift or any monitor), then opens the clip in the editor.</summary>
     public partial class RecordPage : UserControl, IPage

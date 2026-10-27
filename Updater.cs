@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// Updates from GitHub Releases. Two channels: "stable" sees only normal releases (made by pushing a tag

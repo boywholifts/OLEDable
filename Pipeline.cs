@@ -7,9 +7,9 @@ using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>Progress of a running job: a line of text and 0..1 (negative = indeterminate).</summary>
     public struct JobStatus
@@ -495,7 +495,7 @@ namespace HydroShiftRecorder
         /// </summary>
         public byte[] EnhanceFrame(string src, double seconds, int srcW, int srcH, int w, int h, string modelKey, bool cleanup, bool tta, OutputSpec o)
         {
-            var dir = Path.Combine(Path.GetTempPath(), "hsr_enh_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            var dir = Path.Combine(Path.GetTempPath(), "oledable_enh_" + Guid.NewGuid().ToString("N").Substring(0, 8));
             try
             {
                 Directory.CreateDirectory(dir);
@@ -523,7 +523,7 @@ namespace HydroShiftRecorder
         /// </summary>
         public async Task<int> CadenceAsync(string src, double t0, double dur, IProgress<JobStatus> pr, CancellationToken ct)
         {
-            var md5 = Path.Combine(Path.GetTempPath(), "hsr_frames_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".txt");
+            var md5 = Path.Combine(Path.GetTempPath(), "oledable_frames_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".txt");
             try
             {
                 await RunFf(FfArgs.Cadence(src, t0, dur, md5), dur, "Checking how smoothly it moved", pr, ct);
@@ -640,7 +640,9 @@ namespace HydroShiftRecorder
                     // space stays at a few GB however long the video is. The pieces are joined for the finish.
                     if (enhance) await EnsureEsrganAsync(pr, ct, model.Key);
                     if (from > 0) await EnsureRifeAsync(pr, ct);
-                    work = Path.Combine(folder, ".hydroshift", "temp");   // same drive as the library
+                    work = Path.Combine(folder, SourceStore.FolderName, "temp");   // same drive as the library
+                    Directory.CreateDirectory(work);
+                    try { var di = new DirectoryInfo(Path.Combine(folder, SourceStore.FolderName)); di.Attributes |= FileAttributes.Hidden; } catch { }
                     TryDeleteDir(work);
                     Directory.CreateDirectory(work);
                     double rate = from > 0 ? from : Math.Min(60, s.Fps > 0 ? s.Fps : 60);
@@ -789,7 +791,7 @@ namespace HydroShiftRecorder
                 var graph = FfArgs.FinishGraph(pre, dur, s.Loop, 1, out outSec);
                 var tmp = outPath + ".partial.mp4";
                 TryDelete(tmp);
-                var meta = "-metadata comment=" + Q("hsr|" + s.Id + "|" + s.Kind + (s.TrueBlack ? "|tb" : "")) + " -metadata title=" + Q(s.Title ?? "");
+                var meta = "-metadata comment=" + Q("oled|" + s.Id + "|" + s.Kind + (s.TrueBlack ? "|tb" : "")) + " -metadata title=" + Q(s.Title ?? "");
                 await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 " + input + " -filter_complex \"" + graph + "\" -map \"[v]\" -an " +
                             FfArgs.Encode(outSec, o) + " " + meta + " " + Q(tmp),
                             outSec, s.Loop ? "Finishing and looping" : "Finishing", pr, ct);
@@ -827,7 +829,7 @@ namespace HydroShiftRecorder
                 {
                     var model = EsrModel.Find(EsrganDir, s.EnhanceStyle);
                     await EnsureEsrganAsync(pr, ct, model.Key);
-                    work = Path.Combine(Path.GetTempPath(), "hsr_img_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    work = Path.Combine(Path.GetTempPath(), "oledable_img_" + Guid.NewGuid().ToString("N").Substring(0, 8));
                     Directory.CreateDirectory(work);
                     var plain = Path.Combine(work, "plain.png");
                     var esr = Path.Combine(work, "enhanced.png");

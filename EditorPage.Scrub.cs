@@ -8,9 +8,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// The filmstrip and the frame shown in the preview. Drag along the strip (or use ← →) to pick any frame:

@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// The modern Windows "Select Folder" dialog (the same one File Explorer-style apps use):

@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>Appearance (theme, follow Windows, accent), library folder, and about.</summary>
     public partial class SettingsPage : UserControl, IPage

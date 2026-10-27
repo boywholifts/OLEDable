@@ -8,9 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>One video in the library folder, with details filled in in the background.</summary>
     public class LibraryItem : INotifyPropertyChanged
@@ -54,16 +54,57 @@ namespace HydroShiftRecorder
     }
 
     /// <summary>
-    /// The library's hidden ".hydroshift" folder: one JSON per edit session (the settings), plus the original
+    /// The library's hidden ".oledable" folder (".hydroshift" before the rename): one JSON per edit session (the settings), plus the original
     /// recordings, so a video can be re-edited from its clean source instead of being processed twice.
     /// </summary>
     public class SourceStore
     {
         public readonly string Dir;
 
+        public const string FolderName = ".oledable", OldFolderName = ".hydroshift";
+
         public SourceStore(string libraryFolder)
         {
-            Dir = System.IO.Path.Combine(libraryFolder, ".hydroshift");
+            Dir = System.IO.Path.Combine(libraryFolder, FolderName);
+            Migrate(libraryFolder, Dir);
+        }
+
+        /// <summary>
+        /// Libraries made before the rename keep their sessions and kept recordings in ".hydroshift": move that
+        /// folder to ".oledable" once, and point the saved sessions at the recordings' new place.
+        /// </summary>
+        static void Migrate(string libraryFolder, string dir)
+        {
+            try
+            {
+                var old = System.IO.Path.Combine(libraryFolder, OldFolderName);
+                if (!Directory.Exists(old) || Directory.Exists(dir)) return;
+                Directory.Move(old, dir);
+                foreach (var f in Directory.EnumerateFiles(dir, "*.json"))
+                {
+                    try
+                    {
+                        var text = File.ReadAllText(f);
+                        // paths are stored JSON-escaped ("\\" for each backslash); plain ones just in case
+                        var fixedText = text.Replace("\\\\" + OldFolderName + "\\\\", "\\\\" + FolderName + "\\\\")
+                                            .Replace("\\" + OldFolderName + "\\", "\\" + FolderName + "\\");
+                        if (fixedText != text) File.WriteAllText(f, fixedText);
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>A session whose kept recording still points into the old folder name.</summary>
+        static EditSession Fix(EditSession s)
+        {
+            if (s != null && !string.IsNullOrEmpty(s.SourcePath) && !File.Exists(s.SourcePath))
+            {
+                var moved = s.SourcePath.Replace("\\" + OldFolderName + "\\", "\\" + FolderName + "\\");
+                if (moved != s.SourcePath && File.Exists(moved)) s.SourcePath = moved;
+            }
+            return s;
         }
 
         void EnsureDir()
@@ -97,7 +138,7 @@ namespace HydroShiftRecorder
             try
             {
                 var f = System.IO.Path.Combine(Dir, id + ".json");
-                return File.Exists(f) ? Json.Read<EditSession>(File.ReadAllText(f)) : null;
+                return File.Exists(f) ? Fix(Json.Read<EditSession>(File.ReadAllText(f))) : null;
             }
             catch { return null; }
         }
@@ -116,7 +157,7 @@ namespace HydroShiftRecorder
                     try
                     {
                         var s = Json.Read<EditSession>(File.ReadAllText(f));
-                        if (s != null && string.Equals(s.OutputName, fileName, StringComparison.OrdinalIgnoreCase)) return s;
+                        if (s != null && string.Equals(s.OutputName, fileName, StringComparison.OrdinalIgnoreCase)) return Fix(s);
                     }
                     catch { }
                 }
@@ -186,7 +227,8 @@ namespace HydroShiftRecorder
         {
             var info = Probe(ffprobe, it.Path);
             it.Info = info;
-            if (info != null && info.Comment != null && info.Comment.StartsWith("hsr|"))
+            // the app's tag: "oled|id|kind…" (exports made before the rename say "hsr|…")
+            if (info != null && info.Comment != null && (info.Comment.StartsWith("oled|") || info.Comment.StartsWith("hsr|")))
             {
                 var parts = info.Comment.Split('|');
                 if (parts.Length > 1) it.Id = parts[1];

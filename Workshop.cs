@@ -9,9 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>One Wallpaper Engine wallpaper found on this PC (a Workshop download or one of your own projects).</summary>
     public class WeItem : INotifyPropertyChanged
@@ -235,7 +235,7 @@ namespace HydroShiftRecorder
         public static async Task<string> UnpackSceneAsync(string dataDir, WeItem it, IProgress<JobStatus> pr, CancellationToken ct)
         {
             await EnsureRepkgAsync(dataDir, pr, ct);
-            var outDir = Path.Combine(Path.GetTempPath(), "hsr_we_" + Path.GetFileName(it.Folder));
+            var outDir = Path.Combine(Path.GetTempPath(), "oledable_we_" + Path.GetFileName(it.Folder));
             TryDeleteDir(outDir);
             Directory.CreateDirectory(outDir);
             pr.Report(new JobStatus("Unpacking “" + it.Name + "”…", -1));

@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>Runs ffmpeg / ffprobe / RIFE hidden in the background, collecting output and ffmpeg progress.</summary>
     public class FfJob
@@ -302,7 +302,7 @@ namespace HydroShiftRecorder
         public double Fps;
         public double Duration;
         public int Width, Height;
-        /// <summary>The container's "comment" tag; OLEDable (formerly HydroShift Recorder) writes "hsr|id|kind" there.</summary>
+        /// <summary>The container's "comment" tag; OLEDable (formerly HydroShift Recorder) writes "oled|id|kind" there ("hsr|…" before the rename).</summary>
         public string Comment;
     }
 

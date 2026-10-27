@@ -5,7 +5,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// The OLED "true black" look, defined once and used two ways:

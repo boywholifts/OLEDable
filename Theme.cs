@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// Light, Dark and True black themes plus the accent colour. Every brush the UI uses is an app-level resource

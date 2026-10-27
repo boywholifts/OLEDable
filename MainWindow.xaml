@@ -1,4 +1,4 @@
-<Window x:Class="HydroShiftRecorder.MainWindow"
+<Window x:Class="OLEDable.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="OLEDable" Width="1280" Height="800" MinWidth="1000" MinHeight="660"

@@ -9,9 +9,9 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using static HydroShiftRecorder.Tools;
+using static OLEDable.Tools;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>A page shown in the main window's content area.</summary>
     public interface IPage
@@ -496,7 +496,7 @@ namespace HydroShiftRecorder
             var found = await Task.Run(() =>
             {
                 var list = new List<ScreenInfo>();
-                var png = Path.Combine(Path.GetTempPath(), "hsr_probe.png");
+                var png = Path.Combine(Path.GetTempPath(), "oledable_probe.png");
                 for (int a = 0; a <= 3; a++)
                 {
                     int misses = 0;

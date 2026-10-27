@@ -1,4 +1,4 @@
-<UserControl x:Class="HydroShiftRecorder.SettingsPage"
+<UserControl x:Class="OLEDable.SettingsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <UserControl.Resources>
@@ -163,7 +163,7 @@
             <ToggleButton x:Name="KeepSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Keep originals for re-editing"/>
-              <TextBlock Text="Recordings are kept in the library's hidden .hydroshift folder, so editing again starts from the clean original."
+              <TextBlock Text="Recordings are kept in the library's hidden .oledable folder, so editing again starts from the clean original."
                          FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
             </StackPanel>
           </DockPanel>

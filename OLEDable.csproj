@@ -8,7 +8,7 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>OLEDable</AssemblyName>
-    <RootNamespace>HydroShiftRecorder</RootNamespace>
+    <RootNamespace>OLEDable</RootNamespace>
     <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.4.0</Version>

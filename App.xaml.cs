@@ -2,7 +2,7 @@
 using System.IO;
 using System.Windows;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     public partial class App : Application
     {

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// Every Wallpaper Engine wallpaper on this PC as a grid. A video wallpaper is copied into the library and

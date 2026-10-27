@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace HydroShiftRecorder
+namespace OLEDable
 {
     /// <summary>
     /// What size an export comes out at. The app started as a HydroShift tool (2288 × 1048, cropped to fill),
