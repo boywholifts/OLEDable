@@ -45,6 +45,7 @@ namespace HydroShiftRecorder
             StillBtn.Click += (s, e) => { if (selected != null) ExtractScene(selected, false); };
             UseVideoBtn.Click += (s, e) => { if (selected != null) ExtractScene(selected, true); };
             FolderBtn.Click += (s, e) => { if (selected != null) MainWindow.OpenInShell(selected.Folder); };
+            shell.LiveResizeEnded += Layout;
             // at most one re-layout per frame while the window is being resized
             Scroller.SizeChanged += (s, e) =>
             {
@@ -119,6 +120,7 @@ namespace HydroShiftRecorder
         }
 
         bool layoutQueued;
+        double heldAvail;   // the width the tiles were laid out for when a window drag started
 
         /// <summary>
         /// Tile size for the width. The scrollbar's width is always set aside, so it appearing or disappearing
@@ -128,6 +130,8 @@ namespace HydroShiftRecorder
         {
             double avail = Scroller.ActualWidth - ScrollBarW - 4;   // and the room for the highlight ring
             if (avail <= 0) return;
+            if (shell.LiveResizing && TileW > 0) { GalleryScale.Hold(Tiles, ref heldAvail, avail); return; }
+            GalleryScale.Release(Tiles, ref heldAvail);
             int cols = Math.Max(1, (int)(avail / (MinTile + Gap)));
             double w = Math.Floor(avail / cols - Gap);
             if (Math.Abs(w - TileW) < 0.5) return;   // nothing to re-lay out

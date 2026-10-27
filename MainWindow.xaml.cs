@@ -306,6 +306,32 @@ namespace HydroShiftRecorder
             return Path.Combine(S.ConvertedPath, s.OutputName ?? "");
         }
 
+        // ---------------------------------------------------------------- live resizing
+
+        /// <summary>True while the window edge is being dragged (Windows' size/move loop).</summary>
+        public bool LiveResizing { get; private set; }
+        /// <summary>The drag ended: pages lay themselves out properly again.</summary>
+        public event Action LiveResizeEnded;
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var src = System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            if (src != null) src.AddHook(SizeMoveHook);
+        }
+
+        IntPtr SizeMoveHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_ENTERSIZEMOVE = 0x0231, WM_EXITSIZEMOVE = 0x0232;
+            if (msg == WM_ENTERSIZEMOVE) LiveResizing = true;
+            else if (msg == WM_EXITSIZEMOVE)
+            {
+                LiveResizing = false;
+                LiveResizeEnded?.Invoke();
+            }
+            return IntPtr.Zero;
+        }
+
         // ---------------------------------------------------------------- jobs
 
         /// <summary>
