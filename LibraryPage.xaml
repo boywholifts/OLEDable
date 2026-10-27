@@ -46,14 +46,11 @@
             <TextBlock Text="Record screen" Margin="8,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
         </Button>
-        <Button x:Name="ImportBtn" Style="{StaticResource Pill}" Margin="0,0,10,0" ToolTip="Open a video or image (you can also drop one on the window)">
+        <Button x:Name="ImportBtn" Style="{StaticResource PrimaryPill}" ToolTip="Open a video or image (you can also drop one on the window)">
           <StackPanel Orientation="Horizontal">
             <Path Style="{StaticResource Icon}" Width="16" Height="16" Data="M12,4 V15 M7,10 L12,15 L17,10 M5,20 H19"/>
             <TextBlock Text="Import" Margin="8,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
-        </Button>
-        <Button x:Name="RecordBtn" Style="{StaticResource PrimaryPill}" ToolTip="Pick a wallpaper from Wallpaper Engine">
-          <TextBlock Text="Wallpaper Engine" VerticalAlignment="Center"/>
         </Button>
       </StackPanel>
     </Grid>
