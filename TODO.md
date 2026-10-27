@@ -83,6 +83,7 @@
 - Wallpaper Engine: click a tile to select it (accent ring); its actions (Edit; Record, Still image, Use its video; Show in folder) appear at the top right. Double-click does the main one. "Use its video" only shows when the scene package contains a video (read from its file list, no unpacking).
 - Editor scrubbing: click or drag along the filmstrip to pick any frame (← → one frame, Shift+← → one second). The newest position is fetched as soon as the previous frame is in; AI enhance runs when you let go. The strip shows 8–24 frames depending on its width. Seen frames are cached (32 plain, 16 AI).
 - Editor opens untouched videos as they are (all sliders at "no change", the original across the whole preview). "Auto adjust" (was "Reset to auto") detects the black level, sets fixed starting values (shadow depth 20%, color boost +8%, the rest off) and slides the comparison to the middle. "Reset" puts everything back to no change. Exports no longer remember the look.
+- Exports with AI enhance and/or smoothing run in 10-second pieces (frames made, saved as a near-lossless clip, deleted), joined for the finish; one frame of overlap keeps smoothing seamless. Temporary space is a few GB plus the pieces (~0.5 MB per output frame) instead of the whole clip as PNGs.
 - Sidebar 272 px wide (was 232) with larger text; Wallpaper Engine header: actions, then the folder and Refresh icons side by side at the far right.
 - Sidebar "Export finished" card (file name, folder, time); click shows the file in Explorer; stays until × or the next job.
 - Library tiles: the "True black" tag is gone (Converted / Recording already say it).
@@ -95,7 +96,6 @@
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
-- Export with AI enhance and/or smoothing: process in pieces of about 10 seconds (extract, enhance, smooth, encode, delete the piece's frames), then join the pieces, so the temporary space stays at a few GB however long the clip is. Today the whole clip's frames sit in `<Library>\.hydroshift\temp` at once (a 3:28 clip at 15 fps with Anime (detailed) + 60 fps needed ~174 GB). Keep the space check, scaled to one piece.
 - Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.

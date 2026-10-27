@@ -242,10 +242,10 @@ namespace HydroShiftRecorder
         /// Frames for RIFE / Real-ESRGAN: fitted to the panel, or only cropped to its shape when they'll be
         /// AI-enhanced first. Light PNG compression: 40% faster to write.
         /// </summary>
-        public static string PrepPng(string src, double t0, double dur, double fps, string dir, string shape, bool clean = false)
+        public static string PrepPng(string src, double t0, double dur, double fps, string dir, string shape, bool clean = false, int frames = 0)
         {
             return Quiet + "-ss " + Num(t0) + " -t " + Num(dur) + " -i " + Q(src) + " -vf \"" + shape + (clean ? "," + Clean : "") +
-                   ",fps=" + Num(fps) + "\" -an -compression_level 1 " + Q(Path.Combine(dir, "%08d.png"));
+                   ",fps=" + Num(fps) + "\" -an " + (frames > 0 ? "-frames:v " + frames + " " : "") + "-compression_level 1 " + Q(Path.Combine(dir, "%08d.png"));
         }
 
         /// <summary>
@@ -635,63 +635,144 @@ namespace HydroShiftRecorder
             {
                 if (from > 0 || enhance)
                 {
-                    // 2a. frame by frame: AI enhance and/or RIFE smoothing, then back in as a video
+                    // 2a. frame by frame (AI enhance and/or RIFE smoothing), in pieces of about 10 seconds: each piece's
+                    // frames are made, encoded to a near-lossless clip and deleted before the next, so the temporary
+                    // space stays at a few GB however long the video is. The pieces are joined for the finish.
                     if (enhance) await EnsureEsrganAsync(pr, ct, model.Key);
                     if (from > 0) await EnsureRifeAsync(pr, ct);
                     work = Path.Combine(folder, ".hydroshift", "temp");   // same drive as the library
                     TryDeleteDir(work);
+                    Directory.CreateDirectory(work);
                     double rate = from > 0 ? from : Math.Min(60, s.Fps > 0 ? s.Fps : 60);
+                    double outRate = from > 0 ? 60 : rate;
                     int factor = model.ScaleFor(s.Width, s.Height, o);
+                    var inSz = FfArgs.EsrInputSize(s.Width, s.Height, model.FixedScale, o);
+                    bool fitStep = enhance && NeedsFit(s, from);
+
+                    int total = Math.Max(2, (int)Math.Round(dur * rate));
+                    int per = Math.Max(2, (int)Math.Round(rate * PieceSeconds));
+                    int pieces = (total + per - 1) / per;
                     double perFrameMB = 6 + (enhance ? 6.0 * factor * factor / 4 + 3 : 0);
-                    CheckSpace(folder, dur * (rate * perFrameMB + (from > 0 ? 60 * 6 : 0)) / 1024);
+                    double pieceGB = ((per + 1) * perFrameMB + (from > 0 ? (per + 1) * 60 / from * 6 : 0)) / 1024;
+                    double clipsGB = dur * outRate * 0.5 / 1024;   // the encoded pieces (generous)
+                    CheckSpace(folder, pieceGB + clipsGB + 1);
 
-                    clock.Start();
-                    string plain = Path.Combine(work, "in"), frames = plain;
-                    Directory.CreateDirectory(plain);
-                    string shape = enhance ? FfArgs.EsrPrep(s.Width, s.Height, model.FixedScale, o) : FfArgs.Fit(o);
-                    await RunFf(FfArgs.PrepPng(s.SourcePath, t0, dur, rate, plain, shape, enhance && s.EnhanceCleanup), dur, "Preparing frames", pr, ct, later());
-                    int count = Directory.GetFiles(plain, "*.png").Length;
-                    if (count < 2) throw new Exception("Preparing frames failed: no frames were written.");
-                    done(count);
-
-                    if (enhance)
+                    // progress across all pieces: each step's share of a piece, from this PC's measured speeds
+                    var steps = plan.Where(st => st.Key != "finish").ToList();
+                    double est = Math.Max(1e-6, steps.Sum(st => Speeds.Seconds(st.Key, st.Units)));
+                    var share = steps.ToDictionary(st => st.Key, st => Speeds.Seconds(st.Key, st.Units) / est);
+                    double finishEst = plan.Where(st => st.Key == "finish").Sum(st => Speeds.Seconds(st.Key, st.Units));
+                    var eta = new Eta();
+                    var spent = new Dictionary<string, double>();
+                    var units = new Dictionary<string, double>();
+                    Action<string, double, double> learn = (key, u, sec) =>
                     {
-                        var esr = Path.Combine(work, "enhanced");
-                        Directory.CreateDirectory(esr);
-                        await RunFrames(EsrganExe, FfArgs.Esrgan(plain, esr, model.Name, factor, Path.Combine(EsrganDir, "models"), s.EnhanceTta), esr, count,
-                                        "AI enhancing " + factor + "× (" + model.Label + ")", later(), pr, ct);
-                        var inSz = FfArgs.EsrInputSize(s.Width, s.Height, model.FixedScale, o);
-                        done(count * inSz[0] * inSz[1] / 1e6);
-                        frames = esr;
-                        if (NeedsFit(s, from))
+                        double v; spent.TryGetValue(key, out v); spent[key] = v + sec;
+                        units.TryGetValue(key, out v); units[key] = v + u;
+                    };
+
+                    var clips = new List<string>();
+                    int outFrames = 0;
+                    for (int k = 0; k < pieces; k++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        int first = k * per, n = Math.Min(per, total - first);
+                        bool last = k == pieces - 1;
+                        int take = last ? n : n + 1;   // one frame of the next piece, so smoothing can fill the gap to it
+                        string tag = pieces > 1 ? string.Format(Inv, "Piece {0} of {1}: ", k + 1, pieces) : "";
+                        double done0 = 0;
+                        Func<string, string, IProgress<JobStatus>> stage = (key, label) =>
                         {
-                            // blend with a plain upscale (strength), sharpen, and bring to panel size for RIFE and the finish
-                            var fit = Path.Combine(work, "fit");
-                            Directory.CreateDirectory(fit);
-                            await RunFf(FfArgs.FitPng(esr, plain, s.EnhanceStrength, s.EnhanceSharpen, rate, fit, o), count / rate, "Blending and fitting frames", pr, ct, later());
-                            done(count);
-                            TryDeleteDir(esr);
-                            frames = fit;
+                            double c0 = done0, w; share.TryGetValue(key, out w);
+                            int kk = k;
+                            return new Relay(st =>
+                            {
+                                double f = Clamp(st.Fraction < 0 ? 0 : st.Fraction, 0, 1);
+                                double all = Clamp((kk + c0 + w * f) / pieces, 0, 1);
+                                pr.Report(new JobStatus(eta.Line(tag + label, all, finishEst), all));
+                            });
+                        };
+                        Action<string> next = key => { double w; share.TryGetValue(key, out w); done0 += w; };
+
+                        var dir = Path.Combine(work, "piece");
+                        TryDeleteDir(dir);
+                        string plain = Path.Combine(dir, "in"), frames = plain;
+                        Directory.CreateDirectory(plain);
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        string shape = enhance ? FfArgs.EsrPrep(s.Width, s.Height, model.FixedScale, o) : FfArgs.Fit(o);
+                        double pt0 = t0 + first / rate;
+                        await RunFf(FfArgs.PrepPng(s.SourcePath, pt0, (take + 1) / rate, rate, plain, shape, enhance && s.EnhanceCleanup, take),
+                                    take / rate, "Preparing frames", stage("prep", "Preparing frames"), ct);
+                        int count = Directory.GetFiles(plain, "*.png").Length;
+                        if (count < 1) { if (k > 0) break; throw new Exception("Preparing frames failed: no frames were written."); }
+                        if (!last && count <= n) last = true;   // the source ended early: nothing to overlap with
+                        learn("prep", count, sw.Elapsed.TotalSeconds); next("prep");
+
+                        if (enhance)
+                        {
+                            string key = EsrKey(model, s);
+                            sw.Restart();
+                            var esr = Path.Combine(dir, "enhanced");
+                            Directory.CreateDirectory(esr);
+                            await RunFrames(EsrganExe, FfArgs.Esrgan(plain, esr, model.Name, factor, Path.Combine(EsrganDir, "models"), s.EnhanceTta), esr, count,
+                                            "AI enhancing " + factor + "× (" + model.Label + ")", 0, stage(key, "AI enhancing " + factor + "× (" + model.Label + ")"), ct);
+                            learn(key, count * inSz[0] * inSz[1] / 1e6, sw.Elapsed.TotalSeconds); next(key);
+                            frames = esr;
+                            if (fitStep)
+                            {
+                                sw.Restart();
+                                var fit = Path.Combine(dir, "fit");
+                                Directory.CreateDirectory(fit);
+                                await RunFf(FfArgs.FitPng(esr, plain, s.EnhanceStrength, s.EnhanceSharpen, rate, fit, o), count / rate,
+                                            "Blending and fitting frames", stage("fit", "Blending and fitting frames"), ct);
+                                learn("fit", count, sw.Elapsed.TotalSeconds); next("fit");
+                                TryDeleteDir(esr);
+                                frames = fit;
+                            }
+                            TryDeleteDir(plain);
                         }
-                        TryDeleteDir(plain);
+
+                        // the frames this piece contributes: its own, without the overlap frame
+                        int keep;
+                        if (from > 0)
+                        {
+                            sw.Restart();
+                            var outDir = Path.Combine(dir, "out");
+                            Directory.CreateDirectory(outDir);
+                            int target = (int)Math.Round(count * 60 / from);
+                            string label = string.Format(Inv, "Smoothing {0:0} → 60 fps", from);
+                            await RunFrames(RifeExe, FfArgs.Rife(frames, outDir, target, Path.Combine(RifeDir, "rife-v4.6")), outDir, target,
+                                            label, 0, stage("rife", label), ct);
+                            learn("rife", target, sw.Elapsed.TotalSeconds); next("rife");
+                            frames = outDir;
+                            keep = last ? target : (int)Math.Round(n * 60 / from);
+                        }
+                        else keep = last ? count : n;
+                        keep = Math.Min(keep, Directory.GetFiles(frames, "*.png").Length);
+
+                        // near-lossless RGB clip (the finish re-encodes it anyway)
+                        var clip = Path.Combine(work, string.Format(Inv, "piece{0:00000}.mkv", k));
+                        string vf = enhance && !fitStep ? " -vf \"" + FfArgs.Fit(o) + "\"" : "";
+                        await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 -framerate " + Num(outRate) + " -i " + Q(Path.Combine(frames, "%08d.png")) +
+                                    " -frames:v " + keep + vf + " -an -c:v libx264rgb -preset veryfast -crf 6 " + Q(clip),
+                                    keep / outRate, "Saving the piece", stage("", "Saving the piece"), ct);
+                        if (!File.Exists(clip)) throw new Exception("Saving a piece failed: no file was written.");
+                        clips.Add(clip);
+                        outFrames += keep;
+                        TryDeleteDir(dir);
+                        if (last) break;
                     }
 
-                    if (from > 0)
-                    {
-                        var outDir = Path.Combine(work, "out");
-                        Directory.CreateDirectory(outDir);
-                        int target = (int)Math.Round(count * 60 / from);
-                        await RunFrames(RifeExe, FfArgs.Rife(frames, outDir, target, Path.Combine(RifeDir, "rife-v4.6")), outDir, target,
-                                        string.Format(Inv, "Smoothing {0:0} → 60 fps", from), later(), pr, ct);
-                        done(target);
-                        frames = outDir;
-                        rate = 60;
-                    }
+                    // what each step cost on this PC, for better estimates next time
+                    foreach (var key in spent.Keys) Speeds.Learn(key, units[key], spent[key]);
+                    stepNo = plan.FindIndex(st => st.Key == "finish");
+                    clock.Restart();
 
-                    int made = Directory.GetFiles(frames, "*.png").Length;
-                    input = "-framerate " + Num(rate) + " -i " + Q(Path.Combine(frames, "%08d.png"));
-                    pre = enhance && !NeedsFit(s, from) ? FfArgs.Fit(o) + "," : "";
-                    dur = made / rate;
+                    var list = Path.Combine(work, "pieces.txt");
+                    File.WriteAllLines(list, clips.Select(c => "file '" + c.Replace("'", "'\\''") + "'"));
+                    input = "-f concat -safe 0 -i " + Q(list);
+                    pre = "";
+                    dur = outFrames / outRate;
                 }
                 else
                 {
@@ -784,6 +865,16 @@ namespace HydroShiftRecorder
             }
         }
 
+        /// <summary>Length of one piece of a frame-by-frame export (see ExportAsync).</summary>
+        const double PieceSeconds = 10;
+
+        sealed class Relay : IProgress<JobStatus>
+        {
+            readonly Action<JobStatus> a;
+            public Relay(Action<JobStatus> a) { this.a = a; }
+            public void Report(JobStatus v) { a(v); }
+        }
+
         static void CheckSpace(string folder, double needGB)
         {
             try
@@ -791,7 +882,7 @@ namespace HydroShiftRecorder
                 var root = Path.GetPathRoot(Path.GetFullPath(folder));
                 double freeGB = new DriveInfo(root).AvailableFreeSpace / 1073741824.0;
                 if (freeGB < needGB)
-                    throw new Exception(string.Format(Inv, "Smoothing this clip needs about {0:0} GB free on {1} (only {2:0} GB free). Choose a library folder on another drive, or use a shorter part of the clip.", needGB, root, freeGB));
+                    throw new Exception(string.Format(Inv, "This export needs about {0:0} GB free on {1} for its temporary files (only {2:0} GB free). Free up some space, or choose a library folder on another drive.", needGB, root, freeGB));
             }
             catch (ArgumentException) { }
         }
