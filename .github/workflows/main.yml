@@ -18,6 +18,17 @@ on:
 
 permissions:
   contents: write
+  id-token: write   # lets the build sign in to Azure (code signing) without a stored password
+
+# Code signing: Azure Artifact Signing (certificate "Jesse Sievers"). These are identifiers, not secrets:
+# the build signs in through the app registration's federated credential for this repo's main branch.
+env:
+  AZURE_TENANT_ID: 30560747-e9fa-42ca-b083-47c5af84e864
+  AZURE_CLIENT_ID: c80c2e3d-c973-432e-9f2e-b2e3ff1b99a8
+  AZURE_SUBSCRIPTION_ID: 615495a1-fa51-4ad1-be6e-452f92947e1e
+  SIGN_ENDPOINT: https://eus.codesigning.azure.net/
+  SIGN_ACCOUNT: oledable
+  SIGN_PROFILE: oledable
 
 jobs:
   build:
@@ -48,12 +59,56 @@ jobs:
           dotnet build OLEDable.csproj -c Release -p:Version=$env:APP_VERSION -o dist
           if (-not (Test-Path dist\OLEDable.exe)) { throw 'Build failed: exe was not created' }
 
+      # signing only from main (the Azure federated credential trusts this repo's main branch)
+      - name: Azure login (code signing)
+        if: github.ref == 'refs/heads/main'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign the app
+        if: github.ref == 'refs/heads/main'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ env.SIGN_ENDPOINT }}
+          signing-account-name: ${{ env.SIGN_ACCOUNT }}
+          certificate-profile-name: ${{ env.SIGN_PROFILE }}
+          files: ${{ github.workspace }}\dist\OLEDable.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
       - name: Build installer
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" installer\OLEDable.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
+
+      - name: Sign the installer
+        if: github.ref == 'refs/heads/main'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ env.SIGN_ENDPOINT }}
+          signing-account-name: ${{ env.SIGN_ACCOUNT }}
+          certificate-profile-name: ${{ env.SIGN_PROFILE }}
+          files-folder: ${{ github.workspace }}\dist-installer
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Check signatures
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          foreach ($f in @('dist\OLEDable.exe') + (Get-ChildItem dist-installer\*.exe).FullName) {
+            $sig = Get-AuthenticodeSignature $f
+            Write-Host "$f : $($sig.Status) - $($sig.SignerCertificate.Subject)"
+            if ($sig.Status -ne 'Valid') { throw "$f is not signed correctly ($($sig.Status))" }
+          }
 
       - name: Upload build
         uses: actions/upload-artifact@v6

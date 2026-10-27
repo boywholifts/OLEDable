@@ -109,5 +109,5 @@
 - Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
-- Code signing: on hold. Options are Azure Trusted Signing (~$10/mo) or SignPath Foundation (free for open source); meanwhile, report false positives to Malwarebytes.
+- Code signing: Azure Artifact Signing (Basic, $9.99/mo; account `oledable`, profile `oledable`, East US; certificate "Jesse Sievers, Cutler Bay, FL, US"). The workflow signs OLEDable.exe and the setup on main via OIDC (app registration `oledable-github`, federated credentials for main). Identity validation expires: renew when Microsoft emails (60 days ahead). Reapply to SignPath Foundation later once the app has traction.
 - Push to GitHub, including `.github/workflows/main.yml` (it now builds the installer too). That file can't be written to the PC folder from here.

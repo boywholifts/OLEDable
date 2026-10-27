@@ -66,7 +66,7 @@ Settings and edits stay on your PC: next to the app, and in a hidden `.hydroshif
 
 ## Code signing policy
 
-*Planned:* release builds are to be signed through the [SignPath Foundation](https://signpath.org) (free code signing for open-source projects; code signing certificate by SignPath Foundation). Only builds made by this repository's GitHub Actions from its source are signed, and every release is approved by hand by the maintainer.
+Builds are signed with [Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/) (publisher: **Jesse Sievers**). Only builds made by this repository's GitHub Actions from its `main` branch are signed, and stable releases are published by hand by the maintainer.
 
 - Author, reviewer and approver: [@boywholifts](https://github.com/boywholifts)
 
