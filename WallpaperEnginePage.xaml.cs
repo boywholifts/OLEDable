@@ -23,7 +23,6 @@ namespace HydroShiftRecorder
         const double MinTile = 240, Gap = 22;
 
         readonly MainWindow shell;
-        readonly ObservableCollection<WeItem> view = new ObservableCollection<WeItem>();
         List<WeItem> all = new List<WeItem>();
         bool loaded;
         int generation;
@@ -32,7 +31,6 @@ namespace HydroShiftRecorder
         {
             this.shell = shell;
             InitializeComponent();
-            Tiles.ItemsSource = view;
             foreach (var r in new[] { FAll, FVideo, FScene, FOther }) r.Checked += (s, e) => ApplyFilter();
             SearchBox.TextChanged += (s, e) =>
             {
@@ -72,6 +70,9 @@ namespace HydroShiftRecorder
             if (gen != generation) return;
             all = items;
             SelectItem(null);
+            // every tile is made once; the filters and search only show or hide them (rebuilding hundreds of
+            // tiles each time is what made switching back to All slow)
+            Tiles.ItemsSource = all;
             foreach (var it in all) it.Meta = Meta(it);
             ApplyFilter();
             if (all.Count == 0)
@@ -112,8 +113,9 @@ namespace HydroShiftRecorder
             if (q.Length > 0) items = items.Where(i => i.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
             var list = items.ToList();
             if (selected != null && !list.Contains(selected)) SelectItem(null);   // filtered out
-            view.Clear();
-            foreach (var i in list) view.Add(i);
+            var shown = new HashSet<WeItem>(list);
+            foreach (var i in all) i.IsShown = shown.Contains(i);
+            Scroller.ScrollToTop();
             CountText.Text = list.Count == all.Count ? all.Count + " wallpapers" : list.Count + " of " + all.Count;
             Empty.Visibility = all.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             Scroller.Visibility = all.Count == 0 ? Visibility.Collapsed : Visibility.Visible;

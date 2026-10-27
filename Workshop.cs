@@ -35,6 +35,9 @@ namespace HydroShiftRecorder
 
         ImageSource thumb; string meta; bool hasVideo, selected;
         public bool IsSelected { get { return selected; } set { selected = value; Raise("IsSelected"); } }
+        bool shown = true;
+        /// <summary>Passes the Wallpaper Engine page's filter and search.</summary>
+        public bool IsShown { get { return shown; } set { if (shown == value) return; shown = value; Raise("IsShown"); } }
         /// <summary>A scene that plays a video inside it (checked from the package's file list, without unpacking).</summary>
         public bool HasVideo { get { return hasVideo; } set { hasVideo = value; Raise("HasVideo"); } }
         public ImageSource Thumb { get { return thumb; } set { thumb = value; Raise("Thumb"); } }
