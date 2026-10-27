@@ -71,6 +71,12 @@
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
+        <!-- filtering hides tiles instead of rebuilding them -->
+        <ItemsControl.ItemContainerStyle>
+          <Style TargetType="ContentPresenter">
+            <Setter Property="Visibility" Value="{Binding IsShown, Converter={StaticResource Vis}}"/>
+          </Style>
+        </ItemsControl.ItemContainerStyle>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <Button x:Name="TileButton" Style="{StaticResource TileBtn}" Width="{Binding TileW, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,0,22,26" Tag="{Binding}"

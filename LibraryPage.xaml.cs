@@ -26,6 +26,7 @@ namespace HydroShiftRecorder
         readonly Dictionary<string, LibraryItem> known = new Dictionary<string, LibraryItem>(StringComparer.OrdinalIgnoreCase);
         readonly DispatcherTimer debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
         List<LibraryItem> all = new List<LibraryItem>();
+        List<LibraryItem> built;   // the list the tiles were last made from
         FileSystemWatcher watcher;
         int generation;
 
@@ -147,10 +148,17 @@ namespace HydroShiftRecorder
             if (FRec.IsChecked == true) items = items.Where(i => i.Kind == "recording");
             else if (FConv.IsChecked == true) items = items.Where(i => i.Id != null || i.InConverted);
             else if (FTodo.IsChecked == true) items = items.Where(i => i.Id == null && !i.InConverted);
-            var list = items.ToList();
-            view.Clear();
-            foreach (var i in list) view.Add(i);
-            if (all.Count > 0) view.Add(new LibraryItem { IsAddTile = true, Name = "" });
+            // tiles are made once per scan of the folder; the filters only show or hide them (rebuilding every
+            // tile on each switch gets slow as the library grows)
+            if (!ReferenceEquals(built, all))
+            {
+                built = all;
+                view.Clear();
+                foreach (var i in all) view.Add(i);
+                if (all.Count > 0) view.Add(new LibraryItem { IsAddTile = true, Name = "" });
+            }
+            var shown = new HashSet<LibraryItem>(items);
+            foreach (var i in all) i.IsShown = shown.Contains(i);
             Empty.Visibility = all.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             Scroller.Visibility = all.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             CountText.Text = all.Count == 1 ? "1 video" : all.Count + " videos";

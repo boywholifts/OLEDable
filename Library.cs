@@ -34,6 +34,9 @@ namespace HydroShiftRecorder
         public bool InConverted { get; set; }
         /// <summary>The dashed "record or drop a video" tile at the end of the grid.</summary>
         public bool IsAddTile { get; set; }
+        bool shown = true;
+        /// <summary>Passes the Library's filter (the add tile is always shown).</summary>
+        public bool IsShown { get { return shown; } set { if (shown == value) return; shown = value; Raise("IsShown"); } }
         public bool IsNormal { get { return !IsAddTile; } }
 
         public event PropertyChangedEventHandler PropertyChanged;
