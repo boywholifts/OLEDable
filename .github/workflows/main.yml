@@ -78,6 +78,14 @@ jobs:
             ${{ github.event.head_commit.message }}
           files: dist-installer/*.exe
 
+      - name: Release notes
+        if: env.STABLE == 'true'
+        shell: pwsh
+        run: |
+          # release-notes/<version>.md is the "What's new" text (an empty one if it wasn't written)
+          $f = "release-notes/$env:APP_VERSION.md"
+          if (-not (Test-Path $f)) { New-Item -ItemType Directory -Force release-notes | Out-Null; Set-Content $f "" }
+
       - name: Publish release
         if: env.STABLE == 'true'
         uses: softprops/action-gh-release@v3
@@ -87,6 +95,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           prerelease: false
           make_latest: true
+          body_path: release-notes/${{ env.APP_VERSION }}.md
           generate_release_notes: true
           files: |
             dist/OLEDable.exe

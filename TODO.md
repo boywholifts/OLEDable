@@ -90,9 +90,10 @@
 - Renamed to **OLEDable**: exe `OLEDable.exe`, settings `OLEDable.json` (copied from `HydroShift-Recorder.json` on first launch), installer `installer\OLEDable.iss` (same AppId, so it updates old installs in place and removes the old exe and shortcuts), default library `Videos\OLEDable` for new installs. Updater points at `boywholifts/oledable` (rename the GitHub repo). Internal names (namespace, `.hydroshift` folder, `hsr|` tag) are unchanged.
 
 ## Release routine
-1. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
-2. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
-3. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.
+1. Write `release-notes/X.Y.Z.md` (the "What's new" text for the stable release).
+2. Push changes; the Dev channel gets `X.Y.Z-dev.N`. Test it.
+3. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
+4. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
