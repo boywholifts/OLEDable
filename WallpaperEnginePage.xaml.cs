@@ -139,6 +139,7 @@ namespace HydroShiftRecorder
             var it = selected;
             SelHint.Visibility = it == null ? Visibility.Visible : Visibility.Collapsed;
             SelActions.Visibility = it == null ? Visibility.Collapsed : Visibility.Visible;
+            FolderBtn.Visibility = SelActions.Visibility;
             if (it == null) return;
             EditBtn.Visibility = it.IsVideo ? Visibility.Visible : Visibility.Collapsed;
             RecordBtn.Visibility = it.CanRecord ? Visibility.Visible : Visibility.Collapsed;

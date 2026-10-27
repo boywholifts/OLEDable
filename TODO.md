@@ -83,6 +83,7 @@
 - Wallpaper Engine: click a tile to select it (accent ring); its actions (Edit; Record, Still image, Use its video; Show in folder) appear at the top right. Double-click does the main one. "Use its video" only shows when the scene package contains a video (read from its file list, no unpacking).
 - Editor scrubbing: click or drag along the filmstrip to pick any frame (← → one frame, Shift+← → one second). The newest position is fetched as soon as the previous frame is in; AI enhance runs when you let go. The strip shows 8–24 frames depending on its width. Seen frames are cached (32 plain, 16 AI).
 - Editor opens untouched videos as they are (all sliders at "no change", the original across the whole preview). "Auto adjust" (was "Reset to auto") detects the black level, sets fixed starting values (shadow depth 20%, color boost +8%, the rest off) and slides the comparison to the middle. "Reset" puts everything back to no change. Exports no longer remember the look.
+- Sidebar 272 px wide (was 232) with larger text; Wallpaper Engine header: actions, then the folder and Refresh icons side by side at the far right.
 - Sidebar "Export finished" card (file name, folder, time); click shows the file in Explorer; stays until × or the next job.
 - Library tiles: the "True black" tag is gone (Converted / Recording already say it).
 - Renamed to **OLEDable**: exe `OLEDable.exe`, settings `OLEDable.json` (copied from `HydroShift-Recorder.json` on first launch), installer `installer\OLEDable.iss` (same AppId, so it updates old installs in place and removes the old exe and shortcuts), default library `Videos\OLEDable` for new installs. Updater points at `boywholifts/oledable` (rename the GitHub repo). Internal names (namespace, `.hydroshift` folder, `hsr|` tag) are unchanged.
@@ -95,8 +96,6 @@
 
 ## Still open
 - Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
-- Wallpaper Engine header: move the selected wallpaper's actions (Edit / Record / Still image / Use its video) to the left of the icons, and put the folder and Refresh icons side by side at the far right.
-- Left sidebar: make it wider with a larger font (nav items, the Editing item and the sidebar cards), accepting about one fewer column in the galleries.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
 - Code signing: on hold. Options are Azure Trusted Signing (~$10/mo) or SignPath Foundation (free for open source); meanwhile, report false positives to Malwarebytes.

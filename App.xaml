@@ -172,12 +172,12 @@
     <!-- sidebar navigation -->
     <Style x:Key="NavItem" TargetType="RadioButton">
       <Setter Property="Foreground" Value="{DynamicResource Sub}"/>
-      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontSize" Value="15.5"/>
       <Setter Property="FontWeight" Value="Medium"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
-        <Border x:Name="b" CornerRadius="10" Padding="12,10" Background="Transparent">
+        <Border x:Name="b" CornerRadius="10" Padding="12,11" Background="Transparent">
           <ContentPresenter VerticalAlignment="Center"/>
         </Border>
         <ControlTemplate.Triggers>
