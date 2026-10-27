@@ -25,16 +25,22 @@ namespace HydroShiftRecorder
             IsMuted = true, Volume = 0, Stretch = Stretch.UniformToFill, Opacity = 0, IsHitTestVisible = false,
         };
         readonly Image gif = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
+        // each player sits in a frame the exact size of the tile, which trims it: filling the tile means the
+        // picture is drawn bigger than the tile when the shapes differ, and it mustn't spill over the ring
+        readonly Grid mediaHost = new Grid { ClipToBounds = true, IsHitTestVisible = false };
+        readonly Grid gifHost = new Grid { ClipToBounds = true, IsHitTestVisible = false };
         Action<object> attach;   // gives the player to the current tile (null takes it back)
         int gen;
 
         public TilePreview()
         {
-            // rounded corners like the thumbnail underneath
-            foreach (var el in new FrameworkElement[] { media, gif })
+            mediaHost.Children.Add(media);
+            gifHost.Children.Add(gif);
+            // rounded corners like the thumbnail underneath, cut at the tile's size
+            foreach (var host in new[] { mediaHost, gifHost })
             {
-                var e0 = el;
-                e0.SizeChanged += (s, e) => e0.Clip = new RectangleGeometry(new Rect(e.NewSize), Radius, Radius);
+                var h = host;
+                h.SizeChanged += (s, e) => h.Clip = new RectangleGeometry(new Rect(e.NewSize), Radius, Radius);
             }
             media.MediaOpened += (s, e) => media.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180)));
             media.MediaEnded += (s, e) => { media.Position = TimeSpan.Zero; media.Play(); };
@@ -49,7 +55,7 @@ namespace HydroShiftRecorder
             attach = setPlayer;
             media.BeginAnimation(UIElement.OpacityProperty, null);
             media.Opacity = 0;   // fades in once the first frame is ready
-            attach(media);
+            attach(mediaHost);
             media.Source = new Uri(path);
             media.Play();
         }
@@ -65,7 +71,7 @@ namespace HydroShiftRecorder
             attach = setPlayer;
             gif.Source = anim.Frames[0];
             gif.BeginAnimation(Image.SourceProperty, anim.Animation);
-            attach(gif);
+            attach(gifHost);
         }
 
         /// <summary>Stops whatever is playing and gives the tile its thumbnail back.</summary>
