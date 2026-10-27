@@ -51,7 +51,13 @@ namespace HydroShiftRecorder
             EmptyRecord.Click += (s, e) => shell.ShowWallpaperEngine();
             RecScreenBtn.Click += (s, e) => shell.ShowRecord();
             foreach (var r in new[] { FAll, FRec, FConv, FTodo }) r.Checked += (s, e) => ApplyFilter();
-            Scroller.SizeChanged += (s, e) => Layout();
+            // at most one re-layout per frame while the window is being resized
+            Scroller.SizeChanged += (s, e) =>
+            {
+                if (layoutQueued) return;
+                layoutQueued = true;
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, new Action(() => { layoutQueued = false; Layout(); }));
+            };
             debounce.Tick += (s, e) => { debounce.Stop(); Refresh(); };
         }
 
@@ -149,14 +155,24 @@ namespace HydroShiftRecorder
             CountText.Text = all.Count == 1 ? "1 video" : all.Count + " videos";
         }
 
+        bool layoutQueued;
+
+        /// <summary>
+        /// Tile size for the width. The scrollbar's width is always set aside, so it appearing or disappearing
+        /// can't flip the column count back and forth (that was the flicker while resizing slowly).
+        /// </summary>
         void Layout()
         {
-            double avail = (Scroller.ViewportWidth > 0 ? Scroller.ViewportWidth : Scroller.ActualWidth) - 4;   // the room for the ring
+            double avail = Scroller.ActualWidth - ScrollBarW - 4;   // and the room for the highlight ring
             if (avail <= 0) return;
             int cols = Math.Max(1, (int)(avail / (MinTile + Gap)));
-            TileW = Math.Floor(avail / cols - Gap);
-            TileH = Math.Round(TileW * 1048 / 2288);
+            double w = Math.Floor(avail / cols - Gap);
+            if (Math.Abs(w - TileW) < 0.5) return;   // nothing to re-lay out
+            TileW = w;
+            TileH = Math.Round(w * 1048 / 2288);
         }
+
+        const double ScrollBarW = 10;
 
         void Watch()
         {
