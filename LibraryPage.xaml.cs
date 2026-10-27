@@ -151,7 +151,7 @@ namespace HydroShiftRecorder
 
         void Layout()
         {
-            double avail = Scroller.ViewportWidth > 0 ? Scroller.ViewportWidth : Scroller.ActualWidth;
+            double avail = (Scroller.ViewportWidth > 0 ? Scroller.ViewportWidth : Scroller.ActualWidth) - 4;   // the room for the ring
             if (avail <= 0) return;
             int cols = Math.Max(1, (int)(avail / (MinTile + Gap)));
             TileW = Math.Floor(avail / cols - Gap);

@@ -65,8 +65,9 @@
     </DockPanel>
 
     <!-- grid of videos -->
-    <ScrollViewer x:Name="Scroller" Grid.Row="2" Margin="0,22,-22,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-      <ItemsControl x:Name="Tiles" Margin="0,0,0,24">
+    <!-- 4 px of room on the left and top so the highlight ring around the first tiles isn't cut off -->
+    <ScrollViewer x:Name="Scroller" Grid.Row="2" Margin="-4,18,-22,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+      <ItemsControl x:Name="Tiles" Margin="4,4,0,24">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
