@@ -4,31 +4,21 @@ using System.Windows.Media;
 namespace HydroShiftRecorder
 {
     /// <summary>
-    /// Smooth gallery resizing. While the window edge is being dragged, the tiles keep their layout and the whole
-    /// grid is scaled to the new width (cheap, done by the GPU); the real layout happens once, when you let go.
-    /// Re-laying out hundreds of tiles on every pixel of a drag is what made them flicker.
+    /// Smooth gallery resizing. While the window edge is being dragged, the tiles keep their size (resizing
+    /// hundreds of pictures on every pixel of a drag is what made them flicker); they simply re-flow into more or
+    /// fewer columns as they fit. When you let go, they're sized once to fill the width exactly.
     /// </summary>
     public static class GalleryScale
     {
-        /// <summary>Holds the layout taken at the start of the drag and scales it to <paramref name="avail"/>.</summary>
+        /// <summary>Keeps the current tile size for the rest of the drag.</summary>
         public static void Hold(FrameworkElement tiles, ref double heldAvail, double avail)
         {
-            if (heldAvail <= 0)
-            {
-                heldAvail = avail;
-                tiles.Width = tiles.ActualWidth;   // stops the wrap panel re-flowing the tiles meanwhile
-                tiles.RenderTransformOrigin = new Point(0, 0);
-            }
-            double k = avail / heldAvail;
-            tiles.RenderTransform = new ScaleTransform(k, k);
+            if (heldAvail <= 0) heldAvail = avail;
         }
 
         public static void Release(FrameworkElement tiles, ref double heldAvail)
         {
-            if (heldAvail <= 0) return;
             heldAvail = 0;
-            tiles.Width = double.NaN;
-            tiles.RenderTransform = Transform.Identity;
         }
     }
 }
