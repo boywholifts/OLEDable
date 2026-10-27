@@ -287,7 +287,7 @@ namespace HydroShiftRecorder
         public string UniqueOutputName(string title, string ext = ".mp4")
         {
             var n = SafeName(title);
-            if (n.Length == 0) n = "HydroShift " + DateTime.Now.ToString("yyyy-MM-dd HH.mm");
+            if (n.Length == 0) n = "OLEDable " + DateTime.Now.ToString("yyyy-MM-dd HH.mm");
             var name = n + ext;
             for (int i = 2; File.Exists(Path.Combine(S.ConvertedPath, name)) || File.Exists(Path.Combine(S.OutDir, name)); i++)
                 name = n + " (" + i + ")" + ext;

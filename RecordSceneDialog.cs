@@ -38,7 +38,7 @@ namespace HydroShiftRecorder
 
             stack.Children.Add(Text("Record “" + name + "”", 16, true, "Text", new Thickness(0, 0, 0, 6)));
             stack.Children.Add(Text("Wallpaper Engine plays it in a window at this size and the app records that window. " +
-                                    "Your desktop and the HydroShift aren't changed.", 12, false, "Sub", new Thickness(0, 0, 0, 16)));
+                                    "Your desktop wallpaper isn't changed.", 12, false, "Sub", new Thickness(0, 0, 0, 16)));
 
             // size
             stack.Children.Add(Text("SIZE", 11, true, "Sub", new Thickness(0, 0, 0, 8)));

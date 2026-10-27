@@ -106,7 +106,7 @@ namespace HydroShiftRecorder
                 LiveMsg.Visibility = Visibility.Visible;
                 LiveMsg.Text = shell.Ffmpeg == null ? "ffmpeg is not installed. Run  winget install Gyan.FFmpeg  and reopen the app."
                              : shell.Screens == null ? "Looking for screens…"
-                             : "No screen could be captured. Click “Look for screens again”. (The HydroShift shows up here when it's on as a secondary screen in L-Connect 3.)";
+                             : "No screen could be captured. Click “Look for screens again”. (A Lian Li HydroShift shows up here when it's on as a secondary screen in L-Connect 3.)";
                 LivePill.Visibility = Visibility.Collapsed;
                 StatusText.Text = "";
             }

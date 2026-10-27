@@ -75,7 +75,7 @@
           <StackPanel>
             <StackPanel Orientation="Horizontal">
               <Ellipse x:Name="DisplayDot" Width="8" Height="8" Fill="#FF8E8E93" VerticalAlignment="Center" Margin="0,0,8,0"/>
-              <TextBlock x:Name="DisplayText" Text="Looking for HydroShift…" FontSize="14.5" FontWeight="SemiBold"/>
+              <TextBlock x:Name="DisplayText" Text="Checking tools…" FontSize="14.5" FontWeight="SemiBold"/>
             </StackPanel>
             <TextBlock x:Name="DisplaySub" Text="" FontSize="13.5" Foreground="{DynamicResource Sub}" Margin="0,4,0,0" TextWrapping="Wrap"/>
           </StackPanel>

@@ -115,7 +115,7 @@
               <Ellipse x:Name="DotBlack" Width="16" Height="16" StrokeThickness="2"/>
               <TextBlock Text="True black" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBlock Text="Pure black like the HydroShift. On an OLED monitor the app's background switches off." FontSize="12"
+            <TextBlock Text="Pure black. On an OLED screen the app's background pixels switch off." FontSize="12"
                        Foreground="{DynamicResource Sub}" Margin="2,6,0,0" TextWrapping="Wrap"/>
           </StackPanel>
         </Button>

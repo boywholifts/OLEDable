@@ -204,7 +204,7 @@
               <ToggleButton x:Name="EnhanceSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
               <StackPanel>
                 <TextBlock Text="AI enhance" Style="{StaticResource RowLabel}"
-                           ToolTip="Real-ESRGAN redraws the video at a higher resolution, then fits it to the panel: sharper edges and text, not just more contrast. Runs on your graphics card."/>
+                           ToolTip="Real-ESRGAN redraws the video at a higher resolution, then fits it to the output size: sharper edges and text, not just more contrast. Runs on your graphics card."/>
                 <TextBlock x:Name="EnhanceNote" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
               </StackPanel>
             </DockPanel>

@@ -9,7 +9,7 @@
 
     <StackPanel>
       <TextBlock Text="Record a screen" FontSize="26" FontWeight="Bold"/>
-      <TextBlock Text="Records whatever is on one of your screens (the HydroShift, or any monitor), then opens it in the editor. For Wallpaper Engine wallpapers, the Wallpaper Engine page records them directly at any size."
+      <TextBlock Text="Records whatever is on one of your screens, then opens it in the editor. For Wallpaper Engine wallpapers, the Wallpaper Engine page records them directly at any size."
                  Foreground="{DynamicResource Sub}" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap"/>
     </StackPanel>
 

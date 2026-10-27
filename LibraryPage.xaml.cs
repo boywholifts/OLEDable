@@ -40,7 +40,7 @@ namespace HydroShiftRecorder
 
             FolderBtn.Click += (s, e) =>
             {
-                var picked = FolderPicker.Pick(shell, "Choose the folder for your HydroShift videos", shell.S.OutDir);
+                var picked = FolderPicker.Pick(shell, "Choose your library folder", shell.S.OutDir);
                 if (picked == null) return;
                 shell.S.OutDir = picked;
                 shell.SaveSettings();
