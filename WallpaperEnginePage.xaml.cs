@@ -56,7 +56,12 @@ namespace HydroShiftRecorder
             loaded = true;
             int gen = ++generation;
             CountText.Text = "Looking…";
-            var items = await Task.Run(() => Workshop.Scan());
+            // the arrows turn while it looks
+            var spin = new System.Windows.Media.Animation.DoubleAnimation(0, 360, TimeSpan.FromSeconds(0.8)) { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever };
+            RefreshSpin.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty, spin);
+            List<WeItem> items;
+            try { items = await Task.Run(() => Workshop.Scan()); }
+            finally { RefreshSpin.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty, null); }
             if (gen != generation) return;
             all = items;
             SelectItem(null);
