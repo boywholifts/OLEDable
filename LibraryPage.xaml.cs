@@ -112,6 +112,7 @@ namespace OLEDable
             var folder = shell.S.OutDir;
             var converted = shell.S.ConvertedPath;
             var weCopies = Workshop.ImportDir(shell.S);
+            await Task.Run(() => SourceStore.Tidy(folder, converted));   // libraries from before the rename
             var listed = await Task.Run(() => LibraryScanner.List(folder, converted, weCopies));
             if (gen != generation) return;
 

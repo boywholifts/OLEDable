@@ -96,6 +96,25 @@ namespace OLEDable
             catch { }
         }
 
+        /// <summary>
+        /// Run when the library loads: moves an old ".hydroshift" folder right away (not only when a session is
+        /// first opened), and removes the old export working folder in the converted folder once it's empty.
+        /// </summary>
+        public static void Tidy(string libraryFolder, string convertedFolder)
+        {
+            try { Migrate(libraryFolder, System.IO.Path.Combine(libraryFolder, FolderName)); } catch { }
+            foreach (var root in new[] { libraryFolder, convertedFolder })
+            {
+                try
+                {
+                    var oldWork = System.IO.Path.Combine(root, OldFolderName);
+                    if (Directory.Exists(oldWork) && !Directory.EnumerateFiles(oldWork, "*", SearchOption.AllDirectories).Any())
+                        Directory.Delete(oldWork, true);
+                }
+                catch { }
+            }
+        }
+
         /// <summary>A session whose kept recording still points into the old folder name.</summary>
         static EditSession Fix(EditSession s)
         {
