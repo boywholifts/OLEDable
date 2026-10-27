@@ -69,6 +69,17 @@ namespace HydroShiftRecorder
             Action<object> put = o => it.Player = o;
             var video = it.IsVideo && !string.IsNullOrEmpty(it.File) ? System.IO.Path.Combine(it.Folder, it.File) : null;
             if (video != null && System.IO.File.Exists(video)) preview.PlayVideo(put, video);
+            else if (it.HasVideo) PreviewSceneVideo(it, put);   // the video inside the scene
+            else preview.PlayGif(put, it.PreviewPath);
+        }
+
+        async void PreviewSceneVideo(WeItem it, Action<object> put)
+        {
+            preview.Stop();
+            string path = null;
+            try { path = await Task.Run(() => Workshop.PreviewVideo(it)); } catch { }
+            if (it != selected || !IsVisible) return;   // selection moved on meanwhile
+            if (path != null) preview.PlayVideo(put, path);
             else preview.PlayGif(put, it.PreviewPath);
         }
 
@@ -279,8 +290,15 @@ namespace HydroShiftRecorder
             string result = null;
             bool ok = await shell.RunJob((video ? "Taking the video from: " : "Extracting still: ") + it.Name, async (pr, ct) =>
             {
+                if (video)
+                {
+                    // read straight out of the scene's package (RePKG doesn't export every kind of video texture)
+                    pr.Report(new JobStatus("Copying the video into your library…", -1));
+                    result = await Task.Run(() => Workshop.ExtractSceneVideo(shell.S, it), ct);
+                    return;
+                }
                 var dir = await Workshop.UnpackSceneAsync(shell.DataDir, it, pr, ct);
-                try { result = video ? Workshop.PickVideo(shell.S, it, dir) : Workshop.PickStill(shell.S, it, dir); }
+                try { result = Workshop.PickStill(shell.S, it, dir); }
                 finally { Tools.TryDeleteDir(dir); }
             });
             if (!ok) return;

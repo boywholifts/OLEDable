@@ -259,28 +259,41 @@ namespace HydroShiftRecorder
         /// <summary>Smaller videos are effects (sparks, a blinking sign), not the wallpaper itself.</summary>
         const long MinVideoBytes = 1024 * 1024;
 
+        /// <summary>Where a scene's video is: a whole file, or a byte range of the scene's package.</summary>
+        public sealed class VideoRef { public string File; public long Offset, Length; public string Ext = ".mp4"; }
+
+        /// <summary>True if the scene has a video worth using (see <see cref="FindSceneVideo"/>).</summary>
+        public static bool SceneHasVideo(string folder) { return FindSceneVideo(folder) != null; }
+
         /// <summary>
-        /// True if the scene has a video worth using: an .mp4/.webm… file, or a texture that is really an MP4
-        /// (Wallpaper Engine's video textures). Reads only the package's file list and a few bytes per texture.
+        /// The biggest video in a scene: an .mp4/.webm… file, or a texture that is really an MP4 (Wallpaper
+        /// Engine's video textures, in old and new texture layouts). Reads only the package's file list and the
+        /// first bytes of each big texture, so it's quick enough to run for every scene.
         /// </summary>
-        public static bool SceneHasVideo(string folder)
+        public static VideoRef FindSceneVideo(string folder)
         {
             try
             {
                 var pkg = Directory.GetFiles(folder, "*.pkg").FirstOrDefault();
-                if (pkg != null) return PkgHasVideo(pkg);
+                if (pkg != null) return PkgVideo(pkg);
                 // an already-unpacked scene
+                VideoRef best = null;
                 foreach (var f in Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories))
                 {
                     var ext = Path.GetExtension(f).ToLowerInvariant();
                     long len = new FileInfo(f).Length;
-                    if (len < MinVideoBytes) continue;
-                    if (VideoExt.Contains(ext)) return true;
-                    if (ext == ".tex") using (var fs = System.IO.File.OpenRead(f)) if (TexIsVideo(new BinaryReader(fs))) return true;
+                    if (len < MinVideoBytes || (best != null && len <= best.Length)) continue;
+                    if (VideoExt.Contains(ext)) best = new VideoRef { File = f, Offset = 0, Length = len, Ext = ext };
+                    else if (ext == ".tex")
+                        using (var fs = System.IO.File.OpenRead(f))
+                        {
+                            long at = Mp4Start(fs, 0);
+                            if (at >= 0) best = new VideoRef { File = f, Offset = at, Length = len - at };
+                        }
                 }
+                return best;
             }
-            catch { }
-            return false;
+            catch { return null; }
         }
 
         static string ReadSized(BinaryReader r)
@@ -291,60 +304,96 @@ namespace HydroShiftRecorder
         }
 
         /// <summary>Wallpaper Engine's .pkg: "PKGV…", a file count, then (name, offset, length) for each file, then the data.</summary>
-        static bool PkgHasVideo(string pkg)
+        static VideoRef PkgVideo(string pkg)
         {
             using (var fs = System.IO.File.OpenRead(pkg))
             using (var r = new BinaryReader(fs))
             {
-                if (!ReadSized(r).StartsWith("PKGV")) return false;
+                if (!ReadSized(r).StartsWith("PKGV")) return null;
                 int count = r.ReadInt32();
-                if (count < 0 || count > 100000) return false;
-                var texs = new List<KeyValuePair<long, long>>();
+                if (count < 0 || count > 100000) return null;
+                var entries = new List<Tuple<string, long, long>>();
                 for (int i = 0; i < count; i++)
                 {
                     var name = ReadSized(r);
                     long off = r.ReadInt32(), len = r.ReadInt32();
-                    if (len < MinVideoBytes) continue;
-                    var ext = Path.GetExtension(name).ToLowerInvariant();
-                    if (VideoExt.Contains(ext)) return true;
-                    if (ext == ".tex") texs.Add(new KeyValuePair<long, long>(off, len));
+                    if (len >= MinVideoBytes) entries.Add(Tuple.Create(name, off, len));
                 }
                 long dataStart = fs.Position;
-                foreach (var t in texs)
+                VideoRef best = null;
+                foreach (var e in entries.OrderByDescending(e => e.Item3))
                 {
-                    fs.Position = dataStart + t.Key;
-                    if (TexIsVideo(r)) return true;
+                    if (best != null && e.Item3 <= best.Length) break;
+                    var ext = Path.GetExtension(e.Item1).ToLowerInvariant();
+                    long start = dataStart + e.Item2;
+                    if (VideoExt.Contains(ext)) best = new VideoRef { File = pkg, Offset = start, Length = e.Item3, Ext = ext };
+                    else if (ext == ".tex")
+                    {
+                        long at = Mp4Start(fs, start);
+                        if (at >= 0) best = new VideoRef { File = pkg, Offset = at, Length = e.Item3 - (at - start) };
+                    }
                 }
+                return best;
             }
-            return false;
-        }
-
-        static string ReadMagic(BinaryReader r)
-        {
-            var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < 16; i++) { byte b = r.ReadByte(); if (b == 0) break; sb.Append((char)b); }
-            return sb.ToString();
         }
 
         /// <summary>
-        /// A .tex texture: "TEXV0005", "TEXI0001", 7 header ints, then the image container. Version 4 containers
-        /// ("TEXB0004") say whether the texture is an MP4 video.
+        /// A video texture keeps a plain MP4 after its small header ("TEXV0005", "TEXI0001", sizes, "TEXB000x",
+        /// mipmap sizes). Returns where the MP4 starts (its first box, just before "ftyp"), or -1 for a picture.
         /// </summary>
-        static bool TexIsVideo(BinaryReader r)
+        static long Mp4Start(Stream fs, long texStart)
         {
-            try
+            var head = new byte[256];
+            fs.Position = texStart;
+            int n = fs.Read(head, 0, head.Length);
+            if (n < 16 || System.Text.Encoding.ASCII.GetString(head, 0, 4) != "TEXV") return -1;
+            for (int i = 4; i + 4 <= n; i++)
+                if (head[i] == (byte)'f' && head[i + 1] == (byte)'t' && head[i + 2] == (byte)'y' && head[i + 3] == (byte)'p')
+                    return texStart + i - 4;
+            return -1;
+        }
+
+        /// <summary>Copies a scene's video out to <paramref name="dest"/>.</summary>
+        public static void WriteVideo(VideoRef v, string dest)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(dest));
+            var tmp = dest + ".partial";
+            using (var src = System.IO.File.OpenRead(v.File))
+            using (var dst = System.IO.File.Create(tmp))
             {
-                if (!ReadMagic(r).StartsWith("TEXV")) return false;
-                if (!ReadMagic(r).StartsWith("TEXI")) return false;
-                for (int i = 0; i < 7; i++) r.ReadInt32();
-                var container = ReadMagic(r);
-                if (container != "TEXB0004") return false;
-                r.ReadInt32();                 // image count
-                int format = r.ReadInt32();    // FreeImage format: -1 unknown, 35 MP4
-                bool mp4 = r.ReadInt32() == 1;
-                return format == 35 || (format == -1 && mp4);   // what RePKG exports as .mp4
+                src.Position = v.Offset;
+                var buf = new byte[1 << 20];
+                long left = v.Length;
+                while (left > 0)
+                {
+                    int n = src.Read(buf, 0, (int)Math.Min(buf.Length, left));
+                    if (n <= 0) break;
+                    dst.Write(buf, 0, n);
+                    left -= n;
+                }
             }
-            catch { return false; }
+            if (System.IO.File.Exists(dest)) System.IO.File.Delete(dest);
+            System.IO.File.Move(tmp, dest);
+        }
+
+        /// <summary>"Use its video": the scene's video, copied into the library. Null if it has none.</summary>
+        public static string ExtractSceneVideo(Settings s, WeItem it)
+        {
+            var v = FindSceneVideo(it.Folder);
+            if (v == null) return null;
+            var tmp = Path.Combine(Path.GetTempPath(), "OLEDable", "scene_" + Path.GetFileName(it.Folder) + v.Ext);
+            try { WriteVideo(v, tmp); return CopyInto(s, it, tmp, ""); }
+            finally { TryDelete(tmp); }
+        }
+
+        /// <summary>A scene's video for the live preview, kept in the temp folder so it's only written once.</summary>
+        public static string PreviewVideo(WeItem it)
+        {
+            var v = FindSceneVideo(it.Folder);
+            if (v == null) return null;
+            var path = Path.Combine(Path.GetTempPath(), "OLEDable", "previews", Path.GetFileName(it.Folder) + v.Ext);
+            if (!System.IO.File.Exists(path) || new FileInfo(path).Length != v.Length) WriteVideo(v, path);
+            return path;
         }
 
         /// <summary>The scene's main image: the largest picture in it (usually the background), copied into the library.</summary>
