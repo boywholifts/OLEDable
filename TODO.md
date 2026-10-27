@@ -95,6 +95,7 @@
 - v2.2.0 released 2026-10-23 (first stable); csproj now 2.3.0.
 
 ## Still open
+- Export with AI enhance and/or smoothing: process in pieces of about 10 seconds (extract, enhance, smooth, encode, delete the piece's frames), then join the pieces, so the temporary space stays at a few GB however long the clip is. Today the whole clip's frames sit in `<Library>\.hydroshift\temp` at once (a 3:28 clip at 15 fps with Anime (detailed) + 60 fps needed ~174 GB). Keep the space check, scaled to one piece.
 - Library header: remove the "Wallpaper Engine" button at the top right (the sidebar already goes there). Import probably becomes the main (accent) button next to Record screen.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
