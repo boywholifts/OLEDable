@@ -21,10 +21,20 @@
     <Border Grid.Column="0" Background="{DynamicResource Side}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
       <DockPanel Margin="14,12,14,16" LastChildFill="False">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,2,0,24" Height="28">
-          <Canvas Width="28" Height="28">
-            <Rectangle Canvas.Left="1" Canvas.Top="7" Width="26" Height="14" RadiusX="7" RadiusY="7" Stroke="{DynamicResource Accent}" StrokeThickness="2"/>
-            <Path Data="M7,14 C10,9 13,19 16,14 S21,10 22,14" Stroke="#FFFF4D5E" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-          </Canvas>
+          <!-- the logo, "eclipse": a true-black disc with a glowing rim (same drawing as assets\icon.ico) -->
+          <Viewbox Width="28" Height="28">
+            <Canvas Width="32" Height="32">
+              <Ellipse Canvas.Left="3" Canvas.Top="3" Width="26" Height="26">
+                <Ellipse.Fill>
+                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                    <GradientStop Color="#FFFF5FA2" Offset="0.2"/>
+                    <GradientStop Color="#FF8B5CF6" Offset="0.8"/>
+                  </LinearGradientBrush>
+                </Ellipse.Fill>
+              </Ellipse>
+              <Ellipse Canvas.Left="3" Canvas.Top="3.5" Width="22" Height="22" Fill="#FF000000"/>
+            </Canvas>
+          </Viewbox>
           <TextBlock Text="OLEDable" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0"/>
         </StackPanel>
 

@@ -20,6 +20,7 @@ Download `OLEDable-Setup-x.y.z.exe` from [Releases](../../releases) and run it. 
 ## Features
 
 - **True black:** a live before/after preview. The black level is detected for each video, and shadows, color, brightness, highlights and glow can be fine-tuned.
+  - Turning very dark greys into black means anything drawn in them goes too: true black alone, or pushing the settings too far, can lose shadow detail. The before/after preview shows exactly what changes, and **Reset** puts every setting back.
 - **Wallpaper Engine:** browse every wallpaper you've downloaded. Videos import in one click; scenes give up their video or background image, or are recorded as a video. Wallpaper Engine's own files are never changed.
 - **AI enhance:** Real-ESRGAN redraws small or soft wallpapers at a higher resolution.
 - **Smooth to 60 fps:** RIFE adds real in-between frames to lower frame-rate videos.
