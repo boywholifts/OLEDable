@@ -28,6 +28,8 @@ namespace OLEDable
         readonly OledScratch scratch = new OledScratch();
         readonly DispatcherTimer renderTimer;
         readonly DispatcherTimer autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+        // the "Export saves … takes about …" line checks the disk: refreshed once a slider stops moving, not on every step
+        readonly DispatcherTimer saveAsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
 
         EditSession s;
         string titleAtOpen;
@@ -51,6 +53,7 @@ namespace OLEDable
             renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
             renderTimer.Tick += (o, e) => StartRender();
             autosaveTimer.Tick += (o, e) => FlushAutosave();
+            saveAsTimer.Tick += (o, e) => { saveAsTimer.Stop(); UpdateSaveAs(); };
             SetupEnhanceControls();
             SetupOutputControls();
             SetupValueEditing();
@@ -147,7 +150,8 @@ namespace OLEDable
             unsaved = true;
             autosaveTimer.Stop();
             autosaveTimer.Start();
-            UpdateSaveAs();
+            saveAsTimer.Stop();
+            saveAsTimer.Start();
         }
 
         /// <summary>

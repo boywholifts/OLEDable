@@ -138,7 +138,12 @@ namespace OLEDable
                     finally { gate.Release(); }
                 }));
             }
-            if (gen == generation) { ApplyFilter(); OfferMoveConverted(); }   // kinds are known now
+            if (gen == generation)
+            {
+                ApplyFilter(); OfferMoveConverted();   // kinds are known now
+                var snapshot = all.ToList();
+                _ = Task.Run(() => LibraryScanner.PruneCache(cache, snapshot));
+            }
         }
 
         /// <summary>

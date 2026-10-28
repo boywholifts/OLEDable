@@ -362,8 +362,10 @@ namespace OLEDable
                 p.ErrorDataReceived += (s, e) => { };
                 p.BeginErrorReadLine();
                 var ms = new MemoryStream(w * h * 3);
-                p.StandardOutput.BaseStream.CopyTo(ms);
-                if (!p.WaitForExit(20000)) { try { p.Kill(); } catch { } }
+                // a file ffmpeg chokes on can leave it hanging; the read below would wait forever, so it's ended after 20 s
+                using (new System.Threading.Timer(_ => { try { if (!p.HasExited) p.Kill(); } catch { } }, null, 20000, System.Threading.Timeout.Infinite))
+                    p.StandardOutput.BaseStream.CopyTo(ms);
+                if (!p.WaitForExit(5000)) { try { p.Kill(); } catch { } }
                 var data = ms.ToArray();
                 return data.Length == w * h * 3 ? data : null;
             }

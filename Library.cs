@@ -241,7 +241,16 @@ namespace OLEDable
         /// <summary>Probes the video and makes (or reuses) its thumbnail. Runs off the UI thread.</summary>
         public static void LoadDetails(LibraryItem it, string ffmpeg, string ffprobe, string cacheDir)
         {
-            var info = Probe(ffprobe, it.Path);
+            // the probe is remembered next to the thumbnail (same key: path, size and date), so opening the app
+            // doesn't start an ffprobe for every video in the library each time
+            var key = Key(it);
+            var infoFile = System.IO.Path.Combine(cacheDir, key + ".info");
+            var info = ReadInfo(infoFile);
+            if (info == null)
+            {
+                info = Probe(ffprobe, it.Path);
+                if (info != null) WriteInfo(infoFile, info);
+            }
             it.Info = info;
             // the app's tag: "oled|id|kind…" (exports made before the rename say "hsr|…")
             if (info != null && info.Comment != null && (info.Comment.StartsWith("oled|") || info.Comment.StartsWith("hsr|")))
@@ -268,7 +277,7 @@ namespace OLEDable
             try
             {
                 Directory.CreateDirectory(cacheDir);
-                var jpg = System.IO.Path.Combine(cacheDir, Key(it) + ".png");
+                var jpg = System.IO.Path.Combine(cacheDir, key + ".png");
                 if (!File.Exists(jpg) && ffmpeg != null)
                 {
                     double at = info != null && info.Duration > 0 ? Math.Min(1.5, info.Duration * 0.3) : 0;
@@ -285,6 +294,58 @@ namespace OLEDable
                     b.EndInit();
                     b.Freeze();
                     it.Thumb = b;
+                }
+            }
+            catch { }
+        }
+
+        static VideoInfo ReadInfo(string file)
+        {
+            try
+            {
+                if (!File.Exists(file)) return null;
+                var l = File.ReadAllLines(file);
+                if (l.Length < 4) return null;
+                return new VideoInfo
+                {
+                    Fps = double.Parse(l[0], Inv), Duration = double.Parse(l[1], Inv),
+                    Width = int.Parse(l[2], Inv), Height = int.Parse(l[3], Inv),
+                    Comment = l.Length > 4 && l[4].Length > 0 ? l[4] : null,
+                };
+            }
+            catch { return null; }
+        }
+
+        static void WriteInfo(string file, VideoInfo i)
+        {
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file));
+                File.WriteAllLines(file, new[]
+                {
+                    i.Fps.ToString("R", Inv), i.Duration.ToString("R", Inv), i.Width.ToString(Inv), i.Height.ToString(Inv),
+                    (i.Comment ?? "").Replace("\r", " ").Replace("\n", " "),
+                });
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Deletes cached thumbnails and probes for videos that are no longer in the library (or have changed),
+        /// once they're a week old, so the cache doesn't grow forever.
+        /// </summary>
+        public static void PruneCache(string cacheDir, IEnumerable<LibraryItem> items)
+        {
+            try
+            {
+                if (!Directory.Exists(cacheDir)) return;
+                var keep = new HashSet<string>(items.Select(Key), StringComparer.OrdinalIgnoreCase);
+                var cutoff = DateTime.Now.AddDays(-7);
+                foreach (var f in Directory.EnumerateFiles(cacheDir))
+                {
+                    var name = System.IO.Path.GetFileNameWithoutExtension(f);
+                    if (keep.Contains(name)) continue;
+                    try { if (File.GetLastWriteTime(f) < cutoff) File.Delete(f); } catch { }
                 }
             }
             catch { }

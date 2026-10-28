@@ -436,7 +436,7 @@ namespace OLEDable
                             int slash = e.FullName.IndexOf('/');
                             if (slash < 0) continue;
                             var rel = e.FullName.Substring(slash + 1);
-                            if (rel.Length == 0 || rel.EndsWith("/")) continue;
+                            if (rel.Length == 0 || rel.EndsWith("/") || rel.Contains("..")) continue;
                             if (!Regex.IsMatch(rel, "^(rife-ncnn-vulkan\\.exe|vcomp140\\.dll|LICENSE|README\\.md|rife-v4\\.6/.+)$")) continue;
                             var dest = Path.Combine(RifeDir, rel.Replace('/', '\\'));
                             Directory.CreateDirectory(Path.GetDirectoryName(dest));
@@ -797,8 +797,7 @@ namespace OLEDable
                             outSec, s.Loop ? "Finishing and looping" : "Finishing", pr, ct);
                 if (!File.Exists(tmp)) throw new Exception("Finishing failed: no file was written.");
                 if (stepNo < plan.Count) done(outSec * 60);
-                TryDelete(outPath);
-                File.Move(tmp, outPath);
+                await PutInPlace(tmp, outPath, ct);
             }
             finally
             {
@@ -857,13 +856,36 @@ namespace OLEDable
                 await RunFf("-y -hide_banner -loglevel error " + input + " -filter_complex \"" + graph + oled + "format=rgb24[v]\" -map \"[v]\" -frames:v 1 -update 1 " + Q(tmp),
                             0, "Saving the image", pr, ct);
                 if (!File.Exists(tmp)) throw new Exception("Saving the image failed: no file was written.");
-                TryDelete(outPath);
-                File.Move(tmp, outPath);
+                await PutInPlace(tmp, outPath, ct);
             }
             finally
             {
                 TryDelete(tmp);
                 if (work != null) TryDeleteDir(work);
+            }
+        }
+
+        /// <summary>
+        /// Swaps the finished file in for the old one. A preview playing the old file (or a scan reading it) can
+        /// hold it for a moment, so it tries for a few seconds before saying what's wrong; until then the old
+        /// version stays untouched.
+        /// </summary>
+        static async Task PutInPlace(string tmp, string outPath, CancellationToken ct)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    if (File.Exists(outPath)) File.Replace(tmp, outPath, null, true);
+                    else File.Move(tmp, outPath);
+                    return;
+                }
+                catch (IOException) when (attempt < 15) { await Task.Delay(400, ct); }
+                catch (UnauthorizedAccessException) when (attempt < 15) { await Task.Delay(400, ct); }
+                catch (IOException)
+                {
+                    throw new Exception("“" + Path.GetFileName(outPath) + "” is open in another program, so it couldn't be replaced. Close it and export again.");
+                }
             }
         }
 

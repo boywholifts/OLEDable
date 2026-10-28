@@ -112,21 +112,28 @@ namespace OLEDable
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var req = (HttpWebRequest)WebRequest.Create(url);
                 req.UserAgent = "OLEDable";
-                using (var resp = req.GetResponse())
-                using (var s = resp.GetResponseStream())
-                using (var f = File.Create(path))
+                req.ReadWriteTimeout = 60000;   // a stalled connection fails instead of hanging forever
+                try
                 {
-                    long total = resp.ContentLength, got = 0;
-                    var buf = new byte[1 << 20];
-                    int n;
-                    while ((n = s.Read(buf, 0, buf.Length)) > 0)
+                    using (var resp = req.GetResponse())
+                    using (var s = resp.GetResponseStream())
+                    using (var f = File.Create(path))
                     {
-                        ct.ThrowIfCancellationRequested();
-                        f.Write(buf, 0, n);
-                        got += n;
-                        if (total > 0 && progress != null) progress.Report((double)got / total);
+                        long total = resp.ContentLength, got = 0;
+                        var buf = new byte[1 << 20];
+                        int n;
+                        while ((n = s.Read(buf, 0, buf.Length)) > 0)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            f.Write(buf, 0, n);
+                            got += n;
+                            if (total > 0 && progress != null) progress.Report((double)got / total);
+                        }
+                        // a dropped connection can end the stream early without an error
+                        if (total > 0 && got != total) throw new IOException("The download was cut off. Try again.");
                     }
                 }
+                catch { Tools.TryDelete(path); throw; }
             }, ct);
         }
     }
