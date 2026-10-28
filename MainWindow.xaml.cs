@@ -122,6 +122,16 @@ namespace OLEDable
                     e.Handled = true;
                     SaveWindowPicture();
                 }
+                // Ctrl+Shift+F11: a standard 1600 × 1000 window at the top-left of the main screen, so README
+                // pictures all come out the same size
+                else if (e.Key == System.Windows.Input.Key.F11 &&
+                         System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
+                {
+                    e.Handled = true;
+                    WindowState = WindowState.Normal;
+                    Width = 1600; Height = 1000;
+                    Left = SystemParameters.WorkArea.Left + 16; Top = SystemParameters.WorkArea.Top + 16;
+                }
             };
 
             Loaded += (s, e) =>
