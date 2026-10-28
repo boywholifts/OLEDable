@@ -335,6 +335,10 @@
     </Style>
     <Style TargetType="ToolTip">
       <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+      <!-- longer tips wrap instead of running across the screen -->
+      <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
+        <TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="340"/>
+      </DataTemplate></Setter.Value></Setter>
       <Setter Property="Background" Value="{DynamicResource Card}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Line2}"/>

@@ -169,8 +169,8 @@
 
             <TextBlock Text="TRUE BLACK" Style="{StaticResource SectionTitle}"/>
             <DockPanel><TextBlock x:Name="BlackVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
-              <TextBlock Text="Black level" Style="{StaticResource RowLabel}" ToolTip="Anything darker than this switches fully off. Set automatically for each video."/></DockPanel>
-            <Slider x:Name="BlackSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="60" Margin="0,4,0,14"/>
+              <TextBlock Text="Black level" Style="{StaticResource RowLabel}" ToolTip="Anything darker than this switches fully off. Set automatically for each video. Careful: detail drawn in those dark tones goes too, so true black alone, or pushing this (and Shadow depth) too far, can lose shadow detail. Drag across the preview to compare, or use Reset to start over."/></DockPanel>
+            <Slider x:Name="BlackSlider" Style="{StaticResource ThinSlider}" ToolTip="Anything darker than this switches fully off. Set automatically for each video. Careful: detail drawn in those dark tones goes too, so true black alone, or pushing this (and Shadow depth) too far, can lose shadow detail. Drag across the preview to compare, or use Reset to start over." Minimum="0" Maximum="60" Margin="0,4,0,14"/>
             <DockPanel><TextBlock x:Name="ShadowVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>
               <TextBlock Text="Shadow depth" Style="{StaticResource RowLabel}" ToolTip="How gradually dark areas fade into black. Higher is deeper; lower keeps more shadow detail."/></DockPanel>
             <Slider x:Name="ShadowSlider" Style="{StaticResource ThinSlider}" Minimum="1" Maximum="2" Margin="0,4,0,14"/>
