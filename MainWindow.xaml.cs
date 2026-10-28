@@ -113,6 +113,17 @@ namespace OLEDable
                 Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnWindowsThemeChanged;
             };
 
+            // Ctrl+Shift+F12: a PNG of the window, as drawn (for the README and bug reports)
+            PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.F12 &&
+                    System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
+                {
+                    e.Handled = true;
+                    SaveWindowPicture();
+                }
+            };
+
             Loaded += (s, e) =>
             {
                 NavLibrary.IsChecked = true;
@@ -577,6 +588,27 @@ namespace OLEDable
         // ---------------------------------------------------------------- misc
 
         public void SaveSettings() { S.Save(SettingsPath); }
+
+        /// <summary>Saves the window as a PNG in the data folder's "screenshots" folder, at the screen's real resolution.</summary>
+        void SaveWindowPicture()
+        {
+            try
+            {
+                var dpi = VisualTreeHelper.GetDpi(this);
+                var el = (FrameworkElement)Content;
+                int w = (int)Math.Round(el.ActualWidth * dpi.DpiScaleX), h = (int)Math.Round(el.ActualHeight * dpi.DpiScaleY);
+                var rtb = new RenderTargetBitmap(w, h, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+                rtb.Render(el);
+                var enc = new PngBitmapEncoder();
+                enc.Frames.Add(BitmapFrame.Create(rtb));
+                var dir = Path.Combine(DataDir, "screenshots");
+                Directory.CreateDirectory(dir);
+                var file = Path.Combine(dir, "OLEDable " + DateTime.Now.ToString("yyyy-MM-dd HH.mm.ss", Inv) + ".png");
+                using (var f = File.Create(file)) enc.Save(f);
+                ShowToast("Saved a picture of the window to " + dir);
+            }
+            catch (Exception ex) { ShowToast("Couldn't save the picture: " + ex.Message); }
+        }
 
         public void ShowToast(string text)
         {
