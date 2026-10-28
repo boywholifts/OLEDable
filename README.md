@@ -6,6 +6,8 @@ A Windows app that turns any wallpaper, video or still, into a **true-black OLED
 
 It started as **HydroShift Recorder**, a tool for the Lian Li HydroShift II OLED Curved AIO display, and it still makes seamless-looping wallpapers for that screen (see [below](#for-the-lian-li-hydroshift)).
 
+![The editor: the original on the left, the true-black OLED version on the right](docs/screenshots/editor.png)
+
 ## What it does
 
 - **True black:** a live before/after preview pushes the haze to pure black. The black level is detected for each video or image, and you can fine-tune shadows, color, brightness, highlights and glow.
@@ -22,6 +24,20 @@ It started as **HydroShift Recorder**, a tool for the Lian Li HydroShift II OLED
 - **Library:** browse your wallpapers, see which are already converted, and click one to edit it.
 - **Updates in the app:** a Stable channel, or Dev for test builds.
 - Light, dark and true-black themes.
+
+## Screenshots
+
+**Library:** everything you've recorded, imported and converted. The selected video plays in its tile.
+
+![Library](docs/screenshots/library.png)
+
+**Wallpaper Engine:** every wallpaper you've downloaded from the Workshop. Videos are imported in a click; scenes can give up their video, their background image, or be recorded.
+
+![Wallpaper Engine page](docs/screenshots/wallpaper-engine.png)
+
+**Settings:** light, dark and true-black themes, accent colors, library folders and update channel.
+
+![Settings](docs/screenshots/settings.png)
 
 ## For the Lian Li HydroShift
 
