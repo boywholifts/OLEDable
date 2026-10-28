@@ -106,6 +106,7 @@
 - New videos default to Original size (sessions saved before keep theirs: no OutputMode still means HydroShift). Screen recordings of the HydroShift and Wallpaper Engine recordings at 2288 × 1048 still default to HydroShift.
 
 - Stability pass (dev.72, tested on the PC): ffmpeg / RIFE / Real-ESRGAN are tied to the app with a job object (they end if it closes or crashes); settings and session files are written atomically; unexpected errors go to `logs\errors.txt` in the data folder; closing during a job asks first; scene-video detection runs after the Wallpaper Engine tiles show; GIF previews kept at ≤640 px wide; the library watcher ignores `.partial.` exports. Removed: snapshot QA mode, GalleryScale, unused members, `setup.cmd`, `assets/icon.png`, the TunerWindow csproj lines.
+- Deeper pass (dev.73, tested on the PC): library probe results cached next to thumbnails (`.info`), stale cache files pruned after 7 days; exports swap in with File.Replace and retry if the old file is held; downloads verify their length and remove partial files; frame grabs have a 20 s watchdog; the editor's save line is refreshed 250 ms after changes stop.
 
 ## Still open
 - Make a recording with the HydroShift in second screen mode (end-to-end).
