@@ -26,6 +26,7 @@ Download `OLEDable-Setup-x.y.z.exe` from [Releases](../../releases) and run it. 
 - **Smooth to 60 fps:** RIFE adds real in-between frames to lower frame-rate videos.
 - **Any size:** keep the original, upscale 2× or 4×, or fill a size you choose (4K, ultrawide, phone…).
 - **Seamless loops:** the end crossfades into the start.
+- **Export queue:** keep editing while exports run one after another. The queue survives a restart, and can resume by itself.
 - **Record a screen:** capture any monitor, with a live preview.
 - **Videos and images:** MP4, MKV, WebM… and PNG, JPEG, WebP, BMP, TIFF.
 - Light, dark and true-black themes, and updates from inside the app.
