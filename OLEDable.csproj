@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <Resource Include="assets\icon.ico" />
+    <Resource Include="fonts\*.ttf" />
   </ItemGroup>
 
 </Project>

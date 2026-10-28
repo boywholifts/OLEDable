@@ -54,7 +54,7 @@ build-installer.cmd   # installer → dist-installer\ (needs Inno Setup 6.6+)
 
 ## Credits
 
-[RIFE / rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan) (MIT) · [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) (BSD-3-Clause) · [RePKG](https://github.com/notscuffed/repkg) (MIT) · [FFmpeg](https://ffmpeg.org) (LGPL/GPL, downloaded separately) · [Inno Setup](https://jrsoftware.org/isinfo.php)
+[RIFE / rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan) (MIT) · [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) (BSD-3-Clause) · [RePKG](https://github.com/notscuffed/repkg) (MIT) · [FFmpeg](https://ffmpeg.org) (LGPL/GPL, downloaded separately) · [Inno Setup](https://jrsoftware.org/isinfo.php) · [Manrope](https://github.com/sharanda/manrope) font (SIL OFL)
 
 Not affiliated with Lian Li or Wallpaper Engine. "HydroShift" and "L-Connect" are Lian Li's product names.
 

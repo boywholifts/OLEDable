@@ -5,7 +5,8 @@
   <!-- Shared look. Every colour is a DynamicResource set by Theme.cs, so Light / Dark / True black switch live. -->
   <Application.Resources>
 
-    <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <!-- Manrope (SIL Open Font License, see fonts\OFL.txt), built into the app; Segoe UI for anything it lacks -->
+    <FontFamily x:Key="UiFont">/OLEDable;component/fonts/#Manrope, Segoe UI Variable Text, Segoe UI</FontFamily>
 
     <!-- ===== sliders ===== -->
     <Style x:Key="Knob" TargetType="Thumb">
@@ -267,6 +268,7 @@
 
     <!-- context menus that follow the theme -->
     <Style TargetType="ContextMenu">
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="Background" Value="{DynamicResource Card}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Line2}"/>
@@ -332,6 +334,7 @@
       </Style.Triggers>
     </Style>
     <Style TargetType="ToolTip">
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="Background" Value="{DynamicResource Card}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Line2}"/>
