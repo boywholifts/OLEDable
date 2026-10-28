@@ -4,6 +4,8 @@
   <UserControl.Resources>
     <!-- a theme card: whole card is the button, ring shows the selected one -->
     <Style x:Key="ThemeCard" TargetType="Button">
+      <!-- clickable even in the window's top strip (the drag area) -->
+      <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
@@ -14,6 +16,7 @@
       </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style x:Key="Swatch" TargetType="Button">
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Width" Value="34"/>

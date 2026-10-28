@@ -4,6 +4,8 @@
   <UserControl.Resources>
     <BooleanToVisibilityConverter x:Key="Vis"/>
     <Style x:Key="TileBtn" TargetType="Button">
+      <!-- clickable even in the window's top strip (the drag area) -->
+      <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
