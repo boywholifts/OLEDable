@@ -2,7 +2,7 @@
 
 A Windows app that turns any wallpaper, video or still, into a **true-black OLED version**. The grey haze in dark areas becomes pure black, so OLED pixels switch fully off: deeper contrast, less glow, less burn-in risk.
 
-![A black hole wallpaper in the editor: the original's dark purple background on the left, true black on the right](docs/screenshots/black-hole.png)
+https://github.com/user-attachments/assets/fcb76644-4d7a-4c6a-9b09-eeed251895c5
 
 *Left: the original. Its "black" sky is really a dark purple, so every pixel stays lit (0% off). Right: after OLEDable, 60% of the pixels switch fully off.*
 
