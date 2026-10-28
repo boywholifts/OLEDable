@@ -43,6 +43,7 @@ namespace OLEDable
             p.Exited += (s, e) => exited.TrySetResult(true);
             p.Start();
             ChildProcesses.Track(p);
+            if (LowPriority.Value) { try { p.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { } }
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
         }
@@ -63,6 +64,12 @@ namespace OLEDable
                 if (output.Length > 16000) output.Remove(0, output.Length - 16000);
             }
         }
+
+        /// <summary>
+        /// Set inside a background export: its helpers run below normal priority, so the editor's live preview
+        /// stays smooth while it works (they still get every cycle the app isn't using).
+        /// </summary>
+        public static readonly AsyncLocal<bool> LowPriority = new AsyncLocal<bool>();
 
         public double Seconds { get { return Interlocked.Read(ref outUs) / 1e6; } }
         public string Output { get { lock (output) return output.ToString(); } }
@@ -167,6 +174,8 @@ namespace OLEDable
         [DataMember] public string Accent;
         [DataMember] public bool FollowWindows;
         [DataMember] public bool KeepSources;
+        /// <summary>Exports left in the queue start again when the app opens (otherwise they wait for "Start").</summary>
+        [DataMember] public bool AutoResumeQueue;
         /// <summary>Where exports go; empty = a "Converted" folder inside the library.</summary>
         [DataMember] public string ConvertedDir;
         /// <summary>Set once the user was offered to move older exports into the converted folder.</summary>

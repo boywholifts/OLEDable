@@ -76,7 +76,8 @@ namespace OLEDable
                 UpdateSplit();
                 if (k >= 1) splitAnim.Stop();
             };
-            shell.BusyChanged += () => ExportBtn.IsEnabled = !shell.Busy;
+            shell.BusyChanged += UpdateExportBtn;
+            shell.Queue.Changed += UpdateExportBtn;
 
             BlackSlider.ValueChanged += (o, e) => { if (!sync) userMovedBlack = true; Changed(); };
             foreach (var sl in new[] { ShadowSlider, ColorSlider, BrightSlider, HighSlider, GlowSlider, GlowSizeSlider })
@@ -111,7 +112,23 @@ namespace OLEDable
             SetupScrub();
         }
 
-        public void OnShown() { renderTimer.Start(); ExportBtn.IsEnabled = !shell.Busy; }
+        public void OnShown() { renderTimer.Start(); UpdateExportBtn(); }
+
+        /// <summary>While something else runs, Export adds this video to the queue instead.</summary>
+        void UpdateExportBtn()
+        {
+            bool later = shell.Busy || shell.CurrentExport != null;
+            ExportBtn.Content = later ? "Add to queue" : "Export";
+            ExportBtn.ToolTip = later ? "Exports after what's running now, with the settings as they are when you click" : null;
+        }
+
+        /// <summary>A queued export of this video finished: later exports update that file.</summary>
+        public void Exported(string id, string path)
+        {
+            if (s == null || s.Id != id) return;
+            s.ExistingPath = path;
+            UpdateSaveAs();
+        }
         public void OnHidden() { renderTimer.Stop(); FlushAutosave(); }
 
         // ---------------------------------------------------------------- the open edit, for the sidebar

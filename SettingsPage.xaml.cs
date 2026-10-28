@@ -65,6 +65,7 @@ namespace OLEDable
                 CheckUpdBtn.IsEnabled = true;
             };
             KeepSw.Click += (o, e) => { shell.S.KeepSources = KeepSw.IsChecked == true; shell.SaveSettings(); };
+            ResumeSw.Click += (o, e) => { shell.S.AutoResumeQueue = ResumeSw.IsChecked == true; shell.SaveSettings(); };
             DataBtn.Click += (o, e) => MainWindow.OpenInShell(shell.DataDir);
             Theme.Changed += Sync;
         }
@@ -111,6 +112,7 @@ namespace OLEDable
             if (string.IsNullOrEmpty(UpdStatus.Text))
                 UpdStatus.Text = S.LastUpdateCheck > DateTime.MinValue ? "Last checked " + S.LastUpdateCheck.ToString("MMM d, h:mm tt") : "Not checked yet";
             KeepSw.IsChecked = S.KeepSources;
+            ResumeSw.IsChecked = S.AutoResumeQueue;
 
             AboutText.Text = "OLEDable " + Updater.CurrentText +
                              "\nffmpeg: " + (shell.Ffmpeg ?? "not found") +

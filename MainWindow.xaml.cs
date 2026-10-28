@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -33,6 +34,11 @@ namespace OLEDable
 
         public bool Busy { get; private set; }
         public event Action BusyChanged;
+        /// <summary>Exports waiting their turn (see <see cref="RunQueue"/>).</summary>
+        public readonly ExportQueue Queue;
+        /// <summary>The queued export running now, or null.</summary>
+        public QueuedExport CurrentExport { get; private set; }
+        bool queueRunning, closing, cancelCurrent;
         public bool DisplayFound { get { return S.Adapter >= 0; } }
         public event Action DisplayChanged;
 
@@ -47,6 +53,7 @@ namespace OLEDable
         public MainWindow()
         {
             DataDir = Tools.DataDir();
+            Queue = new ExportQueue(DataDir);
             SettingsPath = Path.Combine(DataDir, "OLEDable.json");
             // renamed from HydroShift Recorder: carry the old settings over the first time
             var oldSettings = Path.Combine(DataDir, "HydroShift-Recorder.json");
@@ -75,7 +82,16 @@ namespace OLEDable
             BtnMax.Click += (s, e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             BtnClose.Click += (s, e) => Close();
             StateChanged += (s, e) => FitMaximized();
-            JobCancel.Click += (s, e) => { if (jobCts != null) jobCts.Cancel(); };
+            JobCancel.Click += (s, e) => { if (CurrentExport != null) cancelCurrent = true; if (jobCts != null) jobCts.Cancel(); };
+            QueueStart.Click += (s, e) => { Queue.Requeue(); RunQueue(); };
+            QueueClear.Click += (s, e) =>
+            {
+                if (Dialog.Ask(this, "Clear the queue", "Remove the " + QueuedCount() + " waiting export" + (QueuedCount() == 1 ? "" : "s") + "? Their settings stay saved, so you can export them again from the editor.", "Clear"))
+                {
+                    foreach (var q in Queue.Items.Where(i => i != CurrentExport).ToList()) Queue.Remove(q);
+                }
+            };
+            Queue.Changed += UpdateQueueCard;
             UpdateNow.Click += (s, e) => InstallUpdate();
             UpdateNotes.Click += (s, e) => { if (update != null) OpenInShell(update.Page); };
             DoneCard.Click += (s, e) =>
@@ -101,11 +117,24 @@ namespace OLEDable
             Closing += (s, e) =>
             {
                 // closing in the middle of an export, recording or download stops it: ask first
-                if (Busy && !Dialog.Ask(this, "Something is still running", JobTitle.Text + " isn't finished. Stop it and close OLEDable?", "Stop and close", "Keep running"))
+                if (Busy)
                 {
-                    e.Cancel = true;
-                    return;
+                    string msg;
+                    if (CurrentExport != null)
+                    {
+                        int more = QueuedCount();
+                        msg = "“" + CurrentExport.Title + "” is still exporting" + (more > 0 ? ", with " + more + " more in the queue" : "") +
+                              ". If you close OLEDable it stops, and the queue " +
+                              (S.AutoResumeQueue ? "starts again the next time you open it." : "waits until you press Start.");
+                    }
+                    else msg = JobTitle.Text + " isn't finished. Stop it and close OLEDable?";
+                    if (!Dialog.Ask(this, "Something is still running", msg, CurrentExport != null ? "Close" : "Stop and close", "Keep running"))
+                    {
+                        e.Cancel = true;
+                        return;
+                    }
                 }
+                closing = true;
                 if (jobCts != null) jobCts.Cancel();
                 if (record != null) record.OnHidden();
                 if (editor != null) editor.FlushAutosave();
@@ -145,6 +174,16 @@ namespace OLEDable
                     SetDisplay(false, "ffmpeg is not installed", "Run  winget install Gyan.FFmpeg  then reopen the app.");
                     DisplayCard.Visibility = Visibility.Visible;
                     return;
+                }
+                // exports left from last time: start them again, or keep them until "Start"
+                if (Queue.Count > 0)
+                {
+                    if (S.AutoResumeQueue) { Queue.Requeue(); RunQueue(); }
+                    else
+                    {
+                        foreach (var q in Queue.Items.Where(i => i.State == QueuedExport.Waiting).ToList()) Queue.Set(q, QueuedExport.Interrupted);
+                        UpdateQueueCard();
+                    }
                 }
             };
         }
@@ -313,7 +352,8 @@ namespace OLEDable
             var n = SafeName(title);
             if (n.Length == 0) n = "OLEDable " + DateTime.Now.ToString("yyyy-MM-dd HH.mm");
             var name = n + ext;
-            for (int i = 2; File.Exists(Path.Combine(S.ConvertedPath, name)) || File.Exists(Path.Combine(S.OutDir, name)); i++)
+            for (int i = 2; File.Exists(Path.Combine(S.ConvertedPath, name)) || File.Exists(Path.Combine(S.OutDir, name)) ||
+                            Queue.Claims(Path.Combine(S.ConvertedPath, name)); i++)
                 name = n + " (" + i + ")" + ext;
             return name;
         }
@@ -362,7 +402,8 @@ namespace OLEDable
         /// Runs one background job at a time with progress in the sidebar. Returns true on success;
         /// failures are shown to the user, cancelling is silent.
         /// </summary>
-        public async Task<bool> RunJob(string title, Func<IProgress<JobStatus>, CancellationToken, Task> work, IProgress<JobStatus> also = null)
+        public async Task<bool> RunJob(string title, Func<IProgress<JobStatus>, CancellationToken, Task> work, IProgress<JobStatus> also = null,
+                                       Action<string> onError = null)
         {
             if (Busy) { ShowToast("Something is already running. Wait for it to finish or cancel it."); return false; }
             Busy = true; BusyChanged?.Invoke();
@@ -391,7 +432,8 @@ namespace OLEDable
             catch (Exception ex)
             {
                 if (jobCts.IsCancellationRequested) { ShowToast("Cancelled"); return false; }
-                Dialog.Tell(this, "Something went wrong", ex.Message);
+                if (onError != null) onError(ex.Message);   // the queue keeps going and shows it on the item instead
+                else Dialog.Tell(this, "Something went wrong", ex.Message);
                 return false;
             }
             finally
@@ -400,6 +442,8 @@ namespace OLEDable
                 JobCard.Visibility = Visibility.Collapsed;
                 TaskbarItemInfo.ProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
                 Busy = false; BusyChanged?.Invoke();
+                // exports queued while something else ran (a recording, a download) start now
+                if (!queueRunning && !closing && Queue.Next != null) Dispatcher.BeginInvoke(new Action(RunQueue));
             }
         }
 
@@ -415,8 +459,12 @@ namespace OLEDable
             DoneCard.Visibility = Visibility.Visible;
         }
 
-        /// <summary>Exports the session into the library folder, keeping its settings for later re-editing.</summary>
-        public async Task<bool> Export(EditSession s)
+        /// <summary>
+        /// Exports the session into the library folder, keeping its settings for later re-editing. It goes into
+        /// the queue: straight away when nothing else is running, otherwise when its turn comes. Returns true once
+        /// it's queued.
+        /// </summary>
+        public Task<bool> Export(EditSession s)
         {
             if (string.IsNullOrEmpty(s.OutputName)) s.OutputName = UniqueOutputName(s.Title, s.IsImage ? ".png" : ".mp4");
             var outPath = OutputPathFor(s);
@@ -425,20 +473,104 @@ namespace OLEDable
             S.Loop = snap.Loop;   // (the look isn't remembered: every video starts untouched, and Auto adjust is per video) S.Smooth = snap.Smooth;
             S.RememberEnhance(snap);
             SaveSettings();
-            bool ok = await RunJob("Exporting " + (s.Title ?? s.OutputName), (pr, ct) => P.ExportAsync(snap, outPath, pr, ct));
-            SaveSettings();   // keeps the step speeds it measured, for better time estimates next time
-            if (ok)
+            bool wait = Busy || queueRunning;
+            Queue.Add(QueuedExport.For(snap, outPath), CurrentExport);
+            if (wait) ShowToast("Added to the queue: " + (snap.Title ?? snap.OutputName));
+            RunQueue();
+            return Task.FromResult(true);
+        }
+
+        int QueuedCount() { return Queue.Items.Count(i => i != CurrentExport); }
+
+        /// <summary>
+        /// Runs the queued exports one after another. One at a time on purpose: an export already keeps the CPU
+        /// and GPU busy, so two together would each take twice as long and need twice the temporary space.
+        /// A failed export is marked and skipped; cancelling one removes it; closing the app leaves the rest.
+        /// </summary>
+        async void RunQueue()
+        {
+            if (queueRunning || Busy) return;
+            queueRunning = true;
+            try
             {
-                if (!S.KeepSources && snap.Kind == "recording")
+                QueuedExport q;
+                while (!closing && (q = Queue.Next) != null)
                 {
-                    // originals not kept: the exported video becomes the thing to edit next time
-                    Store.Forget(snap.Id);
+                    CurrentExport = q;
+                    cancelCurrent = false;
+                    UpdateQueueCard();
+                    var snap = q.Ready();
+                    string error = null;
+                    bool ok = await RunJob("Exporting " + q.Title, async (pr, ct) =>
+                    {
+                        FfJob.LowPriority.Value = true;
+                        await P.ExportAsync(snap, q.OutPath, pr, ct);
+                    }, null, msg => error = msg);
+                    SaveSettings();   // keeps the step speeds it measured, for better time estimates next time
+                    if (ok)
+                    {
+                        Queue.Remove(q);
+                        if (!S.KeepSources && snap.Kind == "recording") Store.Forget(snap.Id);   // the export is what gets edited next time
+                        if (editor != null) editor.Exported(snap.Id, q.OutPath);
+                        ShowDone(q.OutPath);
+                        if (library != null) library.Refresh();
+                    }
+                    else if (closing) Queue.Set(q, QueuedExport.Interrupted);
+                    else if (error != null)
+                    {
+                        Queue.Set(q, QueuedExport.Failed, error);
+                        ShowToast("Couldn't export " + q.Title + ". It's marked in the queue.");
+                    }
+                    else Queue.Remove(q);   // cancelled
                 }
-                s.ExistingPath = outPath;
-                ShowDone(outPath);
-                if (library != null) library.Refresh();
             }
-            return ok;
+            finally
+            {
+                CurrentExport = null;
+                queueRunning = false;
+                UpdateQueueCard();
+                BusyChanged?.Invoke();
+            }
+        }
+
+        /// <summary>The sidebar list of exports waiting (with Start and Clear when the queue isn't running).</summary>
+        void UpdateQueueCard()
+        {
+            var waiting = Queue.Items.Where(i => i != CurrentExport).ToList();
+            QueueCard.Visibility = waiting.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            QueueList.Children.Clear();
+            if (waiting.Count == 0) return;
+            bool running = CurrentExport != null;
+            int stopped = waiting.Count(i => i.State == QueuedExport.Interrupted), failed = waiting.Count(i => i.State == QueuedExport.Failed);
+            QueueTitle.Text = running ? "Up next" : "Export queue";
+            QueueText.Text = running ? waiting.Count + " waiting"
+                           : stopped > 0 ? waiting.Count + " waiting  ·  stopped when OLEDable closed"
+                           : failed > 0 ? failed + " couldn't be exported"
+                           : waiting.Count + " waiting";
+            QueueStart.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
+            QueueStart.Content = failed > 0 && stopped == 0 ? "Try again" : "Start";
+            foreach (var q in waiting.Take(6))
+            {
+                var item = q;
+                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+                var x = new Button { Width = 20, Height = 20, Cursor = System.Windows.Input.Cursors.Hand, Focusable = false, ToolTip = "Remove from the queue",
+                                     Template = (ControlTemplate)QueueCard.FindResource("QueueRemoveBtn") };
+                x.SetResourceReference(ForegroundProperty, "Sub");
+                x.Click += (o, e) => Queue.Remove(item);
+                DockPanel.SetDock(x, Dock.Right);
+                row.Children.Add(x);
+                var name = new TextBlock { Text = item.Title, FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center,
+                                           ToolTip = item.State == QueuedExport.Failed ? "Couldn't export: " + item.Error : item.OutPath };
+                if (item.State == QueuedExport.Failed) name.Foreground = new SolidColorBrush(Color.FromRgb(0xF0, 0x5A, 0x5A));
+                row.Children.Add(name);
+                QueueList.Children.Add(row);
+            }
+            if (waiting.Count > 6)
+            {
+                var more = new TextBlock { Text = "and " + (waiting.Count - 6) + " more", FontSize = 12.5, Margin = new Thickness(0, 4, 0, 0) };
+                more.SetResourceReference(TextBlock.ForegroundProperty, "Sub");
+                QueueList.Children.Add(more);
+            }
         }
 
         // ---------------------------------------------------------------- updates

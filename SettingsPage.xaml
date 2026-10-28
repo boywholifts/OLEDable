@@ -170,6 +170,15 @@
                          FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
             </StackPanel>
           </DockPanel>
+          <Border Height="1" Background="{DynamicResource Line}" Margin="16,0,0,0"/>
+          <DockPanel Style="{StaticResource Row}">
+            <ToggleButton x:Name="ResumeSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Resume the export queue when OLEDable opens"/>
+              <TextBlock Text="Exports still queued when the app closed start again by themselves. Off: they wait in the sidebar until you press Start."
+                         FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
+            </StackPanel>
+          </DockPanel>
         </StackPanel>
       </Border>
 
