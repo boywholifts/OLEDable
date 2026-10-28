@@ -1,6 +1,6 @@
 # OLEDable
 
-A Windows app that turns any wallpaper, video or still, into a **true-black OLED version**. The grey haze in dark areas becomes pure black, so OLED pixels switch fully off: deeper contrast, less glow, less burn-in risk.
+A Windows app that makes any wallpaper, video or still, look its best on an **OLED screen**. Hazy, grey blacks become **true black**, so those pixels switch fully off, and everything else is yours to tune: shadows, color, brightness, highlights and glow. Then upscale it with AI, smooth it to 60 fps, and fit it to any screen.
 
 https://github.com/user-attachments/assets/fcb76644-4d7a-4c6a-9b09-eeed251895c5
 
