@@ -7,6 +7,8 @@ namespace OLEDable
 {
     public partial class App : Application
     {
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(int processId);
+
         static Mutex single;
         static EventWaitHandle showSignal;
 
@@ -21,6 +23,8 @@ namespace OLEDable
             showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\OLEDable.Show");
             if (!first)
             {
+                // this copy is the one the user just opened, so Windows lets it hand the focus to the running one
+                AllowSetForegroundWindow(-1);
                 showSignal.Set();
                 Shutdown();
                 return;
