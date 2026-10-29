@@ -38,7 +38,7 @@ namespace OLEDable
         public readonly ExportQueue Queue;
         /// <summary>The queued export running now, or null.</summary>
         public QueuedExport CurrentExport { get; private set; }
-        bool queueRunning, closing, cancelCurrent, quietCancel;
+        bool queueRunning, closing, quietCancel;
         public bool DisplayFound { get { return S.Adapter >= 0; } }
         public event Action DisplayChanged;
 
@@ -82,7 +82,7 @@ namespace OLEDable
             BtnMax.Click += (s, e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             BtnClose.Click += (s, e) => Close();
             StateChanged += (s, e) => FitMaximized();
-            JobCancel.Click += (s, e) => { if (CurrentExport != null) cancelCurrent = true; if (jobCts != null) jobCts.Cancel(); };
+            JobCancel.Click += (s, e) => { if (jobCts != null) jobCts.Cancel(); };
             QueueStart.Click += (s, e) => { Queue.Requeue(); RunQueue(); };
             QueueClear.Click += (s, e) =>
             {
@@ -443,7 +443,7 @@ namespace OLEDable
                 TaskbarItemInfo.ProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
                 Busy = false; BusyChanged?.Invoke();
                 // exports queued while something else ran (a recording, a download) start now
-                if (!queueRunning && !closing && Queue.Next != null) Dispatcher.BeginInvoke(new Action(RunQueue));
+                if (!queueRunning && !closing && Queue.Next != null) _ = Dispatcher.BeginInvoke(new Action(RunQueue));
             }
         }
 
@@ -502,7 +502,7 @@ namespace OLEDable
             if (restart && CurrentExport != null && CurrentExport.Session.Id == snap.Id)
             {
                 // stop the export with the old settings; the new one is next in line, so it starts straight away
-                quietCancel = true; cancelCurrent = true;
+                quietCancel = true;
                 if (jobCts != null) jobCts.Cancel();
                 ShowToast("Starting again with your changes");
             }
@@ -574,7 +574,6 @@ namespace OLEDable
                 while (!closing && (q = Queue.Next) != null)
                 {
                     CurrentExport = q;
-                    cancelCurrent = false;
                     UpdateQueueCard();
                     var snap = q.Ready();
                     string error = null, weFolder = null;

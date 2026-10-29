@@ -95,9 +95,10 @@
 3. When it's good: GitHub → Actions → Build EXE → **Run workflow** → tick "Publish as a stable release". It uses the csproj `<Version>`, creates tag `vX.Y.Z` and the release; everyone on Stable is offered it.
 4. Bump `<Version>` in the csproj to the next version, so later dev builds count as newer than the release.
 - v2.2.0 released 2026-10-23 (first stable).
-- v2.3.0 released 2026-10-27 (OLEDable); csproj now 2.4.0.
+- v2.3.0 released 2026-10-27 (OLEDable).
+- v2.4.0 released 2026-10-29 (export queue, Add to Wallpaper Engine, Eclipse logo, Manrope); csproj now 2.5.0.
 
-## 2.4 (in development)
+## 2.4 (released 2026-10-29)
 - Live preview: the selected tile plays (videos, scenes' video textures, animated Workshop GIFs), on both galleries.
 - Library works like the Wallpaper Engine page: select, then Edit / folder / Refresh at the top right; import strip (with Record screen) at the top.
 - Scene videos: found by looking for an MP4 ("ftyp") right after the texture header, which covers the older texture layout (flag 32, TEXB0003) RePKG doesn't export; "Use its video" copies the bytes straight out of the package.

@@ -11,7 +11,7 @@
     <RootNamespace>OLEDable</RootNamespace>
     <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>2.4.0</Version>
+    <Version>2.5.0</Version>
     <Product>OLEDable</Product>
     <AssemblyTitle>OLEDable</AssemblyTitle>
     <Description>Turns wallpapers, videos and stills, into true-black OLED versions</Description>
