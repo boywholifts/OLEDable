@@ -813,10 +813,17 @@ namespace OLEDable
                 string audioIn = "", audioOut = " -an";
                 if (s.AddToWallpaperEngine && HasAudio(s.SourcePath))
                 {
-                    audioIn = " -ss " + Num(t0) + " -t " + Num(s.UsedLength) + " -i " + Q(s.SourcePath);
+                    double D = s.UsedLength;
+                    audioIn = " -ss " + Num(t0) + " -t " + Num(D) + " -i " + Q(s.SourcePath);
+                    // (acrossfade stalls when both sides come from the same input, so the overlap is mixed by hand:
+                    // 1 s .. D-1 as is, then the last second fading out over the first second fading in)
                     graph += outSec < dur - 0.01
-                        ? ";[1:a]aresample=48000,asplit[a1][a2];[a1]atrim=start=1,asetpts=PTS-STARTPTS[am];[a2]atrim=end=1,asetpts=PTS-STARTPTS[ah];[am][ah]acrossfade=d=1[a]"
-                        : ";[1:a]aresample=48000[a]";
+                        ? ";[1:a]aresample=48000,asetpts=PTS-STARTPTS,asplit=3[ax][ay][az];" +
+                          "[ax]atrim=start=1:end=" + Num(D - 1) + ",asetpts=PTS-STARTPTS[abody];" +
+                          "[ay]atrim=start=" + Num(D - 1) + ":end=" + Num(D) + ",asetpts=PTS-STARTPTS,afade=t=out:d=1[atail];" +
+                          "[az]atrim=end=1,asetpts=PTS-STARTPTS,afade=t=in:d=1[ahead];" +
+                          "[atail][ahead]amix=inputs=2:normalize=0[amix];[abody][amix]concat=n=2:v=0:a=1[a]"
+                        : ";[1:a]aresample=48000,asetpts=PTS-STARTPTS[a]";
                     audioOut = " -map \"[a]\" -c:a aac -b:a 192k -shortest";
                 }
                 var tmp = outPath + ".partial.mp4";
