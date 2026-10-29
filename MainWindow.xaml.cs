@@ -513,6 +513,52 @@ namespace OLEDable
 
         int QueuedCount() { return Queue.Items.Count(i => i != CurrentExport); }
 
+        /// <summary>Turns the Wallpaper Engine step on or off for this video's running or queued exports. True if there were any.</summary>
+        public bool SetWallpaperEngineStep(string sessionId, bool on)
+        {
+            bool any = false;
+            foreach (var q in Queue.Items.Where(i => i.Session.Id == sessionId))
+            {
+                q.Session.AddToWallpaperEngine = on;   // the running export reads it once its video is done
+                any = true;
+            }
+            if (any) Queue.Save();
+            return any;
+        }
+
+        /// <summary>
+        /// Puts a video that's already in the library into Wallpaper Engine (with its original's sound, for an
+        /// OLEDable export). Seconds, not an export: the picture is copied as it is.
+        /// </summary>
+        public async void AddToWallpaperEngine(LibraryItem it)
+        {
+            if (it == null || it.IsImage) return;
+            var session = it.Id != null ? Store.Load(it.Id) : null;
+            if (session == null)
+            {
+                // any other video: it goes in as it is (keeping its own sound); the id keeps re-adds in one folder
+                using (var sha = System.Security.Cryptography.SHA1.Create())
+                    session = new EditSession
+                    {
+                        Id = "file-" + BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(it.Path.ToLowerInvariant())), 0, 8).Replace("-", ""),
+                        Title = it.Name,
+                    };
+            }
+            else if (session.Title == null) session.Title = it.Name;
+            string folder = null;
+            // the trim is measured on the original, so its length is the one that counts
+            var info = session.SourcePath != null && File.Exists(session.SourcePath) ? await ProbeAsync(Ffprobe, session.SourcePath) : it.Info;
+            if (info != null) { session.Duration = info.Duration; session.Fps = info.Fps; session.Width = info.Width; session.Height = info.Height; }
+            bool ok = await RunQuick("Adding " + it.Name + " to Wallpaper Engine", (pr, ct) => Task.Run(() =>
+            {
+                pr.Report(new JobStatus("Adding it to Wallpaper Engine…", -1));
+                folder = Workshop.AddToWallpaperEngine(session, it.Path, P);
+            }, ct));
+            if (!ok) return;
+            if (it.Id != null && session.SourcePath != null) { session.WeFolder = folder; session.AddToWallpaperEngine = true; Store.Save(session); }
+            ShowToast("Added to Wallpaper Engine under My projects (press its refresh button if it isn't listed yet)");
+        }
+
         /// <summary>
         /// Runs the queued exports one after another. One at a time on purpose: an export already keeps the CPU
         /// and GPU busy, so two together would each take twice as long and need twice the temporary space.
@@ -539,8 +585,7 @@ namespace OLEDable
                         if (snap.AddToWallpaperEngine && !snap.IsImage)
                         {
                             pr.Report(new JobStatus("Adding it to Wallpaper Engine…", -1));
-                            var ff = Ffmpeg;
-                            weFolder = await Task.Run(() => Workshop.AddToWallpaperEngine(snap, q.OutPath, ff), ct);
+                            weFolder = await Task.Run(() => Workshop.AddToWallpaperEngine(snap, q.OutPath, P), ct);
                         }
                     }, null, msg => error = msg);
                     SaveSettings();   // keeps the step speeds it measured, for better time estimates next time

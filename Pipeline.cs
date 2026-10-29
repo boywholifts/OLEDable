@@ -104,7 +104,7 @@ namespace OLEDable
                    EnhanceStyle == o.EnhanceStyle && EnhanceStrength == o.EnhanceStrength && EnhanceCleanup == o.EnhanceCleanup &&
                    EnhanceTta == o.EnhanceTta && EnhanceSharpen == o.EnhanceSharpen &&
                    OutputMode == o.OutputMode && UpscaleFactor == o.UpscaleFactor && CustomW == o.CustomW && CustomH == o.CustomH &&
-                   Title == o.Title && OutputName == o.OutputName && AddToWallpaperEngine == o.AddToWallpaperEngine;
+                   Title == o.Title && OutputName == o.OutputName;   // (Add to Wallpaper Engine can change without exporting again)
         }
 
         public EditSession Clone()
@@ -808,28 +808,10 @@ namespace OLEDable
                 if (s.TrueBlack) pre += Oled.Filter(s.Oled, o.W, o.H);
                 double outSec;
                 var graph = FfArgs.FinishGraph(pre, dur, s.Loop, 1, out outSec);
-                // the sound comes along for Wallpaper Engine (the HydroShift plays none): straight from the source,
-                // crossfaded at the loop point the same way as the picture
-                string audioIn = "", audioOut = " -an";
-                if (s.AddToWallpaperEngine && HasAudio(s.SourcePath))
-                {
-                    double D = s.UsedLength;
-                    audioIn = " -ss " + Num(t0) + " -t " + Num(D) + " -i " + Q(s.SourcePath);
-                    // (acrossfade stalls when both sides come from the same input, so the overlap is mixed by hand:
-                    // 1 s .. D-1 as is, then the last second fading out over the first second fading in)
-                    graph += outSec < dur - 0.01
-                        ? ";[1:a]aresample=48000,asetpts=PTS-STARTPTS,asplit=3[ax][ay][az];" +
-                          "[ax]atrim=start=1:end=" + Num(D - 1) + ",asetpts=PTS-STARTPTS[abody];" +
-                          "[ay]atrim=start=" + Num(D - 1) + ":end=" + Num(D) + ",asetpts=PTS-STARTPTS,afade=t=out:d=1[atail];" +
-                          "[az]atrim=end=1,asetpts=PTS-STARTPTS,afade=t=in:d=1[ahead];" +
-                          "[atail][ahead]amix=inputs=2:normalize=0[amix];[abody][amix]concat=n=2:v=0:a=1[a]"
-                        : ";[1:a]aresample=48000,asetpts=PTS-STARTPTS[a]";
-                    audioOut = " -map \"[a]\" -c:a aac -b:a 192k -shortest";
-                }
                 var tmp = outPath + ".partial.mp4";
                 TryDelete(tmp);
                 var meta = "-metadata comment=" + Q("oled|" + s.Id + "|" + s.Kind + (s.TrueBlack ? "|tb" : "")) + " -metadata title=" + Q(s.Title ?? "");
-                await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 " + input + audioIn + " -filter_complex \"" + graph + "\" -map \"[v]\"" + audioOut + " " +
+                await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 " + input + " -filter_complex \"" + graph + "\" -map \"[v]\" -an " +
                             FfArgs.Encode(outSec, o) + " " + meta + " " + Q(tmp),
                             outSec, s.Loop ? "Finishing and looping" : "Finishing", pr, ct);
                 if (!File.Exists(tmp)) throw new Exception("Finishing failed: no file was written.");
@@ -926,8 +908,32 @@ namespace OLEDable
             }
         }
 
+        /// <summary>
+        /// The finished (silent) export with the source's sound added, for Wallpaper Engine (the HydroShift plays
+        /// none). The picture is copied as it is, so this takes seconds. The sound is trimmed like the picture and,
+        /// when the export loops, its last second fades into its first the same way.
+        /// </summary>
+        public void AddSound(EditSession s, string video, string dest)
+        {
+            double t0 = s.UsedStart, D = s.UsedLength;
+            bool loop = s.Loop && D > 3;   // FfArgs.FinishGraph crossfades the picture in the same case
+            // (acrossfade stalls when both sides come from one input, so the overlap is mixed by hand)
+            string a = loop
+                ? "[1:a]aresample=48000,asetpts=PTS-STARTPTS,asplit=3[ax][ay][az];" +
+                  "[ax]atrim=start=1:end=" + Num(D - 1) + ",asetpts=PTS-STARTPTS[abody];" +
+                  "[ay]atrim=start=" + Num(D - 1) + ":end=" + Num(D) + ",asetpts=PTS-STARTPTS,afade=t=out:d=1[atail];" +
+                  "[az]atrim=end=1,asetpts=PTS-STARTPTS,afade=t=in:d=1[ahead];" +
+                  "[atail][ahead]amix=inputs=2:normalize=0[amix];[abody][amix]concat=n=2:v=0:a=1[a]"
+                : "[1:a]aresample=48000,asetpts=PTS-STARTPTS[a]";
+            var job = new FfJob(Ffmpeg, "-y -hide_banner -loglevel error -i " + Q(video) + " -ss " + Num(t0) + " -t " + Num(D) + " -i " + Q(s.SourcePath) +
+                                        " -filter_complex \"" + a + "\" -map 0:v -map \"[a]\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart " + Q(dest));
+            if (!job.Wait(10 * 60 * 1000)) job.Kill();
+            job.Drain();
+            if (!File.Exists(dest) || new FileInfo(dest).Length < 1024) throw new Exception("Adding the sound failed: " + job.LastLine);
+        }
+
         /// <summary>Whether the file has a sound track.</summary>
-        bool HasAudio(string file)
+        public bool HasAudio(string file)
         {
             if (Ffprobe == null) return false;
             try

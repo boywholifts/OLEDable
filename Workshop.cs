@@ -103,8 +103,9 @@ namespace OLEDable
         /// on the next update anyway). Exporting the same video again updates the same folder, found by the id
         /// written into its project.json. Returns the folder.
         /// </summary>
-        public static string AddToWallpaperEngine(EditSession s, string exportPath, string ffmpeg)
+        public static string AddToWallpaperEngine(EditSession s, string exportPath, Pipeline p)
         {
+            var ffmpeg = p.Ffmpeg;
             var we = FindWallpaperEngine();
             if (we == null) throw new Exception("Wallpaper Engine wasn't found in your Steam libraries.");
             var mine = Path.Combine(Path.GetDirectoryName(we), "projects", "myprojects");
@@ -135,7 +136,16 @@ namespace OLEDable
             var file = (SafeName(title).Length > 0 ? SafeName(title) : "wallpaper") + ".mp4";
             foreach (var old in Directory.EnumerateFiles(dir, "*.mp4"))
                 if (!string.Equals(Path.GetFileName(old), file, StringComparison.OrdinalIgnoreCase)) TryDelete(old);
-            System.IO.File.Copy(exportPath, Path.Combine(dir, file), true);
+            // the export is silent (made for the HydroShift): the original's sound goes back in, when it has some
+            var target = Path.Combine(dir, file);
+            if (s.SourcePath != null && System.IO.File.Exists(s.SourcePath) && !p.HasAudio(exportPath) && p.HasAudio(s.SourcePath))
+            {
+                var tmp = target + ".partial.mp4";
+                TryDelete(tmp);
+                try { p.AddSound(s, exportPath, tmp); TryDelete(target); System.IO.File.Move(tmp, target); }
+                finally { TryDelete(tmp); }
+            }
+            else System.IO.File.Copy(exportPath, target, true);
             var preview = Path.Combine(dir, "preview.jpg");
             if (ffmpeg != null)
             {

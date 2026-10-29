@@ -22,6 +22,10 @@ namespace OLEDable
             {
                 if (s == null) return;
                 s.AddToWallpaperEngine = WeSw.IsChecked == true;
+                // exporting or queued already: the export doesn't start over, it just gets (or loses) the step that
+                // adds it to Wallpaper Engine when it's done
+                if (shell.SetWallpaperEngineStep(s.Id, s.AddToWallpaperEngine))
+                    shell.ShowToast(s.AddToWallpaperEngine ? "It'll go into Wallpaper Engine when the export finishes" : "It won't be added to Wallpaper Engine");
                 Touched();
                 UpdateWeUi();
             };

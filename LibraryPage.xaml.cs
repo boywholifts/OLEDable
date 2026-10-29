@@ -50,6 +50,7 @@ namespace OLEDable
             ImportBtn.Click += (s, e) => shell.PickAndImport();
             EditBtn.Click += (s, e) => { if (selected != null) shell.OpenItem(selected); };
             SelFolderBtn.Click += (s, e) => { if (selected != null) MainWindow.OpenInShell(selected.Path, true); };
+            WeAddBtn.Click += (s, e) => { if (selected != null) shell.AddToWallpaperEngine(selected); };
             RefreshBtn.Click += (s, e) => Refresh();
             // the import strip lights up while a file is dragged over it (the window takes the drop)
             ImportStrip.DragEnter += (s, e) => ImportStrip.SetResourceReference(Border.BorderBrushProperty, "Accent");
@@ -83,6 +84,7 @@ namespace OLEDable
 
         readonly TilePreview preview = new TilePreview();
         LibraryItem selected;
+        static readonly Lazy<bool> HasWallpaperEngine = new Lazy<bool>(() => Workshop.FindWallpaperEngine() != null);
 
         /// <summary>Selects a video: accent ring, it plays in its tile, Edit and its folder appear at the top right.</summary>
         void SelectItem(LibraryItem it)
@@ -93,6 +95,7 @@ namespace OLEDable
             if (it != null) it.IsSelected = true;
             SelHint.Visibility = it == null ? Visibility.Visible : Visibility.Collapsed;
             EditBtn.Visibility = SelFolderBtn.Visibility = it == null ? Visibility.Collapsed : Visibility.Visible;
+            WeAddBtn.Visibility = it != null && !it.IsImage && HasWallpaperEngine.Value ? Visibility.Visible : Visibility.Collapsed;
             StartPreview();
         }
 

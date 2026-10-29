@@ -51,7 +51,7 @@ namespace OLEDable
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(24, 20, 24, 20),
                 Margin = new Thickness(16),   // room for the shadow
-                Width = 420,
+                Width = other != null ? 500 : 420,   // three buttons need the room
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 24, ShadowDepth = 4, Opacity = 0.35 },
             };
             card.SetResourceReference(Border.BackgroundProperty, "Card");
