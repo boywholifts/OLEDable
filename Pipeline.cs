@@ -62,6 +62,10 @@ namespace OLEDable
         [DataMember] public int UpscaleFactor;
         /// <summary>Size for the "custom" output.</summary>
         [DataMember] public int CustomW, CustomH;
+        /// <summary>Also put the export into Wallpaper Engine as a wallpaper of its own (with the video's sound).</summary>
+        [DataMember] public bool AddToWallpaperEngine;
+        /// <summary>The Wallpaper Engine folder made for it last time, so the next export updates it.</summary>
+        [DataMember] public string WeFolder;
 
         /// <summary>Where the exported video already is, when the session was opened from it; not saved.</summary>
         public string ExistingPath;
@@ -100,7 +104,7 @@ namespace OLEDable
                    EnhanceStyle == o.EnhanceStyle && EnhanceStrength == o.EnhanceStrength && EnhanceCleanup == o.EnhanceCleanup &&
                    EnhanceTta == o.EnhanceTta && EnhanceSharpen == o.EnhanceSharpen &&
                    OutputMode == o.OutputMode && UpscaleFactor == o.UpscaleFactor && CustomW == o.CustomW && CustomH == o.CustomH &&
-                   Title == o.Title && OutputName == o.OutputName;
+                   Title == o.Title && OutputName == o.OutputName && AddToWallpaperEngine == o.AddToWallpaperEngine;
         }
 
         public EditSession Clone()
@@ -804,10 +808,21 @@ namespace OLEDable
                 if (s.TrueBlack) pre += Oled.Filter(s.Oled, o.W, o.H);
                 double outSec;
                 var graph = FfArgs.FinishGraph(pre, dur, s.Loop, 1, out outSec);
+                // the sound comes along for Wallpaper Engine (the HydroShift plays none): straight from the source,
+                // crossfaded at the loop point the same way as the picture
+                string audioIn = "", audioOut = " -an";
+                if (s.AddToWallpaperEngine && HasAudio(s.SourcePath))
+                {
+                    audioIn = " -ss " + Num(t0) + " -t " + Num(s.UsedLength) + " -i " + Q(s.SourcePath);
+                    graph += outSec < dur - 0.01
+                        ? ";[1:a]aresample=48000,asplit[a1][a2];[a1]atrim=start=1,asetpts=PTS-STARTPTS[am];[a2]atrim=end=1,asetpts=PTS-STARTPTS[ah];[am][ah]acrossfade=d=1[a]"
+                        : ";[1:a]aresample=48000[a]";
+                    audioOut = " -map \"[a]\" -c:a aac -b:a 192k -shortest";
+                }
                 var tmp = outPath + ".partial.mp4";
                 TryDelete(tmp);
                 var meta = "-metadata comment=" + Q("oled|" + s.Id + "|" + s.Kind + (s.TrueBlack ? "|tb" : "")) + " -metadata title=" + Q(s.Title ?? "");
-                await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 " + input + " -filter_complex \"" + graph + "\" -map \"[v]\" -an " +
+                await RunFf("-y -hide_banner -loglevel error -nostats -progress pipe:2 " + input + audioIn + " -filter_complex \"" + graph + "\" -map \"[v]\"" + audioOut + " " +
                             FfArgs.Encode(outSec, o) + " " + meta + " " + Q(tmp),
                             outSec, s.Loop ? "Finishing and looping" : "Finishing", pr, ct);
                 if (!File.Exists(tmp)) throw new Exception("Finishing failed: no file was written.");
@@ -902,6 +917,20 @@ namespace OLEDable
                     throw new Exception("“" + Path.GetFileName(outPath) + "” is open in another program, so it couldn't be replaced. Close it and export again.");
                 }
             }
+        }
+
+        /// <summary>Whether the file has a sound track.</summary>
+        bool HasAudio(string file)
+        {
+            if (Ffprobe == null) return false;
+            try
+            {
+                var j = new FfJob(Ffprobe, "-v error -select_streams a:0 -show_entries stream=index -of csv=p=0 " + Q(file));
+                if (!j.Wait(15000)) j.Kill();
+                j.Drain();
+                return j.Output.Trim().Length > 0;
+            }
+            catch { return false; }
         }
 
         /// <summary>Length of one piece of a frame-by-frame export (see ExportAsync).</summary>

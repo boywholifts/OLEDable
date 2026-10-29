@@ -165,7 +165,19 @@
                 <TextBox x:Name="CustomHBox" Style="{StaticResource Field}" Width="90" ToolTip="Height in pixels"/>
               </StackPanel>
             </StackPanel>
-            <TextBlock x:Name="OutNote" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,8,0,22" TextWrapping="Wrap"/>
+            <TextBlock x:Name="OutNote" FontSize="12" Foreground="{DynamicResource Sub}" Margin="0,8,0,14" TextWrapping="Wrap"/>
+            <StackPanel x:Name="WeRow" Margin="0,0,0,22">
+              <DockPanel>
+                <ToggleButton x:Name="WeSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+                <StackPanel>
+                  <TextBlock Text="Also add to Wallpaper Engine" Style="{StaticResource RowLabel}"
+                             ToolTip="After exporting, the video goes into Wallpaper Engine's My projects as a wallpaper of its own, with its sound. The original Workshop wallpaper isn't touched, and exporting again updates the same copy. A scene becomes a plain video: no parallax, audio effects or options."/>
+                  <TextBlock Text="A new wallpaper in My projects, with sound" FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </DockPanel>
+              <TextBlock x:Name="WeWarn" FontSize="12" Foreground="#FFF2A03D" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"
+                         Text="The HydroShift size (2288 × 1048) is made for the AIO screen and will look cropped on a desktop. Pick Original size, or Custom with your monitor's size, for Wallpaper Engine."/>
+            </StackPanel>
 
             <TextBlock Text="TRUE BLACK" Style="{StaticResource SectionTitle}"/>
             <DockPanel><TextBlock x:Name="BlackVal" DockPanel.Dock="Right" Style="{StaticResource RowValue}"/>

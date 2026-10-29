@@ -18,6 +18,13 @@ namespace OLEDable
 
         void SetupOutputControls()
         {
+            WeSw.Click += (o, e) =>
+            {
+                if (s == null) return;
+                s.AddToWallpaperEngine = WeSw.IsChecked == true;
+                Touched();
+                UpdateWeUi();
+            };
             OutPanel.Checked += (o, e) => SetOutput(OutputSpec.HydroShift);
             OutOrig.Checked += (o, e) => SetOutput(OutputSpec.Original);
             OutUp.Checked += (o, e) => SetOutput(OutputSpec.Upscale);
@@ -118,6 +125,19 @@ namespace OLEDable
             if (!s.IsImage && (double)o.W * o.H > 8192.0 * 4320) what += ". Very large for a video: it may not play everywhere.";
             if (s.IsImage) what += (what.Length > 0 ? ".  " : "") + "Saved as PNG.";
             OutNote.Text = what;
+            UpdateWeUi();
+        }
+
+        static readonly Lazy<bool> HasWallpaperEngine = new Lazy<bool>(() => Workshop.FindWallpaperEngine() != null);
+
+        /// <summary>The "Also add to Wallpaper Engine" switch: videos only, when it's installed; warns about the HydroShift size.</summary>
+        void UpdateWeUi()
+        {
+            if (s == null) return;
+            WeRow.Visibility = !s.IsImage && HasWallpaperEngine.Value ? Visibility.Visible : Visibility.Collapsed;
+            sync = true; WeSw.IsChecked = s.AddToWallpaperEngine; sync = false;
+            WeWarn.Visibility = s.AddToWallpaperEngine && (s.OutputMode ?? OutputSpec.HydroShift) == OutputSpec.HydroShift
+                ? Visibility.Visible : Visibility.Collapsed;
         }
 
         /// <summary>A still image has no timeline, motion or frame-to-frame noise cleanup.</summary>

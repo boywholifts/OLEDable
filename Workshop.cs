@@ -97,6 +97,78 @@ namespace OLEDable
             return roots;
         }
 
+        /// <summary>
+        /// Puts an export into Wallpaper Engine as a wallpaper of its own: a folder in its "My projects" with the
+        /// video, a preview and a project.json. Workshop wallpapers are never touched (Steam would put them back
+        /// on the next update anyway). Exporting the same video again updates the same folder, found by the id
+        /// written into its project.json. Returns the folder.
+        /// </summary>
+        public static string AddToWallpaperEngine(EditSession s, string exportPath, string ffmpeg)
+        {
+            var we = FindWallpaperEngine();
+            if (we == null) throw new Exception("Wallpaper Engine wasn't found in your Steam libraries.");
+            var mine = Path.Combine(Path.GetDirectoryName(we), "projects", "myprojects");
+            Directory.CreateDirectory(mine);
+            var title = s.Title ?? Path.GetFileNameWithoutExtension(exportPath);
+
+            string dir = null;
+            if (!string.IsNullOrEmpty(s.WeFolder) && System.IO.File.Exists(Path.Combine(s.WeFolder, "project.json"))) dir = s.WeFolder;
+            if (dir == null)
+                foreach (var d in Directory.EnumerateDirectories(mine))
+                {
+                    try
+                    {
+                        var pj = Path.Combine(d, "project.json");
+                        if (System.IO.File.Exists(pj) && Regex.IsMatch(System.IO.File.ReadAllText(pj), "\"oledable\"\\s*:\\s*\"" + Regex.Escape(s.Id) + "\"")) { dir = d; break; }
+                    }
+                    catch { }
+                }
+            if (dir == null)
+            {
+                var n = "OLEDable - " + SafeName(title);
+                dir = Path.Combine(mine, n);
+                for (int i = 2; Directory.Exists(dir); i++) dir = Path.Combine(mine, n + " (" + i + ")");
+            }
+            Directory.CreateDirectory(dir);
+
+            // the video (an older one under another name goes), then a preview from it
+            var file = (SafeName(title).Length > 0 ? SafeName(title) : "wallpaper") + ".mp4";
+            foreach (var old in Directory.EnumerateFiles(dir, "*.mp4"))
+                if (!string.Equals(Path.GetFileName(old), file, StringComparison.OrdinalIgnoreCase)) TryDelete(old);
+            System.IO.File.Copy(exportPath, Path.Combine(dir, file), true);
+            var preview = Path.Combine(dir, "preview.jpg");
+            if (ffmpeg != null)
+            {
+                var j = new FfJob(ffmpeg, "-y -hide_banner -loglevel error -ss 1 -i " + Q(Path.Combine(dir, file)) + " -frames:v 1 -vf scale=512:-2 -q:v 3 " + Q(preview));
+                if (!j.Wait(20000)) j.Kill();
+                j.Drain();
+            }
+
+            var json = "{\n" +
+                       "  \"title\": " + JsonText(title + " (OLED)") + ",\n" +
+                       "  \"description\": " + JsonText("True-black version made with OLEDable.") + ",\n" +
+                       "  \"type\": \"video\",\n" +
+                       "  \"file\": " + JsonText(file) + ",\n" +
+                       (System.IO.File.Exists(preview) ? "  \"preview\": \"preview.jpg\",\n" : "") +
+                       "  \"tags\": [\"Unspecified\"],\n" +
+                       "  \"oledable\": " + JsonText(s.Id) + "\n" +
+                       "}\n";
+            WriteAtomic(Path.Combine(dir, "project.json"), json);
+            return dir;
+        }
+
+        static string JsonText(string v)
+        {
+            var b = new System.Text.StringBuilder("\"");
+            foreach (var c in v ?? "")
+            {
+                if (c == '"' || c == '\\') b.Append('\\').Append(c);
+                else if (c < ' ') b.Append("\\u").Append(((int)c).ToString("x4"));
+                else b.Append(c);
+            }
+            return b.Append('"').ToString();
+        }
+
         /// <summary>Wallpaper Engine's own exe (64-bit preferred), or null.</summary>
         public static string FindWallpaperEngine()
         {

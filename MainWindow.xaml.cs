@@ -531,18 +531,30 @@ namespace OLEDable
                     cancelCurrent = false;
                     UpdateQueueCard();
                     var snap = q.Ready();
-                    string error = null;
+                    string error = null, weFolder = null;
                     bool ok = await RunJob("Exporting " + q.Title, async (pr, ct) =>
                     {
                         FfJob.LowPriority.Value = true;
                         await P.ExportAsync(snap, q.OutPath, pr, ct);
+                        if (snap.AddToWallpaperEngine && !snap.IsImage)
+                        {
+                            pr.Report(new JobStatus("Adding it to Wallpaper Engine…", -1));
+                            var ff = Ffmpeg;
+                            weFolder = await Task.Run(() => Workshop.AddToWallpaperEngine(snap, q.OutPath, ff), ct);
+                        }
                     }, null, msg => error = msg);
                     SaveSettings();   // keeps the step speeds it measured, for better time estimates next time
                     if (ok)
                     {
                         Queue.Remove(q);
                         if (!S.KeepSources && snap.Kind == "recording") Store.Forget(snap.Id);   // the export is what gets edited next time
-                        if (editor != null) editor.Exported(snap.Id, q.OutPath);
+                        if (weFolder != null)
+                        {
+                            snap.WeFolder = weFolder;
+                            Store.Save(snap);
+                            ShowToast("Added to Wallpaper Engine under My projects (press its refresh button if it isn't listed yet)");
+                        }
+                        if (editor != null) editor.Exported(snap.Id, q.OutPath, weFolder);
                         ShowDone(q.OutPath);
                         if (library != null) library.Refresh();
                     }

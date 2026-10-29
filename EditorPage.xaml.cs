@@ -161,10 +161,11 @@ namespace OLEDable
         }
 
         /// <summary>A queued export of this video finished: later exports update that file.</summary>
-        public void Exported(string id, string path)
+        public void Exported(string id, string path, string weFolder = null)
         {
             if (s == null || s.Id != id) return;
             s.ExistingPath = path;
+            if (weFolder != null) s.WeFolder = weFolder;
             UpdateSaveAs();
         }
         public void OnHidden() { renderTimer.Stop(); FlushAutosave(); }
