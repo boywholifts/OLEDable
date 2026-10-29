@@ -278,7 +278,7 @@ namespace OLEDable
                 Oled = S.DefaultOled(), Loop = S.Loop, Smooth = S.Smooth,
                 OutputName = shell.UniqueOutputName(it.Name),
                 // recorded at the size it's meant for: the HydroShift, or a custom size of exactly that
-                OutputMode = w == OutputSpec.PanelW && h == OutputSpec.PanelH ? null : OutputSpec.Custom,
+                OutputMode = w == OutputSpec.PanelW && h == OutputSpec.PanelH ? null : OutputSpec.ModeFor(w, h),
                 CustomW = w, CustomH = h,
             };
             session.Oled.Black = -1;   // detect

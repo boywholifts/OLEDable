@@ -56,7 +56,7 @@ namespace OLEDable
         [DataMember] public bool EnhanceTta;
         /// <summary>A light unsharp mask after the upscale.</summary>
         [DataMember] public bool EnhanceSharpen;
-        /// <summary>Output size: "hydroshift" (default), "original", "upscale" or "custom"; see <see cref="OutputSpec"/>.</summary>
+        /// <summary>Output size: "hydroshift" (default), "original", "upscale", "4k", "1440p", "1080p" or "custom"; see <see cref="OutputSpec"/>.</summary>
         [DataMember] public string OutputMode;
         /// <summary>2 or 4, for the "upscale" output.</summary>
         [DataMember] public int UpscaleFactor;

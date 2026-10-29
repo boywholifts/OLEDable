@@ -13,6 +13,21 @@ namespace OLEDable
     public class OutputSpec
     {
         public const string HydroShift = "hydroshift", Original = "original", Upscale = "upscale", Custom = "custom";
+        /// <summary>The standard screen sizes, each a choice of its own (filled, cropping to fit).</summary>
+        public const string UHD = "4k", QHD = "1440p", FHD = "1080p";
+
+        /// <summary>Width and height of a standard-size choice, or null.</summary>
+        public static int[] StandardSize(string mode)
+        {
+            return mode == UHD ? new[] { 3840, 2160 } : mode == QHD ? new[] { 2560, 1440 } : mode == FHD ? new[] { 1920, 1080 } : null;
+        }
+
+        /// <summary>The choice for a fill size: a standard one when it matches, otherwise Custom.</summary>
+        public static string ModeFor(int w, int h)
+        {
+            foreach (var m in new[] { UHD, QHD, FHD }) { var z = StandardSize(m); if (z[0] == w && z[1] == h) return m; }
+            return Custom;
+        }
         public const int PanelW = 2288, PanelH = 1048;
 
         public int W, H;
@@ -28,6 +43,8 @@ namespace OLEDable
         {
             string mode = s.OutputMode ?? HydroShift;
             int sw = s.Width, sh = s.Height;
+            var std = StandardSize(mode);
+            if (std != null) return new OutputSpec { W = std[0], H = std[1], Crop = true };
             if (mode == Custom && s.CustomW >= 16 && s.CustomH >= 16)
                 return new OutputSpec { W = Even(s.CustomW), H = Even(s.CustomH), Crop = true };
             if ((mode == Original || mode == Upscale) && sw > 0 && sh > 0)
@@ -42,16 +59,11 @@ namespace OLEDable
 
         public string SizeText { get { return W + " × " + H; } }
 
-        /// <summary>Size presets offered for a custom output.</summary>
+        /// <summary>Size presets offered for a custom output (4K, 1440p and 1080p are choices of their own).</summary>
         public static readonly KeyValuePair<string, int[]>[] Presets =
         {
-            new KeyValuePair<string, int[]>("4K", new[] { 3840, 2160 }),
-            new KeyValuePair<string, int[]>("1440p", new[] { 2560, 1440 }),
-            new KeyValuePair<string, int[]>("1080p", new[] { 1920, 1080 }),
-            new KeyValuePair<string, int[]>("Ultrawide", new[] { 3440, 1440 }),
             new KeyValuePair<string, int[]>("Fold 8 Ultra inner", new[] { 2256, 2504 }),
             new KeyValuePair<string, int[]>("Fold 8 Ultra cover", new[] { 1080, 2520 }),
-            new KeyValuePair<string, int[]>("Phone 1080 × 2400", new[] { 1080, 2400 }),
         };
 
         /// <summary>A size for the editor's preview frames with this shape: about the HydroShift preview's pixel count.</summary>

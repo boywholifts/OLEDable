@@ -32,6 +32,9 @@ namespace OLEDable
             OutPanel.Checked += (o, e) => SetOutput(OutputSpec.HydroShift);
             OutOrig.Checked += (o, e) => SetOutput(OutputSpec.Original);
             OutUp.Checked += (o, e) => SetOutput(OutputSpec.Upscale);
+            Out4K.Checked += (o, e) => SetOutput(OutputSpec.UHD);
+            Out1440.Checked += (o, e) => SetOutput(OutputSpec.QHD);
+            Out1080.Checked += (o, e) => SetOutput(OutputSpec.FHD);
             OutCustom.Checked += (o, e) => SetOutput(OutputSpec.Custom);
             Up2.Checked += (o, e) => SetUpscale(2);
             Up4.Checked += (o, e) => SetUpscale(4);
@@ -56,7 +59,7 @@ namespace OLEDable
             if (outSync || s == null || (s.OutputMode ?? OutputSpec.HydroShift) == mode) return;
             s.OutputMode = mode;
             if (mode == OutputSpec.Upscale && s.UpscaleFactor != 4) s.UpscaleFactor = 2;
-            if (mode == OutputSpec.Custom && (s.CustomW < 16 || s.CustomH < 16)) { s.CustomW = 3840; s.CustomH = 2160; }
+            if (mode == OutputSpec.Custom && (s.CustomW < 16 || s.CustomH < 16)) { s.CustomW = 2256; s.CustomH = 2504; }
             if (mode == OutputSpec.Upscale && s.Enhance == null) s.Enhance = true;   // upscaling is what AI enhance is for
             OutputChanged();
         }
@@ -108,6 +111,9 @@ namespace OLEDable
             OutPanel.IsChecked = mode == OutputSpec.HydroShift;
             OutOrig.IsChecked = mode == OutputSpec.Original;
             OutUp.IsChecked = mode == OutputSpec.Upscale;
+            Out4K.IsChecked = mode == OutputSpec.UHD;
+            Out1440.IsChecked = mode == OutputSpec.QHD;
+            Out1080.IsChecked = mode == OutputSpec.FHD;
             OutCustom.IsChecked = mode == OutputSpec.Custom;
             Up2.IsChecked = s.UpscaleFactor != 4;
             Up4.IsChecked = s.UpscaleFactor == 4;
@@ -124,7 +130,7 @@ namespace OLEDable
             else if (mode == OutputSpec.Upscale)
                 what = o.SizeText + "  ·  " + (s.UpscaleFactor == 4 ? 4 : 2) + "× larger, same shape" +
                        (EnhanceSw.IsChecked == true ? "" : ". Turn on AI enhance below for real detail instead of a plain stretch.");
-            else if (mode == OutputSpec.Custom) what = o.SizeText + "  ·  fills this size, cropping to fit";
+            else if (mode == OutputSpec.Custom || OutputSpec.StandardSize(mode) != null) what = o.SizeText + "  ·  fills this size, cropping to fit";
             else what = o.SizeText + "  ·  fills the HydroShift, cropping to fit" + (s.IsImage ? "" : ", under L-Connect's 30 MB limit");
             if (!s.IsImage && (double)o.W * o.H > 8192.0 * 4320) what += ". Very large for a video: it may not play everywhere.";
             if (s.IsImage) what += (what.Length > 0 ? ".  " : "") + "Saved as PNG.";

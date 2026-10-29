@@ -148,6 +148,12 @@
                            ToolTip="Keeps the source's own size and shape: nothing is cropped or resized."/>
               <RadioButton x:Name="OutUp" Content="Upscale" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
                            ToolTip="Keeps the shape, 2× or 4× larger. Best with AI enhance on."/>
+              <RadioButton x:Name="Out4K" Content="4K" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="3840 × 2160, cropping to fit"/>
+              <RadioButton x:Name="Out1440" Content="1440p" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="2560 × 1440, cropping to fit"/>
+              <RadioButton x:Name="Out1080" Content="1080p" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
+                           ToolTip="1920 × 1080, cropping to fit"/>
               <RadioButton x:Name="OutCustom" Content="Custom" GroupName="outm" Style="{StaticResource Chip}" Margin="0,0,6,6"
                            ToolTip="Fills a size you choose (cropping to fit), e.g. 4K or a phone screen."/>
             </WrapPanel>
