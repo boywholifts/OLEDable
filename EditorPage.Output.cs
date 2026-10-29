@@ -130,7 +130,7 @@ namespace OLEDable
 
         static readonly Lazy<bool> HasWallpaperEngine = new Lazy<bool>(() => Workshop.FindWallpaperEngine() != null);
 
-        /// <summary>The "Also add to Wallpaper Engine" switch: videos only, when it's installed; warns about the HydroShift size.</summary>
+        /// <summary>The "Add to Wallpaper Engine" switch: videos only, when it's installed; warns about the HydroShift size.</summary>
         void UpdateWeUi()
         {
             if (s == null) return;
