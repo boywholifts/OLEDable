@@ -75,12 +75,20 @@ namespace OLEDable
         /// Adds an export. If the same video is already waiting, its entry is updated instead (newest settings,
         /// same place in line), so it isn't exported twice.
         /// </summary>
-        public void Add(QueuedExport q, QueuedExport running)
+        public void Add(QueuedExport q, QueuedExport running, bool next = false)
         {
             var same = items.FirstOrDefault(i => i != running && i.Session.Id == q.Session.Id);
-            if (same != null) items[items.IndexOf(same)] = q;
-            else items.Add(q);
+            int at = same != null ? items.IndexOf(same) : items.Count;   // an update keeps its place in line
+            if (same != null) items.Remove(same);
+            if (next) at = running != null && items.Contains(running) ? items.IndexOf(running) + 1 : 0;   // right after what's running
+            items.Insert(Math.Min(at, items.Count), q);
             Save();
+        }
+
+        /// <summary>The waiting export for this video (not the one running), or null.</summary>
+        public QueuedExport WaitingFor(string sessionId, QueuedExport running)
+        {
+            return items.FirstOrDefault(i => i != running && i.Session.Id == sessionId);
         }
 
         public void Remove(QueuedExport q) { if (items.Remove(q)) Save(); }

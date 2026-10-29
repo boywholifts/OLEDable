@@ -53,7 +53,7 @@ namespace OLEDable
             renderTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
             renderTimer.Tick += (o, e) => StartRender();
             autosaveTimer.Tick += (o, e) => FlushAutosave();
-            saveAsTimer.Tick += (o, e) => { saveAsTimer.Stop(); UpdateSaveAs(); };
+            saveAsTimer.Tick += (o, e) => { saveAsTimer.Stop(); UpdateSaveAs(); UpdateExportBtn(); };
             SetupEnhanceControls();
             SetupOutputControls();
             SetupValueEditing();
@@ -63,7 +63,17 @@ namespace OLEDable
             {
                 if (s == null) return;
                 Commit();
-                if (await shell.Export(s)) { unsaved = false; titleAtOpen = s.Title; }
+                bool restart = false;
+                var cur = shell.CurrentExport;
+                if (cur != null && cur.Session.Id == s.Id && shell.Queue.WaitingFor(s.Id, cur) == null)
+                {
+                    int pick = Dialog.Choose(shell, "Export again with changes",
+                        "“" + (s.Title ?? "This video") + "” is exporting with its earlier settings. Stop it and start again with your changes, or let it finish and export again right after?",
+                        "Stop and restart", "After it finishes");
+                    if (pick == 0) return;
+                    restart = pick == 1;
+                }
+                if (await shell.Export(s, restart)) { unsaved = false; titleAtOpen = s.Title; }
                 UpdateSaveAs();
             };
             ResetBtn.Click += (o, e) => { ResetToAuto(); AnimateSplit(0.5); };
@@ -114,12 +124,40 @@ namespace OLEDable
 
         public void OnShown() { renderTimer.Start(); UpdateExportBtn(); }
 
-        /// <summary>While something else runs, Export adds this video to the queue instead.</summary>
+        /// <summary>
+        /// What Export does right now. For this same video: greyed out while it's exporting (or waiting) with exactly
+        /// these settings; "Export again with changes" / "Update queued export" once something changed. Otherwise
+        /// "Add to queue" while something else runs.
+        /// </summary>
         void UpdateExportBtn()
         {
-            bool later = shell.Busy || shell.CurrentExport != null;
-            ExportBtn.Content = later ? "Add to queue" : "Export";
-            ExportBtn.ToolTip = later ? "Exports after what's running now, with the settings as they are when you click" : null;
+            var cur = shell.CurrentExport;
+            string label, tip = null;
+            bool enabled = true;
+            var waiting = s != null ? shell.Queue.WaitingFor(s.Id, cur) : null;
+            if (s != null && waiting != null)
+            {
+                bool same = Snapshot().SameExportAs(waiting.Session);
+                label = same ? "Queued" : "Update queued export";
+                enabled = !same;
+                tip = same ? "Waiting in the export queue with these settings" : "Replaces the queued export's settings with these (it keeps its place)";
+            }
+            else if (s != null && cur != null && cur.Session.Id == s.Id)
+            {
+                bool same = Snapshot().SameExportAs(cur.Session);
+                label = same ? "Exporting…" : "Export again with changes";
+                enabled = !same;
+                tip = same ? "Exporting with these settings now" : "Stop and restart with these changes, or export again once it finishes";
+            }
+            else
+            {
+                bool later = shell.Busy || cur != null;
+                label = later ? "Add to queue" : "Export";
+                if (later) tip = "Exports after what's running now, with the settings as they are when you click";
+            }
+            ExportBtn.Content = label;
+            ExportBtn.ToolTip = tip;
+            ExportBtn.IsEnabled = enabled;
         }
 
         /// <summary>A queued export of this video finished: later exports update that file.</summary>
@@ -405,6 +443,7 @@ namespace OLEDable
             UpdateEnhanceNote();
             UpdateSaveAs();
             UpdateTrim();
+            UpdateExportBtn();
             LoadFrames();
         }
 

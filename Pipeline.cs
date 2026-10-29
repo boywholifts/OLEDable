@@ -88,6 +88,21 @@ namespace OLEDable
         /// <summary>A still image (PNG, JPEG…) rather than a video.</summary>
         public bool IsImage { get { return Tools.IsImage(SourcePath); } }
 
+        /// <summary>Whether exporting this would give the same file as exporting <paramref name="o"/> (same settings and name).</summary>
+        public bool SameExportAs(EditSession o)
+        {
+            if (o == null) return false;
+            OledParams a = Oled ?? new OledParams(), b = o.Oled ?? new OledParams();
+            return a.Black == b.Black && a.Shadows == b.Shadows && a.Bright == b.Bright && a.Highlights == b.Highlights &&
+                   a.Color == b.Color && a.Glow == b.Glow && a.GlowSize == b.GlowSize && a.Cleanup == b.Cleanup &&
+                   TrueBlack == o.TrueBlack && Loop == o.Loop && Smooth == o.Smooth &&
+                   TrimStart == o.TrimStart && TrimEnd == o.TrimEnd && EnhanceOn == o.EnhanceOn &&
+                   EnhanceStyle == o.EnhanceStyle && EnhanceStrength == o.EnhanceStrength && EnhanceCleanup == o.EnhanceCleanup &&
+                   EnhanceTta == o.EnhanceTta && EnhanceSharpen == o.EnhanceSharpen &&
+                   OutputMode == o.OutputMode && UpscaleFactor == o.UpscaleFactor && CustomW == o.CustomW && CustomH == o.CustomH &&
+                   Title == o.Title && OutputName == o.OutputName;
+        }
+
         public EditSession Clone()
         {
             var c = (EditSession)MemberwiseClone();

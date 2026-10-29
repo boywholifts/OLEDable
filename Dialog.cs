@@ -14,16 +14,22 @@ namespace OLEDable
         /// <summary>Shows a question; returns true when the primary button was clicked.</summary>
         public static bool Ask(Window owner, string title, string message, string primary, string secondary = "Cancel")
         {
-            return Show(owner, title, message, primary, secondary);
+            return Show(owner, title, message, primary, null, secondary) == 1;
+        }
+
+        /// <summary>Three choices: returns 1 for <paramref name="primary"/>, 2 for <paramref name="other"/>, 0 for cancel.</summary>
+        public static int Choose(Window owner, string title, string message, string primary, string other, string cancel = "Cancel")
+        {
+            return Show(owner, title, message, primary, other, cancel);
         }
 
         /// <summary>Shows a message with a single OK button.</summary>
         public static void Tell(Window owner, string title, string message)
         {
-            Show(owner, title, message, "OK", null);
+            Show(owner, title, message, "OK", null, null);
         }
 
-        static bool Show(Window owner, string title, string message, string primary, string secondary)
+        static int Show(Window owner, string title, string message, string primary, string other, string secondary)
         {
             var w = new Window
             {
@@ -59,18 +65,25 @@ namespace OLEDable
             stack.Children.Add(head);
             stack.Children.Add(body);
 
-            bool result = false;
+            int result = 0;
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 22, 0, 0) };
             if (secondary != null)
             {
                 var no = new Button { Content = secondary, Height = 34, MinWidth = 88, Margin = new Thickness(0, 0, 10, 0), IsCancel = true };
                 no.SetResourceReference(FrameworkElement.StyleProperty, "Pill");
-                no.Click += (s, e) => { result = false; w.Close(); };
+                no.Click += (s, e) => { result = 0; w.Close(); };
                 buttons.Children.Add(no);
+            }
+            if (other != null)
+            {
+                var mid = new Button { Content = other, Height = 34, MinWidth = 88, Margin = new Thickness(0, 0, 10, 0) };
+                mid.SetResourceReference(FrameworkElement.StyleProperty, "Pill");
+                mid.Click += (s, e) => { result = 2; w.Close(); };
+                buttons.Children.Add(mid);
             }
             var yes = new Button { Content = primary, Height = 34, MinWidth = 88, IsDefault = true, IsCancel = secondary == null };
             yes.SetResourceReference(FrameworkElement.StyleProperty, "PrimaryPill");
-            yes.Click += (s, e) => { result = true; w.Close(); };
+            yes.Click += (s, e) => { result = 1; w.Close(); };
             buttons.Children.Add(yes);
             stack.Children.Add(buttons);
 

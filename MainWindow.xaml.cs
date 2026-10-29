@@ -38,7 +38,7 @@ namespace OLEDable
         public readonly ExportQueue Queue;
         /// <summary>The queued export running now, or null.</summary>
         public QueuedExport CurrentExport { get; private set; }
-        bool queueRunning, closing, cancelCurrent;
+        bool queueRunning, closing, cancelCurrent, quietCancel;
         public bool DisplayFound { get { return S.Adapter >= 0; } }
         public event Action DisplayChanged;
 
@@ -428,10 +428,10 @@ namespace OLEDable
                 await work(pr, jobCts.Token);
                 return true;
             }
-            catch (OperationCanceledException) { ShowToast("Cancelled"); return false; }
+            catch (OperationCanceledException) { if (!quietCancel) ShowToast("Cancelled"); quietCancel = false; return false; }
             catch (Exception ex)
             {
-                if (jobCts.IsCancellationRequested) { ShowToast("Cancelled"); return false; }
+                if (jobCts.IsCancellationRequested) { if (!quietCancel) ShowToast("Cancelled"); quietCancel = false; return false; }
                 if (onError != null) onError(ex.Message);   // the queue keeps going and shows it on the item instead
                 else Dialog.Tell(this, "Something went wrong", ex.Message);
                 return false;
@@ -488,7 +488,7 @@ namespace OLEDable
         /// the queue: straight away when nothing else is running, otherwise when its turn comes. Returns true once
         /// it's queued.
         /// </summary>
-        public Task<bool> Export(EditSession s)
+        public Task<bool> Export(EditSession s, bool restart = false)
         {
             if (string.IsNullOrEmpty(s.OutputName)) s.OutputName = UniqueOutputName(s.Title, s.IsImage ? ".png" : ".mp4");
             var outPath = OutputPathFor(s);
@@ -498,8 +498,15 @@ namespace OLEDable
             S.RememberEnhance(snap);
             SaveSettings();
             bool wait = Busy || queueRunning;
-            Queue.Add(QueuedExport.For(snap, outPath), CurrentExport);
-            if (wait) ShowToast("Added to the queue: " + (snap.Title ?? snap.OutputName));
+            Queue.Add(QueuedExport.For(snap, outPath), CurrentExport, restart);
+            if (restart && CurrentExport != null && CurrentExport.Session.Id == snap.Id)
+            {
+                // stop the export with the old settings; the new one is next in line, so it starts straight away
+                quietCancel = true; cancelCurrent = true;
+                if (jobCts != null) jobCts.Cancel();
+                ShowToast("Starting again with your changes");
+            }
+            else if (wait) ShowToast("Added to the queue: " + (snap.Title ?? snap.OutputName));
             RunQueue();
             return Task.FromResult(true);
         }
