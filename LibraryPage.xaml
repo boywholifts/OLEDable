@@ -72,13 +72,30 @@
       </StackPanel>
     </Grid>
 
-    <!-- filters -->
-    <DockPanel Grid.Row="1" Margin="0,20,0,0" LastChildFill="False">
-      <RadioButton x:Name="FAll" Content="All" GroupName="lf" Style="{StaticResource Chip}" IsChecked="True"/>
-      <RadioButton x:Name="FRec" Content="Recordings" GroupName="lf" Style="{StaticResource Chip}"/>
-      <RadioButton x:Name="FConv" Content="Converted" GroupName="lf" Style="{StaticResource Chip}"/>
-      <RadioButton x:Name="FTodo" Content="Originals" GroupName="lf" Style="{StaticResource Chip}" ToolTip="Source videos the app hasn't made"/>
-      <TextBlock x:Name="CountText" DockPanel.Dock="Right" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center"/>
+    <!-- filters (they wrap onto a second line in a narrow window), the sort and the count -->
+    <DockPanel Grid.Row="1" Margin="0,20,0,-6">
+      <TextBlock x:Name="CountText" DockPanel.Dock="Right" Margin="0,8,0,6" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Top"/>
+      <Button x:Name="SortBtn" DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" Height="32" Padding="10,0" Margin="0,0,10,6" VerticalAlignment="Top" ToolTip="Sort the library">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock x:Name="SortText" Text="Newest" FontSize="13" VerticalAlignment="Center"/>
+          <Path Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource Sub}" StrokeThickness="1.5" Margin="7,1,0,0" VerticalAlignment="Center"
+                StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+        </StackPanel>
+      </Button>
+      <WrapPanel VerticalAlignment="Center">
+        <RadioButton x:Name="FAll" Content="All" GroupName="lf" Style="{StaticResource Chip}" Margin="0,0,6,6" IsChecked="True"/>
+        <RadioButton x:Name="FRec" Content="Recordings" GroupName="lf" Style="{StaticResource Chip}" Margin="0,0,6,6"/>
+        <RadioButton x:Name="FConv" Content="Converted" GroupName="lf" Style="{StaticResource Chip}" Margin="0,0,6,6"/>
+        <RadioButton x:Name="FTodo" Content="Originals" GroupName="lf" Style="{StaticResource Chip}" Margin="0,0,6,6" ToolTip="Source videos the app hasn't made"/>
+        <!-- size: a second group of chips after a thin divider -->
+        <Border Width="1" Height="20" Background="{DynamicResource Line2}" Margin="6,0,12,0" VerticalAlignment="Center"/>
+        <RadioButton x:Name="SAny" Content="Any size" GroupName="ls" Style="{StaticResource Chip}" Margin="0,0,6,6" IsChecked="True"/>
+        <RadioButton x:Name="SPanel" Content="HydroShift" GroupName="ls" Style="{StaticResource Chip}" Margin="0,0,6,6" ToolTip="2288 × 1048"/>
+        <RadioButton x:Name="S4K" Content="4K" GroupName="ls" Style="{StaticResource Chip}" Margin="0,0,6,6" ToolTip="3840 × 2160"/>
+        <RadioButton x:Name="S1440" Content="1440p" GroupName="ls" Style="{StaticResource Chip}" Margin="0,0,6,6" ToolTip="2560 × 1440"/>
+        <RadioButton x:Name="S1080" Content="1080p" GroupName="ls" Style="{StaticResource Chip}" Margin="0,0,6,6" ToolTip="1920 × 1080"/>
+        <RadioButton x:Name="SOther" Content="Other" GroupName="ls" Style="{StaticResource Chip}" Margin="0,0,6,6" ToolTip="Any other size"/>
+      </WrapPanel>
     </DockPanel>
 
     <!-- import: click, or drop a file anywhere on the window (it lights up while something is dragged over it) -->

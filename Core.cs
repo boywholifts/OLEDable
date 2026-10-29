@@ -176,6 +176,8 @@ namespace OLEDable
         [DataMember] public bool KeepSources;
         /// <summary>Exports left in the queue start again when the app opens (otherwise they wait for "Start").</summary>
         [DataMember] public bool AutoResumeQueue;
+        /// <summary>The library's order: "newest" (default), "oldest", "name", "resolution", "length" or "filesize".</summary>
+        [DataMember] public string LibrarySort;
         /// <summary>Where exports go; empty = a "Converted" folder inside the library.</summary>
         [DataMember] public string ConvertedDir;
         /// <summary>Set once the user was offered to move older exports into the converted folder.</summary>

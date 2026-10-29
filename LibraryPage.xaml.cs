@@ -59,7 +59,9 @@ namespace OLEDable
             EmptyImport.Click += (s, e) => shell.PickAndImport();
             EmptyRecord.Click += (s, e) => shell.ShowWallpaperEngine();
             RecScreenBtn.Click += (s, e) => shell.ShowRecord();
-            foreach (var r in new[] { FAll, FRec, FConv, FTodo }) r.Checked += (s, e) => ApplyFilter();
+            foreach (var r in new[] { FAll, FRec, FConv, FTodo, SAny, SPanel, S4K, S1440, S1080, SOther }) r.Checked += (s, e) => ApplyFilter();
+            SortBtn.Click += (s, e) => ShowSortMenu();
+            SortText.Text = SortLabel(shell.S.LibrarySort);
             shell.LiveResizeEnded += Layout;
             // at most one re-layout per frame while the window is being resized
             Scroller.SizeChanged += (s, e) =>
@@ -181,6 +183,57 @@ namespace OLEDable
             Refresh();
         }
 
+        /// <summary>HydroShift, 4K, 1440p, 1080p or "w × h"; null until the video's details are read.</summary>
+        static string SizeOf(LibraryItem i)
+        {
+            return i.Info != null && i.Info.Width > 0 ? LibraryScanner.SizeLabel(i.Info.Width, i.Info.Height) : null;
+        }
+
+        static readonly string[][] SortChoices =
+        {
+            new[] { "newest", "Newest" }, new[] { "oldest", "Oldest" }, new[] { "name", "Name" },
+            new[] { "resolution", "Resolution" }, new[] { "length", "Length" }, new[] { "filesize", "File size" },
+        };
+
+        static string SortLabel(string key)
+        {
+            foreach (var c in SortChoices) if (c[0] == key) return c[1];
+            return "Newest";
+        }
+
+        /// <summary>The library in the chosen order (largest first for resolution, length and file size).</summary>
+        List<LibraryItem> Sorted(List<LibraryItem> items)
+        {
+            switch (shell.S.LibrarySort)
+            {
+                case "oldest": return items.OrderBy(i => i.Modified).ToList();
+                case "name": return items.OrderBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+                case "resolution": return items.OrderByDescending(i => i.Info != null ? (long)i.Info.Width * i.Info.Height : 0).ThenByDescending(i => i.Modified).ToList();
+                case "length": return items.OrderByDescending(i => i.Info != null ? i.Info.Duration : 0).ThenByDescending(i => i.Modified).ToList();
+                case "filesize": return items.OrderByDescending(i => i.Size).ToList();
+                default: return items.OrderByDescending(i => i.Modified).ToList();
+            }
+        }
+
+        void ShowSortMenu()
+        {
+            var menu = new ContextMenu { PlacementTarget = SortBtn, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            foreach (var c in SortChoices)
+            {
+                var key = c[0];
+                var item = new MenuItem { Header = (SortLabel(shell.S.LibrarySort) == c[1] ? "✓  " : "     ") + c[1] };
+                item.Click += (s, e) =>
+                {
+                    shell.S.LibrarySort = key;
+                    shell.SaveSettings();
+                    SortText.Text = c[1];
+                    ApplyFilter();
+                };
+                menu.Items.Add(item);
+            }
+            menu.IsOpen = true;
+        }
+
         void ApplyFilter()
         {
             IEnumerable<LibraryItem> items = all;
@@ -191,11 +244,17 @@ namespace OLEDable
             else if (FTodo.IsChecked == true) items = items.Where(i => i.Id == null && !i.InConverted);
             // tiles are made once per scan of the folder (and only when something changed); the filters only show
             // or hide them (rebuilding every tile on each switch gets slow as the library grows)
-            if (built == null || !built.SequenceEqual(all))
+            if (SPanel.IsChecked == true) items = items.Where(i => SizeOf(i) == "HydroShift");
+            else if (S4K.IsChecked == true) items = items.Where(i => SizeOf(i) == "4K");
+            else if (S1440.IsChecked == true) items = items.Where(i => SizeOf(i) == "1440p");
+            else if (S1080.IsChecked == true) items = items.Where(i => SizeOf(i) == "1080p");
+            else if (SOther.IsChecked == true) items = items.Where(i => { var z = SizeOf(i); return z != null && z.Contains("×"); });
+            var ordered = Sorted(all);
+            if (built == null || !built.SequenceEqual(ordered))
             {
-                built = all;
+                built = ordered;
                 view.Clear();
-                foreach (var i in all) view.Add(i);
+                foreach (var i in ordered) view.Add(i);
             }
             var shown = new HashSet<LibraryItem>(items);
             foreach (var i in all) i.IsShown = shown.Contains(i);
@@ -209,7 +268,8 @@ namespace OLEDable
             ImportStrip.Visibility = all.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             Empty.Visibility = all.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             Scroller.Visibility = all.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-            CountText.Text = all.Count == 1 ? "1 video" : all.Count + " videos";
+            int n = shown.Count;
+            CountText.Text = n == all.Count ? (all.Count == 1 ? "1 video" : all.Count + " videos") : n + " of " + all.Count;
         }
 
         bool layoutQueued;
