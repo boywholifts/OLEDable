@@ -21,10 +21,11 @@ Download `OLEDable-Setup-x.y.z.exe` from [Releases](../../releases) and run it. 
 
 - **True black:** a live before/after preview. The black level is detected for each video, and shadows, color, brightness, highlights and glow can be fine-tuned.
   - Turning very dark greys into black means anything drawn in them goes too: true black alone, or pushing the settings too far, can lose shadow detail. The before/after preview shows exactly what changes, and **Reset** puts every setting back.
-- **Wallpaper Engine:** browse every wallpaper you've downloaded. Videos import in one click; scenes give up their video or background image, or are recorded as a video. Wallpaper Engine's own files are never changed.
+- **Wallpaper Engine:** browse every wallpaper you've downloaded. Videos import in one click; scenes give up their video or background image, or are recorded as a video.
+  - **Add to Wallpaper Engine:** send the result back as a wallpaper of its own, with the original's sound, from the editor or straight from the library. Updating it later replaces the same copy, and Wallpaper Engine's own files are never changed.
 - **AI enhance:** Real-ESRGAN redraws small or soft wallpapers at a higher resolution.
 - **Smooth to 60 fps:** RIFE adds real in-between frames to lower frame-rate videos.
-- **Any size:** keep the original, upscale 2× or 4×, or fill a size you choose (4K, ultrawide, phone…).
+- **Any size:** keep the original, upscale 2× or 4×, fill 4K, 1440p or 1080p, or a size of your own. The library shows each video's size.
 - **Seamless loops:** the end crossfades into the start.
 - **Export queue:** keep editing while exports run one after another. The queue survives a restart, and can resume by itself.
 - **Record a screen:** capture any monitor, with a live preview.
