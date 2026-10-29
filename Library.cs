@@ -262,11 +262,8 @@ namespace OLEDable
             }
 
             var bits = new List<string> { it.KindLabel };
-            if (info != null && it.IsImage)
-            {
-                if (info.Width > 0) bits.Add(info.Width + " × " + info.Height);
-            }
-            else if (info != null)
+            if (info != null && info.Width > 0) bits.Add(SizeLabel(info.Width, info.Height));
+            if (info != null && !it.IsImage)
             {
                 if (info.Fps > 0) bits.Add(string.Format(Inv, "{0:0} fps", info.Fps));
                 if (info.Duration > 0) bits.Add(Fmt(info.Duration));
@@ -349,6 +346,16 @@ namespace OLEDable
                 }
             }
             catch { }
+        }
+
+        /// <summary>The size as people know it: HydroShift, 4K, 1440p, 1080p, or the numbers.</summary>
+        public static string SizeLabel(int w, int h)
+        {
+            if (w == OutputSpec.PanelW && h == OutputSpec.PanelH) return "HydroShift";
+            if (w == 3840 && h == 2160) return "4K";
+            if (w == 2560 && h == 1440) return "1440p";
+            if (w == 1920 && h == 1080) return "1080p";
+            return w + " × " + h;
         }
 
         /// <summary>Cache key from path, size and date, so an updated video gets a new thumbnail.</summary>
