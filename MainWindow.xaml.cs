@@ -447,6 +447,30 @@ namespace OLEDable
             }
         }
 
+        /// <summary>
+        /// A short job that's light on the PC (copying a wallpaper into the library, pulling an image or video out
+        /// of a scene, downloading a model). When nothing is running it shows in the sidebar like any job; during an
+        /// export it runs alongside it instead of being turned away, so the next video can be opened and edited
+        /// while the export works.
+        /// </summary>
+        public async Task<bool> RunQuick(string title, Func<IProgress<JobStatus>, CancellationToken, Task> work)
+        {
+            if (!Busy) return await RunJob(title, work);
+            ShowToast(title + "…");
+            try
+            {
+                using (var cts = new CancellationTokenSource())
+                    await work(new Progress<JobStatus>(_ => { }), cts.Token);
+                return true;
+            }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                Dialog.Tell(this, "Something went wrong", ex.Message);
+                return false;
+            }
+        }
+
         string donePath;
 
         /// <summary>The sidebar note that an export finished; it stays until dismissed or the next job starts.</summary>

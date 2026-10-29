@@ -257,7 +257,7 @@ namespace OLEDable
         {
             var key = s.EnhanceStyle ?? EsrModel.Anime;
             if (shell.P.HasModel(key)) return true;
-            bool ok = await shell.RunJob("Getting AI enhance", (pr, ct) => shell.P.EnsureEsrganAsync(pr, ct, key));
+            bool ok = await shell.RunQuick("Getting AI enhance", (pr, ct) => shell.P.EnsureEsrganAsync(pr, ct, key));
             return ok && shell.P.HasModel(key);
         }
 

@@ -290,7 +290,7 @@ namespace OLEDable
         async void ImportVideo(WeItem it)
         {
             string copy = null;
-            bool ok = await shell.RunJob("Copying " + it.Name, (pr, ct) => Task.Run(() =>
+            bool ok = await shell.RunQuick("Copying " + it.Name, (pr, ct) => Task.Run(() =>
             {
                 pr.Report(new JobStatus("Copying the video into your library…", -1));
                 copy = Workshop.CopyVideo(shell.S, it);
@@ -303,7 +303,7 @@ namespace OLEDable
         async void ExtractScene(WeItem it, bool video)
         {
             string result = null;
-            bool ok = await shell.RunJob((video ? "Taking the video from: " : "Extracting still: ") + it.Name, async (pr, ct) =>
+            bool ok = await shell.RunQuick((video ? "Taking the video from: " : "Extracting still: ") + it.Name, async (pr, ct) =>
             {
                 if (video)
                 {
