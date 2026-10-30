@@ -146,6 +146,7 @@ namespace OLEDable
             if (gen == generation)
             {
                 ApplyFilter(); OfferMoveConverted();   // kinds are known now
+                shell.OnLibraryReady();
                 var snapshot = all.ToList();
                 _ = Task.Run(() => LibraryScanner.PruneCache(cache, snapshot));
             }

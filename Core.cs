@@ -178,6 +178,8 @@ namespace OLEDable
         [DataMember] public bool AutoResumeQueue;
         /// <summary>The library's order: "newest" (default), "oldest", "name", "resolution", "length" or "filesize".</summary>
         [DataMember] public string LibrarySort;
+        /// <summary>Read the Wallpaper Engine page in the background after startup, so its first visit is instant.</summary>
+        [DataMember] public bool PreloadWallpaperEngine;
         /// <summary>Where exports go; empty = a "Converted" folder inside the library.</summary>
         [DataMember] public string ConvertedDir;
         /// <summary>Set once the user was offered to move older exports into the converted folder.</summary>
@@ -217,6 +219,7 @@ namespace OLEDable
             EnhanceStyle = "anime"; EnhanceStrength = 0.75; EnhanceCleanup = false; EnhanceTta = false; EnhanceSharpen = false;
             Rates = new Dictionary<string, double>();
             UpdateChannel = "stable"; AutoUpdateCheck = true;
+            PreloadWallpaperEngine = true;
         }
 
         /// <summary>The look the editor starts from for a new video (black level is filled in automatically).</summary>

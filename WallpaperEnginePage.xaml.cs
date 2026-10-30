@@ -28,10 +28,12 @@ namespace OLEDable
         readonly System.Collections.ObjectModel.ObservableCollection<WeItem> view = new System.Collections.ObjectModel.ObservableCollection<WeItem>();
         bool loaded;
         int generation;
+        readonly string previewCache;
 
         public WallpaperEnginePage(MainWindow shell)
         {
             this.shell = shell;
+            previewCache = Path.Combine(shell.CacheDir, "workshop");
             InitializeComponent();
             Tiles.ItemsSource = view;
             foreach (var r in new[] { FAll, FVideo, FScene, FOther }) r.Checked += (s, e) => ApplyFilter();
@@ -41,6 +43,7 @@ namespace OLEDable
                 ApplyFilter();
             };
             RefreshBtn.Click += (s, e) => Refresh();
+            PreloadCleanup();
             EditBtn.Click += (s, e) => { if (selected != null) ImportVideo(selected); };
             RecordBtn.Click += (s, e) => { if (selected != null) AskAndRecord(selected); };
             StillBtn.Click += (s, e) => { if (selected != null) ExtractScene(selected, false); };
@@ -54,6 +57,22 @@ namespace OLEDable
                 layoutQueued = true;
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, new Action(() => { layoutQueued = false; Layout(); }));
             };
+        }
+
+        /// <summary>Removes cached previews older than 60 days (wallpapers since unsubscribed or updated).</summary>
+        void PreloadCleanup()
+        {
+            var dir = previewCache;
+            Task.Run(() =>
+            {
+                try
+                {
+                    if (!Directory.Exists(dir)) return;
+                    var cutoff = DateTime.Now.AddDays(-60);
+                    foreach (var f in Directory.EnumerateFiles(dir)) { try { if (File.GetLastAccessTime(f) < cutoff && File.GetLastWriteTime(f) < cutoff) File.Delete(f); } catch { } }
+                }
+                catch { }
+            });
         }
 
         public void OnShown() { if (!loaded) Refresh(); else StartPreview(); }
@@ -83,7 +102,13 @@ namespace OLEDable
             else preview.PlayGif(put, it.PreviewPath);
         }
 
-        async void Refresh()
+        /// <summary>
+        /// Reads the wallpapers ahead of time, quietly, so the first visit is instant: called a few seconds after the
+        /// Library has loaded (a setting). The tiles themselves are only drawn when the page is shown.
+        /// </summary>
+        public void Preload() { if (!loaded) Refresh(2); }
+
+        async void Refresh(int parallel = 6)
         {
             loaded = true;
             int gen = ++generation;
@@ -127,14 +152,14 @@ namespace OLEDable
                     : "Subscribe to wallpapers in Wallpaper Engine (Steam Workshop) and they'll show up here.";
             }
             FindSceneVideos(gen);
-            using (var gate = new SemaphoreSlim(6))
+            using (var gate = new SemaphoreSlim(parallel))
             {
                 await Task.WhenAll(all.Select(async it =>
                 {
                     await gate.WaitAsync();
                     try
                     {
-                        var img = await Task.Run(() => Workshop.LoadPreview(it.PreviewPath));
+                        var img = await Task.Run(() => Workshop.LoadPreview(it.PreviewPath, previewCache));
                         if (gen == generation) it.Thumb = img;
                     }
                     finally { gate.Release(); }

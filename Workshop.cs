@@ -221,6 +221,40 @@ namespace OLEDable
         static DateTime SafeTime(string d) { try { return Directory.GetLastWriteTime(d); } catch { return DateTime.MinValue; } }
 
         /// <summary>The preview image, small (off the UI thread).</summary>
+        /// <summary>
+        /// The preview, small, through a disk cache: the first time, the Workshop's preview (often a large image
+        /// or an animated GIF) is decoded and saved at tile size; after that the small copy loads almost at once.
+        /// </summary>
+        public static ImageSource LoadPreview(string path, string cacheDir)
+        {
+            if (path == null) return null;
+            if (cacheDir == null) return LoadPreview(path);
+            try
+            {
+                var fi = new FileInfo(path);
+                if (!fi.Exists) return null;
+                string key;
+                using (var sha = System.Security.Cryptography.SHA1.Create())
+                    key = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(path.ToLowerInvariant() + "|" + fi.Length + "|" + fi.LastWriteTimeUtc.Ticks)), 0, 10).Replace("-", "");
+                var cached = Path.Combine(cacheDir, key + ".jpg");
+                if (System.IO.File.Exists(cached)) return LoadPreview(cached);
+                var img = LoadPreview(path) as BitmapSource;
+                if (img == null) return null;
+                try
+                {
+                    Directory.CreateDirectory(cacheDir);
+                    var enc = new JpegBitmapEncoder { QualityLevel = 88 };
+                    enc.Frames.Add(BitmapFrame.Create(img));
+                    var tmp = cached + ".tmp";
+                    using (var f = System.IO.File.Create(tmp)) enc.Save(f);
+                    if (System.IO.File.Exists(cached)) TryDelete(tmp); else System.IO.File.Move(tmp, cached);
+                }
+                catch { }
+                return img;
+            }
+            catch { return LoadPreview(path); }
+        }
+
         public static ImageSource LoadPreview(string path)
         {
             if (path == null) return null;

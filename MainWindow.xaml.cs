@@ -194,6 +194,23 @@ namespace OLEDable
         RecordPage Record { get { return record ?? (record = new RecordPage(this)); } }
         WallpaperEnginePage wePage;
         WallpaperEnginePage WePage { get { return wePage ?? (wePage = new WallpaperEnginePage(this)); } }
+        bool weWarmed;
+
+        /// <summary>The Library has loaded: a few seconds later, the Wallpaper Engine page reads its wallpapers quietly.</summary>
+        public void OnLibraryReady()
+        {
+            if (weWarmed || !S.PreloadWallpaperEngine) return;
+            weWarmed = true;
+            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            t.Tick += (s, e) =>
+            {
+                t.Stop();
+                if (closing || !S.PreloadWallpaperEngine) return;
+                if (Workshop.FindWallpaperEngine() == null && Workshop.Roots().Count == 0) return;
+                WePage.Preload();
+            };
+            t.Start();
+        }
         SettingsPage SettingsPg { get { return settings ?? (settings = new SettingsPage(this)); } }
         EditorPage Editor { get { return editor ?? (editor = new EditorPage(this)); } }
 

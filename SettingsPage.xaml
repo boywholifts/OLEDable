@@ -179,6 +179,15 @@
                          FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
             </StackPanel>
           </DockPanel>
+          <Border Height="1" Background="{DynamicResource Line}" Margin="16,0,0,0"/>
+          <DockPanel Style="{StaticResource Row}">
+            <ToggleButton x:Name="PreloadSw" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Get the Wallpaper Engine page ready in the background"/>
+              <TextBlock Text="A few seconds after OLEDable opens, it reads your wallpapers quietly, so the page opens at once. Turn off if Steam is on a slow drive."
+                         FontSize="12" Foreground="{DynamicResource Sub}" TextWrapping="Wrap" Margin="0,2,16,0"/>
+            </StackPanel>
+          </DockPanel>
         </StackPanel>
       </Border>
 
