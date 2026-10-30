@@ -155,3 +155,11 @@ jobs:
           files: |
             dist/OLEDable.exe
             dist-installer/*.exe
+
+  # keep the Releases page short: the newest 5 dev builds stay, older ones go (stable releases are never touched)
+  cleanup:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/cleanup.yml
+    with:
+      keep: "5"

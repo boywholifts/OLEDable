@@ -1,0 +1,36 @@
+name: Clean up dev builds
+
+# Removes old dev pre-releases (and their tags), keeping the newest few. Stable releases are never touched.
+# Run it from the Actions tab; the build workflow also runs it after each new dev build.
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: How many of the newest dev builds to keep
+        default: "5"
+  workflow_call:
+    inputs:
+      keep:
+        type: string
+        default: "5"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove old dev builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          KEEP: ${{ inputs.keep }}
+        run: |
+          gh api --paginate "repos/$REPO/releases?per_page=100" \
+            --jq '.[] | select(.prerelease and (.tag_name | test("-dev\\."))) | [.published_at, .tag_name] | @tsv' \
+            | sort -r | tail -n +$((KEEP + 1)) | cut -f2 \
+            | while read -r tag; do
+                echo "Removing $tag"
+                gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag
+              done
