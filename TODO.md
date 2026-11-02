@@ -112,6 +112,7 @@
 - Export queue (dev.83, not yet tested on the PC): ExportQueue.cs, queue.json in the data folder, sidebar QueueCard (remove / Start / Clear), editor button becomes "Add to queue", exports at BelowNormal priority (FfJob.LowPriority), setting AutoResumeQueue. Also: Manrope font, Eclipse logo, single instance, Black level tooltip.
 
 ## Still open
+- Library sort: add ascending / descending. Each sort (Newest/Oldest, Name, Resolution, Length, File size) should be flippable, e.g. a direction toggle next to the Sort button, remembered in settings.
 - Make a recording with the HydroShift in second screen mode (end-to-end).
 - Benchmark AI enhance speed on the 5090 and tune `-j` threads if needed.
 - Code signing: Azure Artifact Signing (Basic, $9.99/mo; account `oledable`, profile `oledable`, East US; certificate "Jesse Sievers, Cutler Bay, FL, US"). The workflow signs OLEDable.exe and the setup on main via OIDC (app registration `oledable-github`, federated credentials for main). Identity validation expires: renew when Microsoft emails (60 days ahead). Reapply to SignPath Foundation later once the app has traction.
