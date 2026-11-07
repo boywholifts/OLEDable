@@ -50,6 +50,7 @@ namespace OLEDable
             ImportBtn.Click += (s, e) => shell.PickAndImport();
             EditBtn.Click += (s, e) => { if (selected != null) shell.OpenItem(selected); };
             SelFolderBtn.Click += (s, e) => { if (selected != null) MainWindow.OpenInShell(selected.Path, true); };
+            OledBtn.Click += (s, e) => { if (selected != null) HydroShift.Play(shell, selected.Path); };
             WeAddBtn.Click += (s, e) => { if (selected != null) shell.AddToWallpaperEngine(selected); };
             RefreshBtn.Click += (s, e) => Refresh();
             // the import strip lights up while a file is dragged over it (the window takes the drop)
@@ -96,7 +97,7 @@ namespace OLEDable
             selected = it;
             if (it != null) it.IsSelected = true;
             SelHint.Visibility = it == null ? Visibility.Visible : Visibility.Collapsed;
-            EditBtn.Visibility = SelFolderBtn.Visibility = it == null ? Visibility.Collapsed : Visibility.Visible;
+            EditBtn.Visibility = SelFolderBtn.Visibility = OledBtn.Visibility = it == null ? Visibility.Collapsed : Visibility.Visible;
             WeAddBtn.Visibility = it != null && !it.IsImage && HasWallpaperEngine.Value ? Visibility.Visible : Visibility.Collapsed;
             StartPreview();
         }
@@ -344,6 +345,7 @@ namespace OLEDable
             var menu = new ContextMenu();
             menu.Items.Add(Item("Edit", () => shell.OpenItem(it)));
             menu.Items.Add(Item("Play", () => MainWindow.OpenInShell(it.Path)));
+            menu.Items.Add(Item("Play on HydroShift", () => HydroShift.Play(shell, it.Path)));
             menu.Items.Add(Item("Show in folder", () => MainWindow.OpenInShell(it.Path, true)));
             menu.Items.Add(Item("Delete", () => Delete(it)));
             menu.PlacementTarget = el;

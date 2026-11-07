@@ -47,6 +47,8 @@
         <TextBlock x:Name="SelHint" Text="Select a video" Foreground="{DynamicResource Sub}" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
         <Button x:Name="EditBtn" Content="Edit" Style="{StaticResource PrimaryPill}" Margin="0,0,10,0" Visibility="Collapsed"
                 ToolTip="Open it in the editor"/>
+        <Button x:Name="OledBtn" Content="Play on HydroShift" Style="{StaticResource Pill}" Margin="0,0,10,0" Visibility="Collapsed"
+                ToolTip="Show it on the HydroShift II screen now, through RGBable"/>
         <Button x:Name="WeAddBtn" Content="Add to Wallpaper Engine" Style="{StaticResource Pill}" Margin="0,0,4,0" Visibility="Collapsed"
                 ToolTip="A wallpaper of its own in Wallpaper Engine's My projects, with the original's sound. Takes seconds: nothing is exported again, and adding it again updates the same copy."/>
         <Button x:Name="SelFolderBtn" Style="{StaticResource GhostBtn}" Width="40" Padding="0" Margin="6,0,6,0" Visibility="Collapsed"
