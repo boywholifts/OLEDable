@@ -148,7 +148,17 @@
             </DockPanel>
             <TextBlock x:Name="DoneName" FontSize="13.5" Foreground="{DynamicResource Text}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
             <TextBlock x:Name="DoneText" FontSize="13.5" Foreground="{DynamicResource Sub}" Margin="0,2,0,6" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="Show in folder" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource AccentText}"/>
+            <WrapPanel>
+              <TextBlock Text="Show in folder" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource AccentText}" Margin="0,0,14,0"/>
+              <Button x:Name="DonePlay" Cursor="Hand" Focusable="False" ToolTip="Show it on the HydroShift II screen (through RGBable)">
+                <Button.Template><ControlTemplate TargetType="Button">
+                  <TextBlock x:Name="pt" Text="Play on HydroShift" FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource AccentText}"/>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="pt" Property="TextDecorations" Value="Underline"/></Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate></Button.Template>
+              </Button>
+            </WrapPanel>
           </StackPanel>
         </Button>
 

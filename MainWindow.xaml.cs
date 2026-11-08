@@ -101,6 +101,7 @@ namespace OLEDable
                 else ShowToast("That file has been moved or deleted.");
             };
             DoneDismiss.Click += (s, e) => { e.Handled = true; DoneCard.Visibility = Visibility.Collapsed; };
+            DonePlay.Click += (s, e) => { e.Handled = true; if (donePath != null) HydroShift.Play(this, donePath); };
             UpdateDismiss.Click += (s, e) =>
             {
                 if (update != null) { S.SkippedVersion = update.Version.ToString(); SaveSettings(); }
